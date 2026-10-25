@@ -49,6 +49,21 @@ function logistic(z: number): number {
  * 0 = «más oscuro» (movimiento hacia el lado del gris), 1 = «quieto», 2 = «más claro».
  * P(0) y P(2) son logísticas opuestas centradas en μ∓δ/μ±δ; P(1) es el resto (máximo en μ, ≥ 0 si δ ≥ 0).
  */
+/**
+ * Bordes (Colorado, punto 6): «Ninguno» es un fallo de detección informativo, no azar.
+ * D = 1 − e^−(x/α)^β. Detectado: elige el distinto (1−λ); lapsus λ repartido entre disco
+ * equivocado y «ninguno». No detectado: «ninguno» (1−λ); lapsus λ como elección al azar
+ * entre los N discos. Respuestas: 0 visto, 1 disco equivocado, 2 ninguno. Parámetros [α, β, λ].
+ */
+export function detect3(n = 4): ResponseFn[] {
+  const D = (x: number, a: number, b: number) => 1 - Math.exp(-((x / a) ** b));
+  return [
+    (x, a, b, l) => D(x, a, b) * (1 - l) + (1 - D(x, a, b)) * (l / n),
+    (x, a, b, l) => (D(x, a, b) * l) / 2 + (1 - D(x, a, b)) * ((l * (n - 1)) / n),
+    (x, a, b, l) => (D(x, a, b) * l) / 2 + (1 - D(x, a, b)) * (1 - l),
+  ];
+}
+
 export function motion3(): ResponseFn[] {
   const up = (x: number, mu: number, b: number, d: number, l: number) => l / 3 + (1 - l) * logistic(b * (x - mu - d));
   const down = (x: number, mu: number, b: number, d: number, l: number) => l / 3 + (1 - l) * logistic(-b * (x - mu + d));

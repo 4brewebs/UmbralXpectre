@@ -1,15 +1,22 @@
 import { ANCHOR, addScaled, dirFromTheta, maxScale, toSrgb8, type Vec3 } from "./space";
-import { createQuestPlus, grid, weibull2afc, type JsQuest, type QuestPlus } from "./questplus";
+import { createQuestPlus, detect3, grid, type JsQuest, type QuestPlus } from "./questplus";
+import { deltaE00Linear } from "./deltaE";
 
 /**
  * QUEST+ en el refinamiento tras el bracketing (PLAN-questplus §3.2, tras flag `?qp=1`).
  * Weibull de Watson (2017) en d = |ángulo − pico|: P(ver el disco distinto) = γ + (1−γ−λ)(1 − e^−(d/α)^β),
- * γ = 1/N (N = 4 discos), α = distancia del borde (°), β y λ marginalizados (decisión 2).
- * «Nada destaca» y disco equivocado cuentan como no visto (como la escalera); ver preguntas abiertas.
- * Parada: IC 95 % de α < 1° (la conversión a ΔE00 queda abierta) o 40 ensayos (decisión 5).
+ * α = distancia del borde (°), β y λ marginalizados (decisión 2).
+ * Modelo de 3 respuestas `detect3` (Colorado, punto 6): «Ninguno» = fallo de detección informativo,
+ * disco equivocado = lapsus/azar. La escalera por defecto no cambia.
+ * Parada (Colorado): IC 95 % de α < 2° o 45 ensayos. 1 ΔE00 se convierte a ángulo por bisección
+ * (`angleForDeltaE`) y se guarda junto al IC en ΔE00; a la escala de los discos 1 ΔE00 ≈ 8–12°,
+ * así que «IC < 1 ΔE00» sería mucho más laxo que 2° (pregunta abierta).
+ * Fiabilidad: catch de diferencia obvia (tono +90° del pico); si > 25 % son «ninguno», la ronda no es fiable.
  */
-/** Parada (Colorado): IC < 2°, máx. 45. `fixedSlope` apagado: con β fijo el sesgo simulado es −5,5 % (> 3 %), así que se marginaliza. */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 2, maxTrials: 45 };
+/** Parada (Colorado): IC < 2°, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 2, stopDeltaE: 1, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25 };
+
+type QpCtx = { Q: JsQuest; scale: number };
 
 export type ConeId = "l" | "m" | "s";
 export type EdgeName = "rojos" | "verdes" | "azules";
@@ -41,6 +48,8 @@ export interface EdgeTrial {
   repeat: boolean;
   /** Set when this question repeats a bound already answered: the last miss or the last hit. */
   check: "inside" | "outside" | null;
+  /** Catch de diferencia obvia (solo con QUEST+). */
+  catch?: true;
   positive: [number, number, number];
   negative: [number, number, number];
 }
@@ -64,6 +73,8 @@ export interface EdgeFile {
   depth: { angleDeg: number; scale: number; bound: "estimate" | "at-least"; ceiling: number } | null;
   confirmed: { minus: number | null; plus: number | null };
   trials: EdgeTrial[];
+  /** Solo con QUEST+: catch obvios y si la ronda es fiable (> 25 % «ninguno» ⇒ no fiable). */
+  reliability?: { catches: number; none: number; unreliable: boolean };
 }
 
 interface EdgeBound {
@@ -76,6 +87,8 @@ interface EdgeBound {
   insideDeg: number | null;
   /** Last repeated hit, outside the miss. */
   outsideDeg: number | null;
+  /** Solo con QUEST+: IC 95 % en ° y ΔE00, y cuántos grados son 1 ΔE00 en ese color. */
+  qp?: { ciDeg: number; ciDeltaE00: number; deg1DeltaE: number; trials: number };
 }
 
 interface Side {
@@ -95,6 +108,11 @@ interface Side {
   /** QUEST+ del refinamiento (solo con flag). */
   qp?: QuestPlus;
   qpTrials?: number;
+  /** Ángulo (°) de 1 ΔE00 en el color de referencia de este lado (bisección). */
+  deg1DeltaE?: number;
+  qpScale?: number;
+  /** IC 95 % final en ° y en ΔE00. */
+  qpCi?: { deg: number; deltaE00: number };
 }
 
 export interface EdgeRun {
@@ -131,6 +149,9 @@ export interface EdgeRun {
   band: EdgeFile["band"] | null;
   /** jsQuestPlus cargado: activa QUEST+ en el refinamiento. */
   questPlus?: JsQuest;
+  /** Ensayo actual es un catch de diferencia obvia (solo con QUEST+). */
+  catchTrial?: boolean;
+  catches?: { shown: number; none: number };
 }
 
 export interface EdgeAnswer {
@@ -365,16 +386,37 @@ function finishAtEnd(side: Side, limit: number): Side {
   };
 }
 
+/**
+ * Ángulo de tono θ (°) tal que ΔE00(ref(pico), ref(pico ± θ)) = target, por bisección en θ
+ * (Colorado, punto 6). ref(φ) = gris + dir(φ)·escala, el color del disco a ese tono.
+ */
+export function angleForDeltaE(peakDeg: number, scale: number, sign: 1 | -1, target: number, maxDeg = 90): number {
+  const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const ref = addScaled(gray, dirFromTheta(rad(peakDeg)), scale);
+  const de = (t: number) => deltaE00Linear(ref, addScaled(gray, dirFromTheta(rad(peakDeg + sign * t)), scale));
+  if (de(maxDeg) < target) return maxDeg;
+  let lo = 0;
+  let hi = maxDeg;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (de(mid) < target) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 /** Arranca QUEST+ dentro del intervalo del bracketing, prior uniforme (§3.2). */
-function startQuest(side: Side, peak: number, Q: JsQuest): Side {
+function startQuest(side: Side, peak: number, ctx: QpCtx): Side {
   const a = Math.abs((side.inside ?? peak) - peak);
   const b = Math.abs((side.outside ?? peak) - peak);
-  const lo = Math.max(QP_EDGES.stepDeg, Math.min(a, b));
-  const hi = Math.max(lo + QP_EDGES.stepDeg, Math.max(a, b));
+  // Rejilla algo más ancha que el bracketing (½× a 1,5×): un borde cerca del extremo no queda truncado.
+  const lo = Math.max(QP_EDGES.stepDeg, Math.min(a, b) / 2);
+  const hi = Math.max(lo + QP_EDGES.stepDeg, Math.max(a, b) * 1.5);
   const n = Math.round((hi - lo) / QP_EDGES.stepDeg) + 1;
   const ds = grid(lo, hi, n);
-  const qp = createQuestPlus(Q, { stim: ds, params: [ds, QP_EDGES.fixedSlope ? [QP_EDGES.nominalBeta] : [...QP_EDGES.betas], [...QP_EDGES.lapses]], responses: weibull2afc(QP_EDGES.gamma) });
-  return questStep({ ...side, qp, qpTrials: 0 }, peak);
+  const qp = createQuestPlus(ctx.Q, { stim: ds, params: [ds, QP_EDGES.fixedSlope ? [QP_EDGES.nominalBeta] : [...QP_EDGES.betas], [...QP_EDGES.lapses]], responses: detect3(4) });
+  const deg1DeltaE = angleForDeltaE(peak, ctx.scale, side.side === "minus" ? -1 : 1, QP_EDGES.stopDeltaE);
+  return questStep({ ...side, qp, qpTrials: 0, deg1DeltaE, qpScale: ctx.scale }, peak);
 }
 
 function questStep(side: Side, peak: number): Side {
@@ -383,13 +425,16 @@ function questStep(side: Side, peak: number): Side {
   const est = qp.estimate();
   if ((side.qpTrials ?? 0) > 0 && (est.width < QP_EDGES.stopDeg || (side.qpTrials ?? 0) >= QP_EDGES.maxTrials)) {
     const edge = snap(peak + sign * est.mean);
-    return { ...side, inside: snap(peak + sign * est.lo), outside: snap(peak + sign * est.hi), status: "done", confirm: null, found: true, edge, cursor: edge };
+    const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+    const at = (d: number) => addScaled(gray, dirFromTheta(rad(peak + sign * d)), side.qpScale ?? 0.04);
+    const qpCi = { deg: round1(est.width), deltaE00: round4(deltaE00Linear(at(est.lo), at(est.hi))) };
+    return { ...side, qpCi, inside: snap(peak + sign * est.lo), outside: snap(peak + sign * est.hi), status: "done", confirm: null, found: true, edge, cursor: edge };
   }
   return withCursor(side, peak + sign * qp.next(), "bisect", null);
 }
 
 /** Ask the midpoint while the bracket is wider than 2°. Then repeat the last miss and the last hit. */
-function tighten(side: Side, peak?: number, Q?: JsQuest): Side {
+function tighten(side: Side, peak?: number, Q?: QpCtx): Side {
   if (Q && peak != null && side.inside != null && side.outside != null && !side.qp && gapOf(side) > EDGE_GAP) return startQuest(side, peak, Q);
   if (side.inside == null || side.outside == null) return side;
   if (gapOf(side) > EDGE_GAP) {
@@ -400,10 +445,11 @@ function tighten(side: Side, peak?: number, Q?: JsQuest): Side {
   return { ...side, status: "done", confirm: null, found: true, edge: side.inside, cursor: side.inside };
 }
 
-function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number, Q?: JsQuest): Side {
+function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number, Q?: QpCtx, raw?: AnswerKind): Side {
   const sign = side.side === "minus" ? -1 : 1;
   if (side.qp && side.status === "bisect") {
-    side.qp.update(Math.abs(side.cursor - peak), kind === "seen" ? 0 : 1);
+    const r = raw ?? kind;
+    side.qp.update(Math.abs(side.cursor - peak), r === "seen" ? 0 : r === "miss" ? 1 : 2);
     return questStep({ ...side, qpTrials: (side.qpTrials ?? 0) + 1 }, peak);
   }
   if (side.status === "confirm") {
@@ -464,7 +510,13 @@ function beginDepth(run: EdgeRun): EdgeRun {
   return { ...next, depthCursor: run.edgeScale };
 }
 
-function afterSearch(run: EdgeRun, kind: "seen" | "none"): EdgeRun {
+/** Tono de un catch obvio: +90° del pico (perpendicular a la confusión), en (−180, 180]. */
+function catchAngle(peak: number): number {
+  const a = peak + 90;
+  return a > 180 ? a - 360 : a;
+}
+
+function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): EdgeRun {
   if (run.phase === "peak") {
     if (kind === "seen") {
       if (run.peakSeen < 1) {
@@ -478,9 +530,14 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none"): EdgeRun {
   if (run.phase === "minus" || run.phase === "plus") {
     const current = run.phase === "minus" ? run.minus : run.plus;
     const limit = run.phase === "minus" ? sectorOf(run.cone).lo : sectorOf(run.cone).hi;
-    const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus);
+    const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus ? { Q: run.questPlus, scale: run.edgeScale } : undefined, raw);
     const patched = run.phase === "minus" ? { ...run, minus: stepped } : { ...run, plus: stepped };
-    if (stepped.status !== "done") return place(patched, run.phase, stepped.cursor, run.edgeScale);
+    if (stepped.status !== "done") {
+      if (stepped.qp && (stepped.qpTrials ?? 0) > 0 && (stepped.qpTrials ?? 0) % QP_EDGES.catchEvery === 0 && (current.qpTrials ?? 0) !== stepped.qpTrials) {
+        return { ...place(patched, run.phase, catchAngle(run.peak), run.edgeScale), catchTrial: true };
+      }
+      return place(patched, run.phase, stepped.cursor, run.edgeScale);
+    }
     if (run.phase === "minus") {
       const sector = sectorOf(run.cone);
       const cursor = reach(run.peak, sector.hi, 1);
@@ -515,11 +572,20 @@ export function applyAnswer(run: EdgeRun, input: EdgeAnswer): EdgeRun {
   if (run.trials.length >= 120) return { ...run, phase: "done", band: run.band ?? "open" };
   const kind = classify(input.picked, input.none, run.oddIndex);
   const recorded = pushTrial(run, input, kind, recordPhase(run.phase), sideOf(run.phase));
+  if (run.catchTrial) {
+    // Catch obvio: no toca el QUEST+; solo cuenta para la fiabilidad. Vuelve al cursor del lado.
+    const last = recorded.trials.length - 1;
+    const trials = recorded.trials.map((t, i) => (i === last ? { ...t, catch: true as const } : t));
+    const c = run.catches ?? { shown: 0, none: 0 };
+    const catches = { shown: c.shown + 1, none: c.none + (kind === "none" ? 1 : 0) };
+    const side = run.phase === "minus" ? run.minus : run.plus;
+    return { ...place({ ...recorded, trials, catches }, run.phase, side.cursor, run.edgeScale), catchTrial: false };
+  }
   if (run.phase === "confirm") {
     const rolled = roll(recorded.rng);
     return { ...recorded, oddIndex: rolled.oddIndex, oddSign: rolled.oddSign, rng: rolled.rng };
   }
-  return afterSearch(recorded, kind === "seen" ? "seen" : "none");
+  return afterSearch(recorded, kind === "seen" ? "seen" : "none", kind);
 }
 
 export function armConfirm(run: EdgeRun, angleDeg: number): EdgeRun {
@@ -533,6 +599,7 @@ function boundOf(side: Side): EdgeBound {
     angleDeg: side.edge == null ? null : round1(side.edge),
     insideDeg: side.found && side.inside != null ? round1(side.inside) : null,
     outsideDeg: side.found && side.outside != null ? round1(side.outside) : null,
+    ...(side.qpCi ? { qp: { ciDeg: side.qpCi.deg, ciDeltaE00: side.qpCi.deltaE00, deg1DeltaE: round1(side.deg1DeltaE ?? 0), trials: side.qpTrials ?? 0 } } : {}),
   };
 }
 
@@ -567,7 +634,13 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     depth,
     confirmed: confirmed ?? { minus: minus.angleDeg, plus: plus.angleDeg },
     trials: run.trials,
+    ...(run.questPlus ? { reliability: reliabilityOf(run) } : {}),
   };
+}
+
+export function reliabilityOf(run: EdgeRun): { catches: number; none: number; unreliable: boolean } {
+  const c = run.catches ?? { shown: 0, none: 0 };
+  return { catches: c.shown, none: c.none, unreliable: c.shown > 0 && c.none / c.shown > QP_EDGES.catchNoneMax };
 }
 
 export function edgeFilename(cone: ConeId): string {

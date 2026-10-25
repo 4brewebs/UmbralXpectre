@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyAnswer, startRun, edgeFile, QP_EDGES, type EdgeRun } from "../src/lib/color/edges";
+import { applyAnswer, startRun, edgeFile, angleForDeltaE, QP_EDGES, type EdgeRun } from "../src/lib/color/edges";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
 
 function rng(seed: number) {
@@ -14,14 +14,17 @@ function rng(seed: number) {
 }
 
 /** Observador: ve el disco distinto con Weibull en |ángulo − pico| (borde `edge`°), γ = 1/4. */
-function simulate(run: EdgeRun, edge: number, seed: number): EdgeRun {
+function simulate(run: EdgeRun, edge: number, seed: number, catchNone = 0): EdgeRun {
   const r = rng(seed);
   for (let i = 0; i < 200 && run.phase !== "done" && run.phase !== "confirm"; i++) {
     let p: number;
-    if (run.phase === "depth") p = 0.9;
-    else p = weibull(Math.abs(run.angle - run.peak), edge, 3.5, 0, 0.03);
+    if (run.catchTrial) p = r() < catchNone ? 0 : 0.97;
+    else if (run.phase === "depth") p = 0.9;
+    else p = weibull(Math.abs(run.angle - run.peak), edge, 3.5, 0, 0);
+    // Observador honesto: si no detecta, «ninguno»; lapsus del 3 % como elección al azar.
     const seen = r() < p;
-    const pick = seen ? run.oddIndex : r() < 0.5 ? -1 : (run.oddIndex + 1) % 4;
+    const lapse = r() < 0.03;
+    const pick = lapse ? Math.floor(r() * 4) : seen ? run.oddIndex : -1;
     run = applyAnswer(run, pick < 0 ? { picked: [], none: true } : { picked: [pick], none: false });
   }
   return run;
@@ -73,8 +76,31 @@ test("bordes: sesgo con β fijo frente a β marginal", async () => {
     }
     out[fixed ? "fijo" : "marginal"] = { bias: Math.exp(b / 20) - 1, n: n / 20 };
   }
-  QP_EDGES.fixedSlope = false;
+  QP_EDGES.fixedSlope = true;
   console.log(`bordes sesgo: marginal ${(100 * out.marginal.bias).toFixed(1)}% (${out.marginal.n.toFixed(1)} ens), fijo ${(100 * out.fijo.bias).toFixed(1)}% (${out.fijo.n.toFixed(1)} ens)`);
   // Regla de Colorado: β fijo solo si su sesgo < 3 %; si no, se marginaliza.
   assert.equal(QP_EDGES.fixedSlope, Math.abs(out.fijo.bias) < 0.03);
+});
+
+test("bordes: 1 ΔE00 a ángulo de tono por bisección", async () => {
+  const { deltaE00Linear } = await import("../src/lib/color/deltaE");
+  const { dirFromTheta, addScaled, ANCHOR } = await import("../src/lib/color/space");
+  const g: [number, number, number] = [ANCHOR, ANCHOR, ANCHOR];
+  for (const peak of [0, -120, 100]) for (const sign of [1, -1] as const) {
+    const t = angleForDeltaE(peak, 0.04, sign, 1);
+    const ref = addScaled(g, dirFromTheta((peak * Math.PI) / 180), 0.04);
+    const de = deltaE00Linear(ref, addScaled(g, dirFromTheta(((peak + sign * t) * Math.PI) / 180), 0.04));
+    assert.ok(Math.abs(de - 1) < 1e-6, `${peak} ${sign}: ${de}`);
+  }
+});
+
+test("bordes: catch obvios; > 25 % «ninguno» marca la ronda como no fiable", async () => {
+  const Q = await loadQuestPlus();
+  const good = edgeFile(simulate(startRun({ ...base, seed: 3, questPlus: Q }), 9, 3, 0));
+  const bad = edgeFile(simulate(startRun({ ...base, seed: 3, questPlus: Q }), 9, 3, 0.6));
+  assert.ok(good.reliability && good.reliability.catches >= 2, JSON.stringify(good.reliability));
+  assert.equal(good.reliability.unreliable, false);
+  assert.equal(bad.reliability?.unreliable, true, JSON.stringify(bad.reliability));
+  assert.ok(good.trials.some((t) => t.catch));
+  assert.equal(edgeFile(simulate(startRun({ ...base, seed: 3 }), 9, 3)).reliability, undefined);
 });
