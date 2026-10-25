@@ -56,6 +56,8 @@ export interface HistorySession {
   ui?: "legacy" | "v2" | "v3";
   /** Build con la que se hizo: entorno, rama y commit (ausente en sesiones anteriores). */
   build?: BuildInfo;
+  /** Weber del punto de fijación (solo sesiones de brillo v2/v3). */
+  fixationWeber?: number;
   count: number;
   trials?: Trial[];
   packed?: PackedTrials;

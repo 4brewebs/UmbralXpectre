@@ -177,6 +177,7 @@ export interface LuminanceV3 {
   /** Interfaz de la última prueba de brillo (legacy|v2|v3). */
   ui?: "legacy" | "v2" | "v3";
   build?: BuildInfo;
+  fixationWeber?: number;
   /** Dispositivo en que se midieron estos pesos (no valen en otra pantalla). */
   device?: DeviceFingerprint;
   checks: {

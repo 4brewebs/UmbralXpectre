@@ -65,6 +65,8 @@
   let leaving = $state(false);
   /** Texto y botones de la pantalla de prueba: gris #A0A0A0 sobre #6B6B6B (Michelson ≈ 41 %), sin blanco. */
   const UI_GRAY = "#A0A0A0";
+  /** Fijación de v3 (Colorado): Weber −40 %; mismo tamaño (0.15°) y hueco (0.5°) que v2. */
+  const FIX_WEBER = -0.4;
   const oneDegPx = $derived(pxOfDegrees(1, viewing.cm, viewing.cssPxPerMm));
   const fadeMs = $derived(reduced ? 0 : FADE_MS);
   const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
@@ -144,7 +146,7 @@
         const g0 = gray255(motion.bgY);
         ctx.fillStyle = `rgb(${g0},${g0},${g0})`;
         ctx.fillRect(0, 0, w, h);
-        const gd = gray255(motion.bgY * (1 + SCREEN.dotWeber));
+        const gd = gray255(motion.bgY * (1 + FIX_WEBER));
         ctx.fillStyle = `rgb(${gd},${gd},${gd})`;
         ctx.beginPath();
         ctx.arc(w / 2, h / 2, dot, 0, 2 * Math.PI);
@@ -154,7 +156,7 @@
       paintMotionV2(image.data, w, h, Math.floor(frame / k) % 4, frame, stim, period, mask);
       ctx.putImageData(image, 0, 0);
       // Fijación: punto acromático de 0.15° en el hueco de 0.5° (gris medio).
-      const g = gray255(motion.bgY * (1 + SCREEN.dotWeber));
+      const g = gray255(motion.bgY * (1 + FIX_WEBER));
       ctx.fillStyle = `rgb(${g},${g},${g})`;
       ctx.beginPath();
       ctx.arc(w / 2, h / 2, dot, 0, 2 * Math.PI);
@@ -175,6 +177,7 @@
         height: Math.round(degreesOf(size.height, viewing.cm, viewing.cssPxPerMm) * 10) / 10,
       },
       sizingHeuristic: viewing.heuristic,
+      fixationWeber: FIX_WEBER,
     });
     // Vuelta a la app con fundido; después se guarda.
     void leave("done").then(done);
