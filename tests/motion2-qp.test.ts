@@ -25,7 +25,7 @@ function rng(seed: number) {
   };
 }
 
-/** Observador simulado con el modelo de 3 respuestas (β 20, δ 0.02, λ 0.03) y pesos verdaderos w. */
+/** Observador simulado con el modelo de 3 respuestas (β 20, δ 0.04 nominal, λ 0.03) y pesos verdaderos w. */
 function observe(state: MotionV2State, w: Vec3, seed: number): MotionV2State {
   const r = rng(seed);
   const fns = motion3();
@@ -39,7 +39,7 @@ function observe(state: MotionV2State, w: Vec3, seed: number): MotionV2State {
       const tgt = state.stairs[state.current!.index].target;
       const mu = Math.log(predictedMatch(tgt.color, [0.18, 0.18, 0.18], w));
       const x = Math.log(st.e);
-      const ps = fns.map((f) => f(x, mu, 20, 0.02, 0.03));
+      const ps = fns.map((f) => f(x, mu, 20, 0.04, 0.03));
       const u = r();
       const k = u < ps[0] ? 0 : u < ps[0] + ps[1] ? 1 : 2;
       answer = k === 1 ? "still" : (k === 0) === (st.sign === 1) ? "right" : "left";

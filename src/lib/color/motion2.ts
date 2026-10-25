@@ -67,36 +67,25 @@ export const QP_MOTION = {
   /** μ cubre 0.2 en log más allá de los topes para detectar cotas «al menos». */
   muPad: 0.2,
   muPoints: 61,
-  /** Pendiente nominal 20 /ln, 3 valores log entre 0.5× y 2× (decisión 2). PROVISIONAL. */
+  /** Pendiente nominal 20 /ln; {0.5, 1, 2}× nominal (Colorado). */
   betas: [10, 20, 40],
-  /** Semiancho de «quieto» en ln. PROVISIONAL. */
-  deltas: [0.01, 0.02, 0.04],
+  /** Semiancho de «quieto» δ en ln de la ganancia (Colorado). */
+  deltas: [0.02, 0.04, 0.08],
   lapses: [0.02, 0.035, 0.05],
   /** Parada: IC 95 % de e con anchura total < 6 % (± 3 %), o 40 ensayos (decisión 5). */
   stopWidth: Math.log(1.06),
   maxTrials: 40,
-  /** Prior en severity (protán/deután): centro 0.6; σ 0.3 PROVISIONAL (equivalencia con «≈ 2 igualaciones» abierta). */
-  priorSeverity: 0.6,
-  priorSd: 0.3,
+  /** Prior log-normal en ln de la ganancia, centrado en la predicción del perfil, σ = 0.25 (Colorado). */
+  priorSd: 0.25,
 } as const;
 
-/** Prior en μ: protán/deután vía severity 0..1 (paso 0.05) y `cones.ts`; resto, uniforme. */
-function muPrior(type: ObserverType, color: Vec3, mus: number[]): number[] {
-  if (type !== "protan" && type !== "deutan") return mus.map(() => 1);
-  const p = mus.map(() => 1e-3);
-  for (let k = 0; k <= 20; k++) {
-    const sev = k * 0.05;
-    const mu = Math.log(predictedMatch(color, GRAY, predictedLumWeights(type, sev)));
-    const wsev = Math.exp(-0.5 * ((sev - QP_MOTION.priorSeverity) / QP_MOTION.priorSd) ** 2);
-    let best = 0;
-    for (let i = 1; i < mus.length; i++) if (Math.abs(mus[i] - mu) < Math.abs(mus[best] - mu)) best = i;
-    p[best] += wsev;
-  }
-  // Suavizado: la severity discreta deja huecos en μ.
-  return p.map((_, i) => (p[i - 1] ?? 0) * 0.25 + p[i] * 0.5 + (p[i + 1] ?? 0) * 0.25 + 1e-4);
+/** Prior en μ = ln e_nulo: normal en ln con centro en la predicción del objetivo y σ = QP_MOTION.priorSd. */
+export function muPrior(predicted: number, mus: number[]): number[] {
+  const c = Math.log(predicted);
+  return mus.map((m) => Math.exp(-0.5 * ((m - c) / QP_MOTION.priorSd) ** 2) + 1e-6);
 }
 
-function makeQuest(Q: JsQuest, type: ObserverType, target: MotionV2Target): QuestPlus {
+function makeQuest(Q: JsQuest, target: MotionV2Target): QuestPlus {
   const lo = Math.log(E_MIN);
   const hi = Math.log(E_MAX);
   const n = Math.floor((hi - lo) / QP_MOTION.stepLn) + 1;
@@ -105,7 +94,7 @@ function makeQuest(Q: JsQuest, type: ObserverType, target: MotionV2Target): Ques
   return createQuestPlus(Q, {
     stim,
     params: [mus, [...QP_MOTION.betas], [...QP_MOTION.deltas], [...QP_MOTION.lapses]],
-    prior: [target.kind === "control" ? mus.map(() => 1) : muPrior(type, target.color, mus)],
+    prior: [muPrior(target.predicted, mus)],
     responses: motion3(),
   });
 }
@@ -411,7 +400,7 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
     done: false,
     bound: "converged",
   }));
-  const qp = questPlus ? targets.map((t) => makeQuest(questPlus, type, t)) : undefined;
+  const qp = questPlus ? targets.map((t) => makeQuest(questPlus, t)) : undefined;
   if (qp) qp.forEach((q, i) => (stairs[i].logE = Math.log(safeE(Math.exp(q.next())))));
   return pick({ type, weights, stairs, qp, method: qp ? "quest+" : "staircase", rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
 }
