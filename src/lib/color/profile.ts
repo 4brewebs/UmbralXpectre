@@ -13,6 +13,7 @@ import {
   type Vec3,
 } from "./space";
 import { readHistory, type HistoryLog } from "./history";
+import type { DeviceFingerprint } from "./device";
 import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
@@ -151,6 +152,8 @@ export interface LuminanceV3 {
   sizingHeuristic?: string | null;
   /** Método de búsqueda de la prueba v2: escalera (por defecto) o QUEST+ (`?qp=1`). */
   searchMethod?: "staircase" | "quest+";
+  /** Dispositivo en que se midieron estos pesos (no valen en otra pantalla). */
+  device?: DeviceFingerprint;
   checks: {
     controlError: number | null;
     catches: { shown: number; missed: number };

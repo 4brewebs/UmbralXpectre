@@ -13,6 +13,7 @@
  *
  * Detrás de un flag (?motion=v2 o localStorage). La prueba antigua a 1 Hz (motion.ts) no cambia.
  */
+import type { DeviceFingerprint } from "./device";
 import { appendHistory, makeSession } from "./history";
 import { luminance, type Vec3 } from "./space";
 import { predictedMatch, predictedLumWeights, type ObserverType } from "./cones";
@@ -179,6 +180,8 @@ export interface MotionV2Meta {
   sizingHeuristic?: string;
   /** Fin de la sesión (para el historial); por defecto, ahora. */
   now?: Date;
+  /** Huella del dispositivo (UA + pantalla + dpr + gamut + refresco). */
+  device?: DeviceFingerprint;
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
@@ -670,6 +673,7 @@ export function attachMotionV2(
       stimulusDeg: meta.stimulusDeg ?? null,
       backgroundY: state.bgY ?? null,
       method: state.method ?? "staircase",
+      ...(meta.device ? { device: meta.device } : {}),
     },
     state.log,
   );
@@ -688,6 +692,7 @@ export function attachMotionV2(
       stimulusDeg: meta.stimulusDeg ?? null,
       sizingHeuristic: meta.sizingHeuristic ?? null,
       searchMethod: state.method ?? "staircase",
+      ...(meta.device ? { device: meta.device } : {}),
       checks: {
         controlError: solved.controlError,
         catches: state.catches,

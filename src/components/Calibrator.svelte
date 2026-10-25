@@ -18,6 +18,7 @@
   import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
   import { ANCHOR } from "@/lib/color/space";
   import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionV2Enabled, questPlusEnabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
+  import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
 
   type Phase = "intro" | "run" | "motion" | "done";
@@ -90,7 +91,8 @@
   function historyEntry(kind: HistoryKind, method: "staircase" | "quest+", backgroundY: number | null, trials: unknown[]) {
     const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
     const setup = viewingSetup(window.screen.width, window.screen.height, window.devicePixelRatio || 1, coarse);
-    return makeSession(kind, { date: new Date().toISOString(), deviceType: setup.device, viewingCm: setup.cm, stimulusDeg: null, backgroundY, method }, trials);
+    const device = fingerprint(readHardware(), null);
+    return makeSession(kind, { date: new Date().toISOString(), deviceType: setup.device, viewingCm: setup.cm, stimulusDeg: null, backgroundY, method, device }, trials);
   }
 
   function choose(judgment: Judgment) {
@@ -133,12 +135,26 @@
 
   function takeMotionV2(state: MotionV2State, meta: MotionV2Meta) {
     if (!profile) return;
-    const enriched = attachMotionV2(profile, state, meta);
+    const enriched = attachMotionV2(profile, state, { ...meta, device: fingerprint(readHardware(), meta.refreshHz) });
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
     phase = "done";
   }
+
+  // Pesos medidos en otro dispositivo: aviso con «usar igualmente» o «repetir la prueba».
+  let deviceAck = $state<string | null>(null);
+  const deviceWarning = $derived.by(() => {
+    if (!profile || phase !== "done" || deviceAck === profile.createdAt) return null;
+    const saved = weightsDevice(profile);
+    if (!saved) return null;
+    try {
+      const diff = deviceDiff(saved, fingerprint(readHardware(), null));
+      return diff.length ? diff : null;
+    } catch {
+      return null;
+    }
+  });
 
   function keep(parsed: UmbralProfile) {
     persistProfile(parsed);
@@ -188,6 +204,18 @@
 
   {#if phase === "motion" && profile && motionV2}
     <MotionTestV2 {profile} onDone={takeMotionV2} onStop={() => (phase = "done")} />
+  {/if}
+
+  {#if deviceWarning && profile}
+    <section role="alert" class="flex flex-col gap-3 rounded-2xl border border-border p-4">
+      <p class="text-base leading-relaxed text-fg">
+        El brillo de este perfil se midió en otro dispositivo (cambia: {deviceWarning.join(", ")}). Los pesos y filtros pueden no valer en esta pantalla.
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button type="button" onclick={() => (deviceAck = profile?.createdAt ?? null)} class="h-10 rounded-xl border border-border px-3 text-sm text-fg">Usar igualmente</button>
+        <button type="button" onclick={() => (phase = "motion")} class="h-10 rounded-xl bg-accent px-3 text-sm font-semibold text-accent-fg">Repetir la prueba</button>
+      </div>
+    </section>
   {/if}
 
   {#if phase === "done" && profile}

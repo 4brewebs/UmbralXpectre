@@ -1,3 +1,4 @@
+import type { DeviceFingerprint } from "./device";
 /**
  * Historial completo de sesiones dentro del perfil (Colorado, 4.ª ronda).
  *
@@ -48,6 +49,8 @@ export interface HistorySession {
   stimulusDeg: { width: number; height: number } | null;
   backgroundY: number | null;
   engine: { version: string; method: "staircase" | "quest+" };
+  /** Dispositivo de la sesión (ausente en sesiones anteriores). */
+  device?: DeviceFingerprint;
   count: number;
   trials?: Trial[];
   packed?: PackedTrials;
