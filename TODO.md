@@ -142,7 +142,11 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [x] Regla de parada de Colorado aplicada (movimiento ln 1,10 / 30; bordes IC < 1 ΔE00, respaldo 8°, / 45).
 - [x] Calibración QUEST+: tope 80 por sesión y reanudación del posterior por eje (localStorage + perfil).
 - [x] Catch de bordes con +25 % de Y.
-- [ ] Bordes: con la parada en ΔE00 hay pocos catch por ronda (fiabilidad a menudo indeterminada).
+- [x] Bordes: fiabilidad agregada en la sesión, ≥ 1 catch por ronda.
+- [ ] Bordes: con 3 rondas (una por cono) salen ~3 catch ⇒ la sesión queda «indeterminada» casi siempre; decidir si subir catch.
+- [x] Prior de calibración 0,1–10 ΔE00 y 36 ensayos/eje.
+- [x] Historial completo de sesiones en el perfil (`umbral.history.v1`).
+- [ ] Historial: sin límite de tamaño; vigilar la cuota de localStorage (≈ 5 MB).
 - [ ] Reanudación: el perfil de la sesión reanudada solo trae el registro de esa sesión (los umbrales sí son acumulados).
 - [x] Calibración sí/no con QUEST+ tras `?qp=1` (provisional).
 - [ ] Futuro: calibración 2AFC «qué par es distinto» con γ = 0,5 (tarea y UI nuevas).

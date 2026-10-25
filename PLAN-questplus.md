@@ -177,6 +177,19 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
 5. Fondo Y = 0,1475 constante; tope de contraste sin cambios.
 6. β fijo aceptado con tolerancia de sesgo ±10 %.
 
+### Respuestas de Colorado aplicadas (2026-10-25, 4.ª ronda)
+
+1. Prior de calibración desde 0,1 ΔE00 (antes 0,3). Resimulado: el normal seguía con 7/36 ejes fuera de ×1,35 (> 5),
+   así que el tope por eje sube a 36. Nota: el normal no cambia con 36 (sus ejes paran por IC < 1 ΔE00 antes del tope).
+2. Fiabilidad de bordes por sesión: se suman los catch de todas las rondas QUEST+ (`sessionReliability`); 1 catch cada 6
+   y al menos 1 por ronda (si QUEST+ cierra sin ninguno, se muestra uno antes de la profundidad); < 5 catch ⇒ «indeterminada»;
+   > 25 % «ninguno» ⇒ «no fiable». Se muestra en el resultado solo si hay rondas QUEST+.
+3. Observador simulado de calibración (solo tests, no datos fisiológicos): normal casi circular 1 : 1,5; daltónico con el semieje
+   mayor en su línea de confusión = base × (1 + 4s/(1 − s)), tope ×10; menor = base (1,5 ΔE00). Protan/deutan s = 0,6 (×7), tritan s = 0,5 (×5).
+4. Historial completo en el perfil (`history`, formato `umbral.history.v1`, `src/lib/color/history.ts`): por sesión id, tipo, fecha,
+   dispositivo, distancia, grados del estímulo, Y de fondo, versión y método del motor y ensayos en bruto; > 8 kB se guardan en
+   columnas («columns-v1», sin pérdida). Campo opcional: perfiles v3 previos siguen valiendo sin migrar.
+
 ### Benchmark (observadores simulados)
 
 | Prueba | QUEST+ (config. final) | QUEST+ β marginal | Escalera |
@@ -185,6 +198,7 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
 | Movimiento protan 0,6 | 16,5, 87 % | 22,3, 87 % | 9,4, 80 % |
 | Movimiento deutan 0,6 | 16,3, 83 % | 22,8, 100 % | 9,4, 80 % |
 | Movimiento tritan 1 | 16,5, 90 % | 22,4, 95 % | 9,0, 81 % |
-| Bordes, borde 9° (20 semillas, parada 1 ΔE00) | 17,8 ens/ronda, 20/20 ±3°, sesgo +1,8 % | 22,9, sesgo −1,0 % | 35,8, 18/20 |
-| Calibración normal (6 semillas, tope 80 + reanudar) | 91 ens en 1,8 sesiones, 29/36 ejes ×1,35 | — | 48,5, 2/19 «estimate» |
-| Calibración protan / deutan / tritan | 164 / 171 / 146 ens en 2,5 / 2,7 / 2,2 sesiones; 34/36, 32/36, 33/36 | — | 48,8 / 48,5 / 48,5; 5/21, 4/19, 2/19 |
+| Bordes, borde 9° (20 semillas, parada 1 ΔE00, ≥ 1 catch/ronda) | 18,7 ens/ronda, 20/20 ±3°, sesgo +1,8 % | 23,6, sesgo −1,0 % | 35,8, 18/20 |
+| Bordes, sesión de 3 rondas (10 semillas) | 3,0 catch/sesión ⇒ 10/10 «indeterminada» | — | — |
+| Calibración normal (6 semillas, prior 0,1, 36/eje, tope 80 + reanudar, observador 4.ª ronda) | 113 ens en 2,0 sesiones, 30/36 ejes ×1,35 | — | 48,5, 2/19 «estimate» |
+| Calibración protan / deutan / tritan | 194 / 187 / 158 ens en 3,0 / 3,0 / 2,7 sesiones; 30/30, 29/30, 32/36 | — | 55,3 / 55,0 / 49,7; 6/27, 2/22, 5/22 |
