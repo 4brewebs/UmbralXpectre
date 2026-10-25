@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyAnswer, startRun, edgeFile, type EdgeRun } from "../src/lib/color/edges";
+import { applyAnswer, startRun, edgeFile, QP_EDGES, type EdgeRun } from "../src/lib/color/edges";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
 
 function rng(seed: number) {
@@ -56,4 +56,25 @@ test("bordes: QUEST+ tras el bracketing estima el borde (y se compara con la esc
 test("bordes: sin flag, la escalera no cambia", () => {
   const r = startRun({ ...base, seed: 7 });
   assert.equal(r.questPlus, undefined);
+});
+
+test("bordes: sesgo con β fijo frente a β marginal", async () => {
+  const Q = await loadQuestPlus();
+  const out: Record<string, { bias: number; n: number }> = {};
+  for (const fixed of [false, true]) {
+    QP_EDGES.fixedSlope = fixed;
+    let b = 0;
+    let n = 0;
+    for (let seed = 1; seed <= 20; seed++) {
+      const q = simulate(startRun({ ...base, seed, questPlus: Q }), 9, seed);
+      const e = edgeFile(q).minus.angleDeg;
+      if (e != null) b += Math.log(Math.abs(e) / 9);
+      n += q.trials.length;
+    }
+    out[fixed ? "fijo" : "marginal"] = { bias: Math.exp(b / 20) - 1, n: n / 20 };
+  }
+  QP_EDGES.fixedSlope = false;
+  console.log(`bordes sesgo: marginal ${(100 * out.marginal.bias).toFixed(1)}% (${out.marginal.n.toFixed(1)} ens), fijo ${(100 * out.fijo.bias).toFixed(1)}% (${out.fijo.n.toFixed(1)} ens)`);
+  // Regla de Colorado: β fijo solo si su sesgo < 3 %; si no, se marginaliza.
+  assert.equal(QP_EDGES.fixedSlope, Math.abs(out.fijo.bias) < 0.03);
 });

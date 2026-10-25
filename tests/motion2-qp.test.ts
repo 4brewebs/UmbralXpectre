@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   answerMotionV2, createMotionV2, measuredMatches, stimulusOf, michelsonOf, questPlusEnabled, attachMotionV2,
-  E_MAX, E_MIN, MAX_MICHELSON, type MotionV2State,
+  E_MAX, E_MIN, MAX_MICHELSON, QP_MOTION, type MotionV2State,
 } from "../src/lib/color/motion2";
 import { parseProfile, type UmbralProfile } from "../src/lib/color/profile";
 import { predictedLumWeights, predictedMatch, type ObserverType } from "../src/lib/color/cones";
@@ -73,8 +73,8 @@ for (const [type, sev] of cases) {
         total++;
         if (m.atLeast) {
           if (truth <= E_MIN * 1.03 || truth >= E_MAX / 1.03) ok++;
-        } else if (Math.abs(Math.log(m.efficiency / truth)) < 0.05) ok++;
-        assert.ok(m.trials <= 40);
+        } else if (Math.abs(Math.log(m.efficiency / truth)) < QP_MOTION.stopWidth) ok++;
+        assert.ok(m.trials <= 30);
       }
     }
     assert.ok(ok / total >= 0.9, `${ok}/${total}`);
@@ -89,14 +89,20 @@ test("QUEST+ guarda searchMethod en el perfil", async () => {
   void luminance;
 });
 
-test("benchmark: ensayos y acierto, QUEST+ frente a la escalera", async () => {
+test("benchmark: ensayos, acierto y sesgo; QUEST+ (β marginal / β fijo) frente a la escalera", async () => {
   const Q = await loadQuestPlus();
   const rows: string[] = [];
+  const biasAll = { qp: [] as number[], fx: [] as number[] };
   for (const [type, sev] of [["normal", 0], ["protan", 0.6], ["deutan", 0.6], ["tritan", 1]] as Array<[ObserverType, number]>) {
     const w = predictedLumWeights(type, sev);
-    const acc = { qp: [0, 0, 0], st: [0, 0, 0] };
+    const acc: Record<"qp" | "fx" | "st", number[]> = { qp: [0, 0, 0], fx: [0, 0, 0], st: [0, 0, 0] };
     for (let seed = 1; seed <= 6; seed++) {
-      for (const [k, s] of [["qp", observe(createMotionV2(profileOf(type), seed, Q), w, seed)], ["st", observe(createMotionV2(profileOf(type), seed), w, seed)]] as const) {
+      const runs = [
+        ["qp", observe(createMotionV2(profileOf(type), seed, Q, { fixedSlope: false }), w, seed)],
+        ["fx", observe(createMotionV2(profileOf(type), seed, Q, { fixedSlope: true }), w, seed)],
+        ["st", observe(createMotionV2(profileOf(type), seed), w, seed)],
+      ] as const;
+      for (const [k, s] of runs) {
         const a = acc[k];
         for (const m of measuredMatches(s)) {
           const tgt = s.stairs.find((x) => x.target.id === m.id)!.target;
@@ -104,12 +110,17 @@ test("benchmark: ensayos y acierto, QUEST+ frente a la escalera", async () => {
           a[2]++;
           a[0] += m.trials;
           if (m.atLeast ? truth <= E_MIN * 1.03 || truth >= E_MAX / 1.03 : Math.abs(Math.log(m.efficiency / truth)) < 0.05) a[1]++;
+          if (!m.atLeast && k !== "st") biasAll[k].push(Math.log(m.efficiency / truth));
         }
       }
     }
     const f = (a: number[]) => `${(a[0] / a[2]).toFixed(1)} ens/obj, ${((100 * a[1]) / a[2]).toFixed(0)}% ±5%`;
-    rows.push(`${type} ${sev}: QUEST+ ${f(acc.qp)} | escalera ${f(acc.st)}`);
+    rows.push(`${type} ${sev}: QUEST+ ${f(acc.qp)} | β fijo ${f(acc.fx)} | escalera ${f(acc.st)}`);
   }
+  const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+  const pct = (v: number[]) => (100 * (Math.exp(mean(v)) - 1)).toFixed(2);
+  const absPct = (v: number[]) => (100 * mean(v.map(Math.abs))).toFixed(2);
+  rows.push(`sesgo medio: β marginal ${pct(biasAll.qp)}% (|err| ${absPct(biasAll.qp)}%), β fijo ${pct(biasAll.fx)}% (|err| ${absPct(biasAll.fx)}%)`);
   console.log("BENCH\n" + rows.join("\n"));
-  assert.ok(rows.length === 4);
+  assert.ok(Math.abs(mean(biasAll.fx)) < 0.03, "sesgo con β fijo < 3 %");
 });

@@ -8,7 +8,8 @@ import { createQuestPlus, grid, weibull2afc, type JsQuest, type QuestPlus } from
  * «Nada destaca» y disco equivocado cuentan como no visto (como la escalera); ver preguntas abiertas.
  * Parada: IC 95 % de α < 1° (la conversión a ΔE00 queda abierta) o 40 ensayos (decisión 5).
  */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 1, maxTrials: 40 } as const;
+/** Parada (Colorado): IC < 2°, máx. 45. `fixedSlope` apagado: con β fijo el sesgo simulado es −5,5 % (> 3 %), así que se marginaliza. */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 2, maxTrials: 45 };
 
 export type ConeId = "l" | "m" | "s";
 export type EdgeName = "rojos" | "verdes" | "azules";
@@ -372,7 +373,7 @@ function startQuest(side: Side, peak: number, Q: JsQuest): Side {
   const hi = Math.max(lo + QP_EDGES.stepDeg, Math.max(a, b));
   const n = Math.round((hi - lo) / QP_EDGES.stepDeg) + 1;
   const ds = grid(lo, hi, n);
-  const qp = createQuestPlus(Q, { stim: ds, params: [ds, [...QP_EDGES.betas], [...QP_EDGES.lapses]], responses: weibull2afc(QP_EDGES.gamma) });
+  const qp = createQuestPlus(Q, { stim: ds, params: [ds, QP_EDGES.fixedSlope ? [QP_EDGES.nominalBeta] : [...QP_EDGES.betas], [...QP_EDGES.lapses]], responses: weibull2afc(QP_EDGES.gamma) });
   return questStep({ ...side, qp, qpTrials: 0 }, peak);
 }
 

@@ -69,12 +69,15 @@ export const QP_MOTION = {
   muPoints: 61,
   /** Pendiente nominal 20 /ln; {0.5, 1, 2}× nominal (Colorado). */
   betas: [10, 20, 40],
+  nominalBeta: 20,
+  /** β fijo al nominal: sesgo medido < 3 % en simulación (−0,08 %), ~25 % menos ensayos (Colorado). */
+  fixedSlope: true,
   /** Semiancho de «quieto» δ en ln de la ganancia (Colorado). */
   deltas: [0.02, 0.04, 0.08],
   lapses: [0.02, 0.035, 0.05],
-  /** Parada: IC 95 % de e con anchura total < 6 % (± 3 %), o 40 ensayos (decisión 5). */
-  stopWidth: Math.log(1.06),
-  maxTrials: 40,
+  /** Parada (Colorado): IC 95 % de ln e con anchura total < ln 1.10, o 30 ensayos. */
+  stopWidth: Math.log(1.1),
+  maxTrials: 30,
   /** Prior log-normal en ln de la ganancia, centrado en la predicción del perfil, σ = 0.25 (Colorado). */
   priorSd: 0.25,
 } as const;
@@ -85,7 +88,7 @@ export function muPrior(predicted: number, mus: number[]): number[] {
   return mus.map((m) => Math.exp(-0.5 * ((m - c) / QP_MOTION.priorSd) ** 2) + 1e-6);
 }
 
-function makeQuest(Q: JsQuest, target: MotionV2Target): QuestPlus {
+function makeQuest(Q: JsQuest, target: MotionV2Target, fixedSlope = false): QuestPlus {
   const lo = Math.log(E_MIN);
   const hi = Math.log(E_MAX);
   const n = Math.floor((hi - lo) / QP_MOTION.stepLn) + 1;
@@ -93,7 +96,7 @@ function makeQuest(Q: JsQuest, target: MotionV2Target): QuestPlus {
   const mus = grid(lo - QP_MOTION.muPad, hi + QP_MOTION.muPad, QP_MOTION.muPoints);
   return createQuestPlus(Q, {
     stim,
-    params: [mus, [...QP_MOTION.betas], [...QP_MOTION.deltas], [...QP_MOTION.lapses]],
+    params: [mus, fixedSlope ? [QP_MOTION.nominalBeta] : [...QP_MOTION.betas], [...QP_MOTION.deltas], [...QP_MOTION.lapses]],
     prior: [muPrior(target.predicted, mus)],
     responses: motion3(),
   });
@@ -381,7 +384,8 @@ function nextRand(state: number): { state: number; value: number } {
   return { state: next, value: ((t ^ (t >>> 14)) >>> 0) / 4294967296 };
 }
 
-export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">, seed: number, questPlus?: JsQuest): MotionV2State {
+/** `opts.fixedSlope`: β fijo al nominal en vez de marginalizarlo (experimento de coste, Colorado). */
+export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">, seed: number, questPlus?: JsQuest, opts: { fixedSlope?: boolean } = {}): MotionV2State {
   const v3 = profile.luminance ?? defaultLuminanceV3(profile);
   const type = v3.type ?? "unknown";
   const weights = v3.predicted ?? predictedLumWeights("normal");
@@ -400,7 +404,7 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
     done: false,
     bound: "converged",
   }));
-  const qp = questPlus ? targets.map((t) => makeQuest(questPlus, t)) : undefined;
+  const qp = questPlus ? targets.map((t) => makeQuest(questPlus, t, opts.fixedSlope ?? QP_MOTION.fixedSlope)) : undefined;
   if (qp) qp.forEach((q, i) => (stairs[i].logE = Math.log(safeE(Math.exp(q.next())))));
   return pick({ type, weights, stairs, qp, method: qp ? "quest+" : "staircase", rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
 }
