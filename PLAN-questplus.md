@@ -132,3 +132,21 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
   - 0.5 s de gris neutro entre ensayos (ISI), respuestas desactivadas durante el ISI.
 - Retícula decorativa (`MotionReticle.svelte`, quitable con `SHOW_RETICLE = false`, fuera de la lógica de medida): anillo de 1 px con marcas radiales cada 15°, anillo de progreso simétrico (arriba y abajo a la vez) que avanza con easing solo en el ISI, rótulos monoespaciados arriba (Hz, c/°) y uno centrado abajo (bloque · ensayo); sin barra de escala. Instrucciones y botones a Weber 35 % (`uiWeber`), todo gris dentro del margen de Weber. Háptica de 8 ms en móvil al responder (sin `prefers-reduced-motion`).
 - Pendiente: modelo de 3 respuestas en QUEST+.
+
+### Resultados (observadores simulados, 6 semillas)
+
+| Prueba | QUEST+ | Escalera |
+|---|---|---|
+| Movimiento normal | 37,4 ens/objetivo, 97 % ±5 % | 11,3, 90 % |
+| Movimiento protan 0,6 | 35,7, 100 % | 11,3, 90 % |
+| Movimiento deutan 0,6 | 29,4, 100 % | 11,3, 90 % |
+| Movimiento tritan 1 | 37,1, 95 % | 10,7, 74 % |
+| Bordes (borde 9°, 20 semillas) | 72,8 ens/ronda, 20/20 ±3° | 34,1, 17/20 |
+| Calibración 2AFC (solo motor) | 32,7 (normal) – 40 (tope) ens/eje, 24/24 ×1,35 | — (tarea distinta) |
+
+Conclusión: QUEST+ es más exacto pero gasta 2–3× más ensayos con las reglas de parada actuales
+(IC < ln 1,06 / < 1° / < ABS_CLOSE). La escalera sigue por defecto. Ajustar la parada es pregunta abierta.
+
+Calibración: el motor 2AFC (γ = 0,5, decisión 3) existe en `calibqp.ts`, pero NO está cableado:
+la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en conflicto con
+"sin cambiar pares ni catch". Pendiente de decisión.
