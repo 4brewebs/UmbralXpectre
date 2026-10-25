@@ -1,35 +1,20 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "strict": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    // implementation itself instead of a hand-written declaration beside it.
+    "noEmit": true,
     "allowJs": true,
     "checkJs": true,
-    "noEmit": true,
-    "types": [
-      "vite/client",
-      "node"
-    ],
+    "types": ["svelte", "vite/client", "node"],
     "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    },
+    "paths": { "@/*": ["./src/*"] },
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", 
-    "src"
-
-  ]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts", "scripts/**/*.ts"]
 }

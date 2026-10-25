@@ -1,9 +1,9 @@
+import { fileURLToPath } from "node:url";
 import { copyFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 
 /**
@@ -43,12 +43,11 @@ export default defineConfig({
   base: resolveBase(),
   server: { host: "0.0.0.0", port: 8080 },
   preview: { host: "127.0.0.1", port: 8081 },
-  resolve: { tsconfigPaths: true },
+  resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   build: { outDir: "dist" },
   plugins: [
-    tanstackRouter({ target: "react", autoCodeSplitting: true }),
     tailwindcss(),
-    viteReact(),
+    svelte(),
     githubPagesPlugin(),
   ],
 });

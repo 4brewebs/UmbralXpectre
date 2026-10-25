@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { FilterKind } from "@/lib/color/lut";
 import type { UmbralProfile } from "@/lib/color/profile";
 import { ANCHOR, addScaled, angDist, dirFromTheta, toSrgb8, type Vec3 } from "@/lib/color/space";
 import { assistColor, extremeColor, lumaFromProfile, paintYours } from "@/lib/color/spectrum";
 
-type FilterView = "original" | FilterKind;
-type AxisMark = UmbralProfile["axes"][number];
+export type FilterView = "original" | FilterKind;
+export type AxisMark = UmbralProfile["axes"][number];
 
 const SIZE = 560;
 
@@ -61,7 +60,7 @@ function onMask(mask: Uint8ClampedArray, x: number, y: number): boolean {
   return mask[(sy * SIZE + sx) * 4] > 128;
 }
 
-function makeDots(hole: boolean, axis: AxisMark, floor: number, seed: number) {
+export function makeDots(hole: boolean, axis: AxisMark, floor: number, seed: number) {
   const random = rng(seed + (hole ? 17 : 91));
   const mask = numberMask(hole);
   const dir = dirFromTheta((axis.angleDeg * Math.PI) / 180);
@@ -135,7 +134,7 @@ function makeDots(hole: boolean, axis: AxisMark, floor: number, seed: number) {
   return dots;
 }
 
-function elevatedAxes(profile: UmbralProfile, floor: number): AxisMark[] {
+export function elevatedAxes(profile: UmbralProfile, floor: number): AxisMark[] {
   return profile.axes
     .filter(
       (axis) =>
@@ -147,7 +146,7 @@ function elevatedAxes(profile: UmbralProfile, floor: number): AxisMark[] {
     .sort((a, b) => (b.threshold ?? 0) - (a.threshold ?? 0));
 }
 
-function pickHealthy(profile: UmbralProfile, confusion: AxisMark | null): AxisMark | null {
+export function pickHealthy(profile: UmbralProfile, confusion: AxisMark | null): AxisMark | null {
   const confusionAngle = ((confusion?.angleDeg ?? 0) * Math.PI) / 180;
   const pool = profile.axes.filter((axis) => axis.threshold != null && axis.id !== confusion?.id);
   const far = pool.filter(
@@ -157,7 +156,7 @@ function pickHealthy(profile: UmbralProfile, confusion: AxisMark | null): AxisMa
   return list.sort((a, b) => (a.threshold ?? 1) - (b.threshold ?? 1))[0] ?? null;
 }
 
-function paint(
+export function paint(
   canvas: HTMLCanvasElement,
   dots: Array<{ x: number; y: number; r: number; rgb: Vec3 }>,
   profile: UmbralProfile,
@@ -193,94 +192,3 @@ function paint(
   }
 }
 
-export function Plates({ profile }: { profile: UmbralProfile }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
-  const holes = useMemo(() => elevatedAxes(profile, floor), [profile, floor]);
-  const [plateId, setPlateId] = useState<string>(holes[0]?.id ?? "control");
-  const selected = holes.find((axis) => axis.id === plateId) ?? null;
-  const hole = plateId !== "control" && selected != null;
-  const healthy = useMemo(() => pickHealthy(profile, selected ?? holes[0] ?? null), [profile, selected, holes]);
-  const [view, setView] = useState<FilterView>("original");
-  const [seed, setSeed] = useState(1);
-  const [shown, setShown] = useState(false);
-  const active = hole ? selected : healthy;
-
-  useEffect(() => {
-    if (plateId !== "control" && !holes.some((axis) => axis.id === plateId)) {
-      setPlateId(holes[0]?.id ?? "control");
-    }
-  }, [holes, plateId]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    if (!active) {
-      const ctx = canvas.getContext("2d");
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      return;
-    }
-    const dots = makeDots(hole, active, floor, seed);
-    paint(canvas, dots, profile, floor, view);
-  }, [active, floor, hole, view, profile, seed]);
-
-  const tabs: Array<{ id: string; label: string }> = [
-    ...holes.map((axis) => ({ id: axis.id, label: axis.hue })),
-    ...(healthy ? [{ id: "control", label: "Control" }] : []),
-  ];
-
-  return (
-    <section className="flex flex-col gap-4 border-t border-border pt-8">
-      <div>
-        <h2 className="font-serif text-2xl text-fg">Láminas</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          La lámina alta es un 42 en la línea que este JSON no separa. La de control es un 7 en una línea que sí separas.
-          Sin filtro, asistencia, simulador y extremo usan el perfil de esta sesión. No es una carta clínica.
-        </p>
-      </div>
-      {tabs.length > 1 ? (
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setPlateId(tab.id);
-                setShown(false);
-              }}
-              className={`h-10 rounded-xl px-3 text-sm ${plateId === tab.id ? "bg-accent font-semibold text-accent-fg" : "border border-border text-fg"}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <canvas ref={canvasRef} className="mx-auto aspect-square w-full max-w-[520px]" aria-label="Lámina de umbral" />
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["original", "Sin filtro"],
-            ["assist", "Asistencia"],
-            ["simulate", "Simulador"],
-            ["extreme", "Extremo"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setView(id)}
-            className={`h-10 rounded-xl px-3 text-sm ${view === id ? "bg-accent font-semibold text-accent-fg" : "border border-border text-fg"}`}
-          >
-            {label}
-          </button>
-        ))}
-        <button type="button" onClick={() => setSeed((n) => n + 1)} className="h-10 rounded-xl border border-border px-3 text-sm text-fg">
-          Otro patrón
-        </button>
-        <button type="button" onClick={() => setShown((on) => !on)} className="h-10 rounded-xl border border-border px-3 text-sm text-fg">
-          {shown ? (hole ? "Es el 42" : "Es el 7") : "Mostrar el número"}
-        </button>
-      </div>
-    </section>
-  );
-}
