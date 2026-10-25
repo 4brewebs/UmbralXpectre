@@ -23,7 +23,8 @@ export const MOTION_V2_FLAG = "umbral-motion";
 export const LUMA_CONTRAST = 0.08;
 /** Fracción máxima de la pantalla ocupada por la red. */
 export const MAX_AREA = 0.25;
-export const CYCLES_PER_DEG = 0.75;
+/** Objetivo de Colorado (25/10): 1 ciclo/grado (el mínimo de movimiento es robusto en 0.5–2). */
+export const CYCLES_PER_DEG = 1;
 /** Distancia de visión en móvil (cm). */
 export const VIEWING_CM = 40;
 /** Distancia de visión en pantallas de más de 10 pulgadas (cm). */
@@ -77,21 +78,40 @@ export type DeviceType = "phone" | "pc";
  * es < 600 px CSS; si no, PC (tablets incluidas, se usan apoyadas como un portátil).
  * Distancia: móvil 40 cm («un antebrazo»), PC 60 cm («un brazo extendido»).
  *
- * SUPUESTO px/mm: los px CSS no son físicos. En PC se toma el px de referencia CSS
- * (96 px/pulgada ≈ 3.78 px/mm). En móvil, ~150 px CSS/pulgada (≈ 5.9 px/mm) si
- * devicePixelRatio ≥ 3 y ~132 (≈ 5.2 px/mm) si no. Error típico ±15 %, que mueve los
- * ciclos/grado en la misma proporción (0.75 → 0.64–0.86). Sin calibración del usuario
+ * SUPUESTO px/mm (heurística de Colorado, 25/10): un px CSS mide ≈ 0.16 mm en móvil y
+ * ≈ 0.26 mm en PC. Los cm CSS no son físicos, así que no se fija ninguna ventana en cm:
+ * el tamaño se calcula en grados con esta heurística. Error típico ±15–20 %, que mueve los
+ * ciclos/grado en la misma proporción (1 → 0.8–1.2). Sin calibración del usuario
  * (decisión de Lucas): el mínimo de movimiento es robusto entre 0.5 y 2 ciclos/grado.
+ * La heurística se guarda en el perfil para poder reprocesar.
  */
 export function viewingSetup(
   screenCssW: number,
   screenCssH: number,
   dpr: number,
   coarsePointer: boolean,
-): { device: DeviceType; cm: number; cssPxPerMm: number; hint: string } {
+): { device: DeviceType; cm: number; cssPxPerMm: number; hint: string; heuristic: string } {
+  void dpr;
   const phone = coarsePointer && Math.min(screenCssW, screenCssH) < 600;
-  if (phone) return { device: "phone", cm: VIEWING_CM, cssPxPerMm: round((dpr >= 3 ? 150 : 132) / 25.4, 1000), hint: "un antebrazo" };
-  return { device: "pc", cm: VIEWING_CM_LARGE, cssPxPerMm: round(96 / 25.4, 1000), hint: "un brazo extendido" };
+  if (phone) return { device: "phone", cm: VIEWING_CM, cssPxPerMm: round(1 / 0.16, 1000), hint: "un antebrazo", heuristic: "phone-0.16mm-per-css-px" };
+  return { device: "pc", cm: VIEWING_CM_LARGE, cssPxPerMm: round(1 / 0.26, 1000), hint: "un brazo extendido", heuristic: "pc-0.26mm-per-css-px" };
+}
+
+/** Ángulo visual (°) de `px` píxeles CSS a `viewingCm` con `cssPxPerMm`. */
+export function degreesOf(px: number, viewingCm: number, cssPxPerMm: number): number {
+  return (2 * Math.atan(px / cssPxPerMm / 2 / (viewingCm * 10)) * 180) / Math.PI;
+}
+
+export interface MotionV2Meta {
+  refreshHz: number | null;
+  temporalHz: number | null;
+  cyclesPerDeg: number;
+  viewingCm?: number;
+  deviceType?: DeviceType;
+  cssPxPerMm?: number;
+  /** Tamaño de la red en grados (ancho × alto). */
+  stimulusDeg?: { width: number; height: number };
+  sizingHeuristic?: string;
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
@@ -463,14 +483,7 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
 export function attachMotionV2(
   profile: UmbralProfile,
   state: MotionV2State,
-  meta: {
-    refreshHz: number | null;
-    temporalHz: number | null;
-    cyclesPerDeg: number;
-    viewingCm?: number;
-    deviceType?: DeviceType;
-    cssPxPerMm?: number;
-  },
+  meta: MotionV2Meta,
 ): UmbralProfile {
   const base = profile.luminance ?? { ...defaultLuminanceV3(profile), method: "", temporalHz: 1, count: 0, sampleCount: 0, reading: "", matches: [] };
   const matches = measuredMatches(state);
@@ -494,6 +507,8 @@ export function attachMotionV2(
       viewingCm: meta.viewingCm ?? null,
       deviceType: meta.deviceType ?? null,
       cssPxPerMm: meta.cssPxPerMm ?? null,
+      stimulusDeg: meta.stimulusDeg ?? null,
+      sizingHeuristic: meta.sizingHeuristic ?? null,
       checks: {
         controlError: solved.controlError,
         catches: state.catches,

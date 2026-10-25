@@ -145,7 +145,7 @@ test("al menos 5 catch trials por bloque", () => {
   assert.ok(done.blockCatches >= MIN_CATCHES_PER_BLOCK);
 });
 
-test("montaje: móvil 40 cm, PC 60 cm, ~0.75 ciclos/grado", () => {
+test("montaje: móvil 40 cm, PC 60 cm, ~1 ciclo/grado", () => {
   const phone = viewingSetup(390, 844, 3, true);
   assert.equal(phone.device, "phone");
   assert.equal(phone.cm, 40);
@@ -153,10 +153,10 @@ test("montaje: móvil 40 cm, PC 60 cm, ~0.75 ciclos/grado", () => {
   assert.deepEqual([pc.device, pc.cm], ["pc", 60]);
   assert.equal(viewingSetup(1024, 1366, 2, true).device, "pc");
   for (const v of [phone, pc]) {
-    // Periodo en mm a esa distancia ⇒ 1/0.75 grados.
-    const mm = periodPx(0.75, v.cm, v.cssPxPerMm) / v.cssPxPerMm;
+    // Periodo en mm a esa distancia ⇒ 1 grado.
+    const mm = periodPx(1, v.cm, v.cssPxPerMm) / v.cssPxPerMm;
     const deg = (2 * Math.atan(mm / 2 / (v.cm * 10)) * 180) / Math.PI;
-    assert.ok(Math.abs(deg - 1 / 0.75) < 0.01, `${deg}`);
+    assert.ok(Math.abs(deg - 1) < 0.01, `${deg}`);
   }
 });
 
@@ -178,7 +178,9 @@ test("«quieto»: informativo fuera de catch, fallo en catch; bloque poco fiable
   assert.ok(s.blocks[0].still / s.blocks[0].trials > STILL_UNRELIABLE);
   const done = run(createMotionV2(profile(), 22), predictedLumWeights("protan", 0.5), 0.01);
   assert.ok(done.blocks.length >= 1 && done.blocks.every((b) => !b.unreliable));
-  const p = attachMotionV2(profile(), s.complete ? s : { ...s, blocks: s.blocks }, { refreshHz: 60, temporalHz: 7.5, cyclesPerDeg: 0.75, viewingCm: 40, deviceType: "phone", cssPxPerMm: 5.9 });
+  const p = attachMotionV2(profile(), s.complete ? s : { ...s, blocks: s.blocks }, { refreshHz: 60, temporalHz: 7.5, cyclesPerDeg: 0.75, viewingCm: 40, deviceType: "phone", cssPxPerMm: 6.25, stimulusDeg: { width: 10, height: 4 }, sizingHeuristic: "phone-0.16mm-per-css-px" });
+  assert.equal(p.luminance!.sizingHeuristic, "phone-0.16mm-per-css-px");
+  assert.deepEqual(p.luminance!.stimulusDeg, { width: 10, height: 4 });
   assert.equal(p.luminance!.deviceType, "phone");
   assert.equal(p.luminance!.viewingCm, 40);
   assert.equal(p.luminance!.checks!.unreliableBlocks, 1);

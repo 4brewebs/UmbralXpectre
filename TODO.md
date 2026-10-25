@@ -132,3 +132,5 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [MEDIA] Fijar colorSpace:"srgb" en el canvas y rellenar con un gris de la misma Y que el ANCHOR (sRGB ≈ 130) para evitar halos.
 - [BAJA] El control es demasiado fácil.
 
+
+- [ ] (Pendiente del OK de Lucas) Movimiento v2: estímulo en un campo central pequeño de 2–4° con punto de fijación (propuesta de Colorado). Hoy la red ocupa el ancho del contenedor.

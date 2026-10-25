@@ -11,6 +11,8 @@
     MAX_MICHELSON,
     createMotionV2,
     gratingSize,
+    degreesOf,
+    type MotionV2Meta,
     paintMotionV2,
     periodPx,
     pickTemporal,
@@ -25,7 +27,7 @@
     onStop,
   }: {
     profile: UmbralProfile;
-    onDone: (state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number; deviceType: "phone" | "pc"; cssPxPerMm: number }) => void;
+    onDone: (state: MotionV2State, meta: MotionV2Meta) => void;
     onStop: () => void;
   } = $props();
 
@@ -41,7 +43,7 @@
   let host: HTMLDivElement | undefined = $state();
   let size = $state({ width: 480, height: 160 });
   let blockStart = 0;
-  let viewing = $state<ReturnType<typeof viewingSetup>>({ device: "pc", cm: 60, cssPxPerMm: 96 / 25.4, hint: "un brazo extendido" });
+  let viewing = $state<ReturnType<typeof viewingSetup>>({ device: "pc", cm: 60, cssPxPerMm: 1 / 0.26, hint: "un brazo extendido", heuristic: "pc-0.26mm-per-css-px" });
   let block = $state(1);
   let finished = false;
 
@@ -117,7 +119,13 @@
     if (!motion.complete || finished) return;
     finished = true;
     step = "done";
-    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG, viewingCm: viewing.cm, deviceType: viewing.device, cssPxPerMm: viewing.cssPxPerMm });
+    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG, viewingCm: viewing.cm, deviceType: viewing.device, cssPxPerMm: viewing.cssPxPerMm,
+      stimulusDeg: {
+        width: Math.round(degreesOf(size.width, viewing.cm, viewing.cssPxPerMm) * 10) / 10,
+        height: Math.round(degreesOf(size.height, viewing.cm, viewing.cssPxPerMm) * 10) / 10,
+      },
+      sizingHeuristic: viewing.heuristic,
+    });
   });
 
   function begin() {

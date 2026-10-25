@@ -139,6 +139,9 @@ export interface LuminanceV3 {
   deviceType?: "phone" | "pc" | null;
   /** px CSS por mm supuestos para el periodo de la red. */
   cssPxPerMm?: number | null;
+  /** Tamaño de la red en grados y heurística de tamaño usada (para reprocesar). */
+  stimulusDeg?: { width: number; height: number } | null;
+  sizingHeuristic?: string | null;
   checks: {
     controlError: number | null;
     catches: { shown: number; missed: number };

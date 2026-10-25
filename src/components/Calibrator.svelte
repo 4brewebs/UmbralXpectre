@@ -15,7 +15,7 @@
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
   import MotionTestV2 from "./MotionTestV2.svelte";
-  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, type MotionV2State } from "@/lib/color/motion2";
+  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import Result from "./Result.svelte";
 
   type Phase = "intro" | "run" | "motion" | "done";
@@ -96,7 +96,7 @@
     phase = "done";
   }
 
-  function takeMotionV2(state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number; deviceType: "phone" | "pc"; cssPxPerMm: number }) {
+  function takeMotionV2(state: MotionV2State, meta: MotionV2Meta) {
     if (!profile) return;
     const enriched = attachMotionV2(profile, state, meta);
     persistProfile(enriched);
