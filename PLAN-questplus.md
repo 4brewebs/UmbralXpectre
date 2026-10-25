@@ -24,7 +24,7 @@ QUEST+ (Watson 2017, *J. Vision* 17(3):10) **solo sustituye la elección del sig
 - Parámetros: umbral `α` (siempre), pendiente `β` (opcional, por sujeto), lapse `λ` ∈ {0.02, 0.035, 0.05} **marginalizado** (no se reporta).
 - Rejillas precalculadas una vez por prueba: tabla `P(respuesta | estímulo, parámetros)` (lo que jsQuestPlus llama `precomputed_outcome_proportions`).
 - Estimación final: media posterior de `α` e IC 95 % de su marginal.
-- Respuestas «no sé»: elección al azar que actualiza la posterior; > 30 % en un bloque ⇒ bloque poco fiable (§8.4).
+- Respuestas: ver §8.4 (movimiento: izquierda/derecha/quieto con modelo de 3 respuestas; «no sé» solo donde exista ese botón).
 - Catch trials y controles: **fuera de QUEST+**, intercalados por el planificador como hoy; sirven para la confianza y para estimar el lapse.
 
 ## 3. Por prueba
@@ -49,7 +49,7 @@ QUEST+ (Watson 2017, *J. Vision* 17(3):10) **solo sustituye la elección del sig
 - **Espacio de parámetros: severity ∈ [0, 1], paso 0.05** (21 valores), más pendiente por sujeto `β` ∈ {1.5, 2.5, 4} y lapse `λ` ∈ [0.02, 0.05] marginalizado. Cada severity se traduce a umbral con `cones.ts`: brillo relativo predicho del color `e(sev) = predictedMatch(color, gris, predictedLumWeights(tipo, sev))`. Así un único posterior sirve para todos los colores del mismo tipo.
 - Tritán y desconocido: el parámetro es directamente `e` por color (la severity no mueve la luminancia en tritán).
 - **Estímulo:** ganancia de luminancia del rojo (y de los otros colores de prueba) frente al gris. Rango de partida 0.3–1.1× en protán y 0.8–1.2× en deután/tritán, rejilla log de 1–2 %.
-- Respuesta: dirección izquierda/derecha → `γ` = 0.5. Probabilidad de responder «más claro» = función monótona de `log(e_estímulo / e(sev))`, usando la Weibull simétrica en log-ganancia.
+- Respuesta: izquierda/derecha/quieto con el modelo de 3 respuestas de §8.4 (logísticas opuestas en `log(e_estímulo / e(sev))` y «quieto» como resto), sin γ = 0.5.
 - **Prior:** centrado en severity 0.6 con peso ≈ 2 igualaciones (las mismas que el prior λ = 2 de `lumweights.ts`), sobre todo el rango 0..1.
 - **Seguridad, comprobada antes de presentar CADA estímulo** (no solo al construir la rejilla):
   - contraste de Michelson en Y estándar ≤ 22 % en cualquier fotograma (constante entre 20 y 25 %);
@@ -99,7 +99,15 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 1. **Cota por el tope de seguridad:** se acepta. Se guarda `gain ≤ 0.64×` con un flag (`atLeast`); la saturación se queda en el 65 %. Si un color queda recortado, la compensación (fase 2) usa la cota y avisa de que la severidad real puede ser mayor.
 2. **Pendiente:** libre pero estrecha, con 3–5 valores en escala logarítmica entre 0.5× y 2× la nominal, marginalizada (no se reporta).
 3. **Calibración:** pasa a **2AFC con γ = 0.5** (sustituye el sí/no con γ estimado de §3.1).
-4. **«No sé»:** se trata como elección al azar y actualiza la posterior (verosimilitud 0.5 por opción en 2AFC). Se cuentan; si superan el 30 % en un bloque, ese bloque se marca como poco fiable.
+4. **Respuestas (corregido por Colorado):**
+   - **Movimiento v2:** tres respuestas, izquierda/derecha/**quieto**; no hay «no sé». «Quieto» **no es azar**: indica casi equiluminancia y es informativo.
+     - Modelo QUEST+ de 3 respuestas: P(izquierda) y P(derecha) son logísticas opuestas centradas en el punto nulo, con la pendiente del sujeto; P(quieto) es el resto, que tiene su máximo en el nulo.
+     - Parámetro extra: semiancho de la banda de «quieto» ±δ, con 3 valores y marginalizado. Sale con lapse, pendiente y δ marginalizados; se estima el punto nulo.
+     - jsQuestPlus admite más de 2 respuestas pasando una función por respuesta (`psych_func` es un array y `responses = 0..PF.length−1`, verificado en `src/jsQuestPlus.js`).
+     - Para el movimiento se descarta 2AFC/γ = 0.5; solo se usaría si algún día se fuerza izquierda/derecha.
+     - Fiabilidad: si «quieto» pasa del 60 % de los ensayos de un bloque, contando los catch de movimiento evidente, el bloque se marca poco fiable.
+   - **Calibración:** 2AFC con γ = 0.5 (decisión 3).
+   - **«No sé»:** solo donde exista ese botón; ahí cuenta como elección al azar que actualiza la estimación, y más del 30 % en un bloque lo marca poco fiable.
 5. **Parada:** IC 95 % < 1 ΔE00 (o su equivalente en cada prueba), con un máximo de **40 ensayos** por eje/color como tope de fatiga (sustituye los 20/30 de §3).
 
 ## 9. Preguntas abiertas
@@ -107,3 +115,9 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 1. ¿Vendorizar (propuesta) o instalar desde npm con la dependencia de GitHub?
 2. ¿Orden de implantación: movimiento v2 → bordes → calibración?
 3. ¿Mantener la escalera actual como alternativa (flag) durante la transición?
+
+## 10. Estado actual del código (25/10, sin cambios)
+- `MotionTestV2.svelte` ofrece «Izquierda / **No sé** / Derecha», no «Quieto». En el motor (`motion2.ts`) esa respuesta es `"unsure"`.
+- En la escalera, `"unsure"` sí se usa como informativo: se registra como inversión en el valor actual (cerca del nulo) y se reduce el paso. No se trata como azar.
+- En los catch (movimiento evidente), cualquier respuesta que no sea la dirección correcta, incluido «No sé», cuenta como fallo. No existe la regla del 60 % de «quieto».
+- Pendiente al implementar QUEST+: renombrar el botón a «Quieto» (`"still"`, como en la prueba antigua), aplicar el modelo de 3 respuestas y añadir la regla del 60 %.
