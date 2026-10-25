@@ -63,6 +63,9 @@
   let veil = $state(0);
   let adapting = $state(false);
   let leaving = $state(false);
+  /** Texto y botones de la pantalla de prueba: gris #A0A0A0 sobre #6B6B6B (Michelson ≈ 41 %), sin blanco. */
+  const UI_GRAY = "#A0A0A0";
+  const oneDegPx = $derived(pxOfDegrees(1, viewing.cm, viewing.cssPxPerMm));
   const fadeMs = $derived(reduced ? 0 : FADE_MS);
   const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
   /** Funde la pantalla de prueba y sale a `next` (solo se llama dentro del ISI). */
@@ -234,34 +237,44 @@
       </div>
     </div>
   {:else if step === "run"}
+    <!-- Parche centrado en la pantalla como en v2; texto a 1,5° del parche (≥ 1°), botones abajo, en #A0A0A0 (Michelson ≈ 41 % sobre #6B6B6B). -->
     <div
-      class="fixed inset-0 z-50 flex flex-col items-center justify-between p-4 sm:p-8"
-      style={`background:${shade(0)};color:${shade(-SCREEN.uiWeber)};opacity:${veil};transition:opacity ${fadeMs}ms ease-in-out`}
+      class="fixed inset-0 z-50"
+      style={`background:${shade(0)};color:${UI_GRAY};opacity:${veil};transition:opacity ${fadeMs}ms ease-in-out`}
       data-testid="test-screen"
     >
-      <div class="flex w-full items-center justify-between text-sm">
+      <div class="absolute inset-x-0 top-0 flex items-center justify-between p-4 text-sm sm:p-8">
         <span>{doneTargets} de {totalTargets}</span>
-        <button type="button" onclick={onStop} class="h-10 rounded-2xl border px-4 text-sm font-semibold" style={`border-color:${shade(-SCREEN.uiWeber)}`}>Parar</button>
+        <button type="button" onclick={onStop} class="h-10 rounded-2xl border px-4 text-sm font-semibold" style={`border-color:${UI_GRAY};color:${UI_GRAY}`}>Parar</button>
       </div>
-      <p class="text-center text-base">{adapting ? "Mira el punto. Empezamos en un momento." : "¿Hacia dónde se mueven las rayas?"}</p>
-      <div bind:this={host} class="flex w-full justify-center">
-        <!-- Mismo estímulo que v2; sin retícula. Al responder se funde a gris (solo en el ISI). -->
+      <p
+        class="absolute inset-x-0 px-4 text-center text-base leading-snug"
+        style={`bottom:calc(50% + ${size.height / 2 + 1.5 * oneDegPx}px)`}
+        data-testid="instructions"
+      >
+        Mira el punto central.<br />{adapting ? "Empezamos en un momento." : "¿Hacia dónde se mueven las rayas?"}
+      </p>
+      <div bind:this={host} class="absolute inset-x-4 flex justify-center" style={`top:calc(50% - ${size.height / 2}px)`}>
+        <!-- Mismo estímulo y fijación que v2; sin retícula. Al responder se funde a gris (solo en el ISI). -->
         <canvas
           bind:this={canvas}
           style={`width:${size.width}px;height:${size.height}px;opacity:${isi ? 0 : 1};transition:${isi && !reduced ? "opacity 150ms ease-out" : "none"}`}
           aria-label="Rayas en movimiento"
+          data-testid="patch"
         ></canvas>
       </div>
-      <div class="grid w-full max-w-md grid-cols-3 gap-3">
-        {#each [["left", "Izquierda"], ["still", "Quieto"], ["right", "Derecha"]] as [v, label] (v)}
-          <button
-            type="button"
-            disabled={isi || adapting || leaving}
-            onclick={() => choose(v as "left" | "right" | "still")}
-            class="h-14 rounded-2xl border text-base font-semibold"
-            style={`border-color:${shade(-SCREEN.uiWeber)};color:${shade(-SCREEN.uiWeber)}`}>{label}</button
-          >
-        {/each}
+      <div class="absolute inset-x-0 bottom-0 flex justify-center p-4 sm:p-8">
+        <div class="grid w-full max-w-md grid-cols-3 gap-3">
+          {#each [["left", "Izquierda"], ["still", "Quieto"], ["right", "Derecha"]] as [v, label] (v)}
+            <button
+              type="button"
+              disabled={isi || adapting || leaving}
+              onclick={() => choose(v as "left" | "right" | "still")}
+              class="h-14 rounded-2xl border text-base font-semibold"
+              style={`border-color:${UI_GRAY};color:${UI_GRAY}`}>{label}</button
+            >
+          {/each}
+        </div>
       </div>
     </div>
   {:else if step === "pause"}
