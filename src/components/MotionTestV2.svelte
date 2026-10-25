@@ -25,6 +25,7 @@
     type MotionV2State,
   } from "@/lib/color/motion2";
   import type { UmbralProfile } from "@/lib/color/profile";
+  import MotionReticle from "./MotionReticle.svelte";
 
   let {
     profile,
@@ -162,6 +163,8 @@
   function choose(answer: "left" | "right" | "still") {
     if (isi) return;
     motion = answerMotionV2(motion, answer, Date.now());
+    // Háptica suave en móvil, si hay soporte y no se pide reducir el movimiento.
+    if (!reduced && viewing.device === "phone") navigator.vibrate?.(8);
     // Intervalo entre ensayos: 0.5 s de gris neutro uniforme.
     isi = true;
     window.setTimeout(() => (isi = false), SCREEN.isiMs);
@@ -208,17 +211,34 @@
       data-testid="test-screen"
     >
       <div class="flex w-full items-center justify-between text-xs">
-        <span>B{block} · {doneTargets}/{totalTargets}</span>
+        <span>{doneTargets}/{totalTargets}</span>
         <button type="button" onclick={onStop} class="rounded-full border px-4 py-2 text-sm" style={`border-color:${shade(-SCREEN.lineWeber)}`}>Parar</button>
       </div>
-      <p class="text-center text-sm">Mira el punto central. ¿Hacia dónde se mueven las rayas?</p>
-      <div bind:this={host} class="flex w-full justify-center" style={`padding:${Math.round(marginPx)}px 0`}>
-        <canvas
-          bind:this={canvas}
-          style={`width:${size.width}px;height:${size.height}px;visibility:${isi ? "hidden" : "visible"}`}
-          aria-label="Rayas en movimiento"
-        ></canvas>
+      <p class="text-center text-sm tracking-wide">Mira el punto central. ¿Hacia dónde se mueven las rayas?</p>
+      <div bind:this={host} class="flex w-full justify-center">
+        <MotionReticle
+          width={size.width}
+          height={size.height}
+          {marginPx}
+          pxPerDeg={pxOfDegrees(1, viewing.cm, viewing.cssPxPerMm)}
+          {shade}
+          progress={totalTargets ? doneTargets / totalTargets : 0}
+          labels={{
+            tl: refreshHz == null ? "— hz" : `${refreshHz.toFixed(1)} hz`,
+            tr: `${CYCLES_PER_DEG.toFixed(1)} c/°`,
+            bl: `bloque ${block}`,
+            br: `${motion.log.length + 1}`,
+          }}
+        >
+          <!-- Al responder se funde a gris (solo en el ISI); al empezar el ensayo aparece sin transición. -->
+          <canvas
+            bind:this={canvas}
+            style={`width:${size.width}px;height:${size.height}px;opacity:${isi ? 0 : 1};transition:${isi && !reduced ? "opacity 150ms ease-out" : "none"}`}
+            aria-label="Rayas en movimiento"
+          ></canvas>
+        </MotionReticle>
       </div>
+      <p class="text-center text-xs tracking-wide">Sin prisa. No hay respuestas malas.</p>
       <div class="grid w-full max-w-md grid-cols-3 gap-3">
         {#each [["left", "Izquierda"], ["still", "Quieto"], ["right", "Derecha"]] as [v, label] (v)}
           <button
@@ -232,7 +252,8 @@
       </div>
     </div>
   {:else if step === "pause"}
-    <p class="text-lg text-fg">Pausa. Descansa la vista unos segundos.</p>
+    <p class="text-lg text-fg">Buen trabajo, un bloque menos.</p>
+    <p class="text-base text-muted">Descansa la vista el tiempo que quieras. Seguimos cuando pulses «Seguir».</p>
     <button type="button" onclick={begin} class="h-14 rounded-2xl bg-accent text-base font-semibold text-accent-fg">Seguir</button>
   {:else}
     <p class="text-lg text-fg">Hecho. Guardando los pesos en tu perfil.</p>

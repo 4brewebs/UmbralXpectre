@@ -130,4 +130,5 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
   - pantalla de prueba a pantalla completa, fondo uniforme a la luminancia media de la red del ensayo, todo acromático (sin modo oscuro); líneas Weber ≤ 15 %, texto ≤ 30 %;
   - dirección real equilibrada por parejas de ensayos (una a cada lado, orden aleatorio);
   - 0.5 s de gris neutro entre ensayos (ISI), respuestas desactivadas durante el ISI.
+- Retícula decorativa (`MotionReticle.svelte`, quitable con `SHOW_RETICLE = false`, fuera de la lógica de medida): anillo de 1 px con marcas radiales cada 15°, anillo de progreso simétrico (arriba y abajo a la vez) que avanza con easing solo en el ISI, escala de 1° horizontal y rótulos monoespaciados en las esquinas, todo gris dentro del margen de Weber. Háptica de 8 ms en móvil al responder (sin `prefers-reduced-motion`).
 - Pendiente: modelo de 3 respuestas en QUEST+.
