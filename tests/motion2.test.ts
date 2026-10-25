@@ -214,3 +214,24 @@ test("pantalla de prueba: constantes de Colorado, ventana suave y dirección equ
   }
   for (let i = 0; i + 1 < signs.length; i += 2) assert.equal(signs[i] + signs[i + 1], 0);
 });
+
+test("fondo constante: todos los ensayos centrados en el mismo gris y dentro del gamut", async () => {
+  const { createMotionV2: create, answerMotionV2: answer, stimulusOf: stimOf, meanGray: mean } = await import("../src/lib/color/motion2");
+  const { parseProfile: parse } = await import("../src/lib/color/profile");
+  const { predictedLumWeights: plw } = await import("../src/lib/color/cones");
+  const fsm = await import("node:fs");
+  const p = parse(fsm.readFileSync(new URL("./fixtures/perfil_56KB.json", import.meta.url), "utf8"))!;
+  for (const type of ["normal", "protan", "deutan", "tritan", "unknown"] as const) {
+    let s = create({ ...p, luminance: { ...p.luminance!, type, predicted: plw(type === "unknown" ? "normal" : type, 0.6) } } as typeof p, 3);
+    const bg = s.bgY;
+    assert.ok(bg > 0.05 && bg <= 0.18, `${type} bg ${bg}`);
+    for (let i = 0; i < 400 && !s.complete; i++) {
+      const st = stimOf(s)!;
+      assert.ok(Math.abs(mean(st) - bg) < 1e-6, `${type} media ${mean(st)} ≠ ${bg}`);
+      for (const v of [...st.test, ...st.ref]) assert.ok(v <= 1 + 1e-9 && v >= 0);
+      s = answer(s, i % 3 === 0 ? "still" : i % 2 ? "left" : "right", i);
+      assert.equal(s.bgY, bg);
+    }
+    console.log(`fondo ${type}: Y = ${bg.toFixed(4)}`);
+  }
+});

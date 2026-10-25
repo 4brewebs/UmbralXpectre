@@ -12,7 +12,6 @@
     createMotionV2,
     patchSize,
     pxOfDegrees,
-    meanGray,
     patchMask,
     gray255,
     SCREEN,
@@ -54,11 +53,8 @@
   let block = $state(1);
   let finished = false;
   let isi = $state(false);
-  // Pantalla de prueba: fondo uniforme a la luminancia media de la red, todo acromático.
-  const bgY = $derived.by(() => {
-    const st = stimulusOf(motion);
-    return st ? meanGray(st) : 0.18;
-  });
+  // Pantalla de prueba: fondo uniforme y constante en toda la sesión (la red se centra en él).
+  const bgY = $derived(motion.bgY);
   const shade = (weber: number) => {
     const g = gray255(bgY * (1 + weber));
     return `rgb(${g},${g},${g})`;
@@ -131,7 +127,7 @@
       paintMotionV2(image.data, w, h, Math.floor(frame / k) % 4, frame, stim, period, mask);
       ctx.putImageData(image, 0, 0);
       // Fijación: punto acromático de 0.15° en el hueco de 0.5° (gris medio).
-      const g = gray255(meanGray(stim) * (1 + SCREEN.dotWeber));
+      const g = gray255(motion.bgY * (1 + SCREEN.dotWeber));
       ctx.fillStyle = `rgb(${g},${g},${g})`;
       ctx.beginPath();
       ctx.arc(w / 2, h / 2, dot, 0, 2 * Math.PI);

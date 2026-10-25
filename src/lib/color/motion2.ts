@@ -202,7 +202,7 @@ export function patchSize(viewingCm: number, cssPxPerMm: number, containerW: num
   return { width: Math.floor(width), height: Math.floor(height) };
 }
 
-/** Gris acromático con la luminancia media de la red (para el entorno y la fijación). */
+/** Luminancia media de la red de un ensayo (debe igualar `state.bgY`). */
 export function meanGray(stim: { test: Vec3; ref: Vec3 }): number {
   return (luminance(stim.test) + luminance(stim.ref)) / 2;
 }
@@ -271,6 +271,8 @@ function closeBlock(state: MotionV2State): MotionV2State {
 }
 
 export interface MotionV2State {
+  /** Luminancia Y del fondo, constante en toda la sesión (Colorado): la red se centra en ella. */
+  bgY: number;
   type: ObserverType;
   weights: Vec3;
   stairs: Stair[];
@@ -406,7 +408,7 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
   }));
   const qp = questPlus ? targets.map((t) => makeQuest(questPlus, t, opts.fixedSlope ?? QP_MOTION.fixedSlope)) : undefined;
   if (qp) qp.forEach((q, i) => (stairs[i].logE = Math.log(safeE(Math.exp(q.next())))));
-  return pick({ type, weights, stairs, qp, method: qp ? "quest+" : "staircase", rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
+  return pick({ bgY: backgroundY(targets), type, weights, stairs, qp, method: qp ? "quest+" : "staircase", rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
 }
 
 /** Cierra el bloque: si faltan catch trials hasta MIN_CATCHES_PER_BLOCK, se piden antes de la pausa. */
@@ -444,6 +446,25 @@ function pick(state: MotionV2State): MotionV2State {
   return { ...state, pendingCatches: pending, rng: r.state, lastIndex: index, current: { index, catch: isCatch, sign } };
 }
 
+/**
+ * Fondo constante (Colorado): la Y media más baja que TODOS los ensayos pueden alcanzar.
+ * Por ensayo, la red de media m usa ref = 2·m·e/(1+e) y test = ref/e; los topes son
+ * ref ≤ MAX_REF_Y y test dentro del gamut (ref ≤ 0.95·e·Yc). El catch (test = 1.2·ref) también cabe.
+ */
+export function backgroundY(targets: MotionV2Target[]): number {
+  let best = Infinity;
+  const n = 400;
+  for (const t of targets) {
+    const yc = luminance(t.color);
+    for (let i = 0; i <= n; i++) {
+      const e = E_MIN * (E_MAX / E_MIN) ** (i / n);
+      const ref = Math.min(MAX_REF_Y, 0.95 * e * yc);
+      best = Math.min(best, (ref * (1 + 1 / e)) / 2);
+    }
+  }
+  return Math.min(best, MAX_REF_Y / 1.1);
+}
+
 /** Colores lineales del ensayo actual. */
 export function stimulusOf(state: MotionV2State): { test: Vec3; ref: Vec3; sign: 1 | -1; e: number; catch: boolean } | null {
   if (!state.current) return null;
@@ -451,13 +472,15 @@ export function stimulusOf(state: MotionV2State): { test: Vec3; ref: Vec3; sign:
   const e = safeE(Math.exp(stair.logE));
   const c = stair.target.color;
   const yc = luminance(c);
-  const yRef = Math.min(MAX_REF_Y, 0.95 * e * yc);
-  const ref: Vec3 = [yRef, yRef, yRef];
   if (state.current.catch) {
-    // Movimiento solo de luminancia, dirección conocida (gris 20 % más claro: Michelson 9 %).
-    const k = 1.2 * yRef;
-    return { test: [k, k, k], ref, sign: state.current.sign, e: 1.2, catch: true };
+    // Movimiento solo de luminancia, dirección conocida (gris 20 % más claro: Michelson 9 %), media = fondo.
+    const r = state.bgY / 1.1;
+    const k = 1.2 * r;
+    return { test: [k, k, k], ref: [r, r, r], sign: state.current.sign, e: 1.2, catch: true };
   }
+  // Red centrada en el gris de fondo constante.
+  const yRef = (2 * state.bgY * e) / (1 + e);
+  const ref: Vec3 = [yRef, yRef, yRef];
   const s = yRef / e / yc;
   return { test: [c[0] * s, c[1] * s, c[2] * s], ref, sign: state.current.sign, e, catch: false };
 }
