@@ -8,13 +8,12 @@ import { deltaE00Linear } from "./deltaE";
  * α = distancia del borde (°), β y λ marginalizados (decisión 2).
  * Modelo de 3 respuestas `detect3` (Colorado, punto 6): «Ninguno» = fallo de detección informativo,
  * disco equivocado = lapsus/azar. La escalera por defecto no cambia.
- * Parada (Colorado): IC 95 % de α < 2° o 45 ensayos. 1 ΔE00 se convierte a ángulo por bisección
- * (`angleForDeltaE`) y se guarda junto al IC en ΔE00; a la escala de los discos 1 ΔE00 ≈ 8–12°,
- * así que «IC < 1 ΔE00» sería mucho más laxo que 2° (pregunta abierta).
+ * Parada (Colorado): IC 95 % < 1 ΔE00 medido en ΔE00 entre los extremos del IC (respaldo 8° sin escala),
+ * o 45 ensayos por lado. El IC se guarda en ° y en ΔE00; `angleForDeltaE` da el ángulo de 1 ΔE00.
  * Fiabilidad: catch de diferencia obvia (tono +90° del pico); si > 25 % son «ninguno», la ronda no es fiable.
  */
-/** Parada (Colorado): IC < 2°, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 2, stopDeltaE: 1, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25 };
+/** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -423,11 +422,15 @@ function questStep(side: Side, peak: number): Side {
   const qp = side.qp!;
   const sign = side.side === "minus" ? -1 : 1;
   const est = qp.estimate();
-  if ((side.qpTrials ?? 0) > 0 && (est.width < QP_EDGES.stopDeg || (side.qpTrials ?? 0) >= QP_EDGES.maxTrials)) {
+  // Parada (Colorado): IC 95 % < 1 ΔE00, medido en ΔE00 entre los colores de los extremos del IC.
+  // Si no hay escala de referencia, respaldo fijo de 8°.
+  const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const at = (d: number) => addScaled(gray, dirFromTheta(rad(peak + sign * d)), side.qpScale ?? 0);
+  const ciDe = side.qpScale ? deltaE00Linear(at(est.lo), at(est.hi)) : NaN;
+  const narrow = Number.isFinite(ciDe) ? ciDe < QP_EDGES.stopDeltaE : est.width < QP_EDGES.fallbackDeg;
+  if ((side.qpTrials ?? 0) > 0 && (narrow || (side.qpTrials ?? 0) >= QP_EDGES.maxTrials)) {
     const edge = snap(peak + sign * est.mean);
-    const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
-    const at = (d: number) => addScaled(gray, dirFromTheta(rad(peak + sign * d)), side.qpScale ?? 0.04);
-    const qpCi = { deg: round1(est.width), deltaE00: round4(deltaE00Linear(at(est.lo), at(est.hi))) };
+    const qpCi = { deg: round1(est.width), deltaE00: round4(Number.isFinite(ciDe) ? ciDe : NaN) };
     return { ...side, qpCi, inside: snap(peak + sign * est.lo), outside: snap(peak + sign * est.hi), status: "done", confirm: null, found: true, edge, cursor: edge };
   }
   return withCursor(side, peak + sign * qp.next(), "bisect", null);
