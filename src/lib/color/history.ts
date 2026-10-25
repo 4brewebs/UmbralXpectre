@@ -51,6 +51,8 @@ export interface HistorySession {
   engine: { version: string; method: "staircase" | "quest+" };
   /** Dispositivo de la sesión (ausente en sesiones anteriores). */
   device?: DeviceFingerprint;
+  /** Interfaz de la prueba de brillo (ausente en sesiones anteriores y en las que no son de brillo). */
+  ui?: "legacy" | "v2" | "v3";
   count: number;
   trials?: Trial[];
   packed?: PackedTrials;
