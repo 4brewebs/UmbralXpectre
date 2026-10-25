@@ -142,6 +142,8 @@ export interface LuminanceV3 {
   /** Tamaño de la red en grados y heurística de tamaño usada (para reprocesar). */
   stimulusDeg?: { width: number; height: number } | null;
   sizingHeuristic?: string | null;
+  /** Método de búsqueda de la prueba v2: escalera (por defecto) o QUEST+ (`?qp=1`). */
+  searchMethod?: "staircase" | "quest+";
   checks: {
     controlError: number | null;
     catches: { shown: number; missed: number };

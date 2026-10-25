@@ -16,6 +16,7 @@
     patchMask,
     gray255,
     SCREEN,
+    questPlusEnabled,
     degreesOf,
     type MotionV2Meta,
     paintMotionV2,
@@ -154,7 +155,12 @@
     });
   });
 
-  function begin() {
+  async function begin() {
+    if (step === "consent" && questPlusEnabled(window.location.search)) {
+      // QUEST+ tras flag: la librería se carga perezosamente solo aquí.
+      const { loadQuestPlus } = await import("@/lib/color/questplus");
+      motion = createMotionV2(profile, Date.now(), await loadQuestPlus());
+    }
     if (step === "pause") motion = startBlock(motion);
     blockStart = performance.now();
     step = "run";

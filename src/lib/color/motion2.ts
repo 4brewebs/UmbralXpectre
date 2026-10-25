@@ -17,6 +17,7 @@ import { luminance, type Vec3 } from "./space";
 import { predictedMatch, predictedLumWeights, type ObserverType } from "./cones";
 import { solveLumWeights } from "./lumweights";
 import { defaultLuminanceV3, type MeasuredMatch, type UmbralProfile } from "./profile";
+import { createQuestPlus, motion3, grid, type JsQuest, type QuestPlus } from "./questplus";
 
 export const MOTION_V2_FLAG = "umbral-motion";
 /** Contraste de Michelson de la red de luminancia (≤ 10 %). */
@@ -48,6 +49,77 @@ const STOP_CI = Math.log(1.025);
 export const TRIALS_PER_TARGET = 30;
 export const CATCH_EVERY = 4;
 export const BLOCK_MS = 25_000;
+
+/** QUEST+ en movimiento v2, tras flag (`?motion=v2&qp=1`). Apagado por defecto: escalera actual. */
+export function questPlusEnabled(search: string): boolean {
+  return new URLSearchParams(search).get("qp") === "1";
+}
+
+/**
+ * Parámetros de QUEST+ para movimiento v2 (PLAN-questplus §3.3 y §8).
+ * x = log(e) del estímulo; se estima μ = log(e_nulo) con el modelo de 3 respuestas (§8.4)
+ * y se marginalizan pendiente β, semiancho δ de «quieto» y lapse λ (Watson 2017).
+ * Los valores nominales de β y δ NO los fija el plan: son provisionales (pregunta abierta).
+ */
+export const QP_MOTION = {
+  /** Rejilla del estímulo: log e entre los topes de seguridad, paso ln 1.015. */
+  stepLn: Math.log(1.015),
+  /** μ cubre 0.2 en log más allá de los topes para detectar cotas «al menos». */
+  muPad: 0.2,
+  muPoints: 61,
+  /** Pendiente nominal 20 /ln, 3 valores log entre 0.5× y 2× (decisión 2). PROVISIONAL. */
+  betas: [10, 20, 40],
+  /** Semiancho de «quieto» en ln. PROVISIONAL. */
+  deltas: [0.01, 0.02, 0.04],
+  lapses: [0.02, 0.035, 0.05],
+  /** Parada: IC 95 % de e con anchura total < 6 % (± 3 %), o 40 ensayos (decisión 5). */
+  stopWidth: Math.log(1.06),
+  maxTrials: 40,
+  /** Prior en severity (protán/deután): centro 0.6; σ 0.3 PROVISIONAL (equivalencia con «≈ 2 igualaciones» abierta). */
+  priorSeverity: 0.6,
+  priorSd: 0.3,
+} as const;
+
+/** Prior en μ: protán/deután vía severity 0..1 (paso 0.05) y `cones.ts`; resto, uniforme. */
+function muPrior(type: ObserverType, color: Vec3, mus: number[]): number[] {
+  if (type !== "protan" && type !== "deutan") return mus.map(() => 1);
+  const p = mus.map(() => 1e-3);
+  for (let k = 0; k <= 20; k++) {
+    const sev = k * 0.05;
+    const mu = Math.log(predictedMatch(color, GRAY, predictedLumWeights(type, sev)));
+    const wsev = Math.exp(-0.5 * ((sev - QP_MOTION.priorSeverity) / QP_MOTION.priorSd) ** 2);
+    let best = 0;
+    for (let i = 1; i < mus.length; i++) if (Math.abs(mus[i] - mu) < Math.abs(mus[best] - mu)) best = i;
+    p[best] += wsev;
+  }
+  // Suavizado: la severity discreta deja huecos en μ.
+  return p.map((_, i) => (p[i - 1] ?? 0) * 0.25 + p[i] * 0.5 + (p[i + 1] ?? 0) * 0.25 + 1e-4);
+}
+
+function makeQuest(Q: JsQuest, type: ObserverType, target: MotionV2Target): QuestPlus {
+  const lo = Math.log(E_MIN);
+  const hi = Math.log(E_MAX);
+  const n = Math.floor((hi - lo) / QP_MOTION.stepLn) + 1;
+  const stim = grid(lo, lo + (n - 1) * QP_MOTION.stepLn, n);
+  const mus = grid(lo - QP_MOTION.muPad, hi + QP_MOTION.muPad, QP_MOTION.muPoints);
+  return createQuestPlus(Q, {
+    stim,
+    params: [mus, [...QP_MOTION.betas], [...QP_MOTION.deltas], [...QP_MOTION.lapses]],
+    prior: [target.kind === "control" ? mus.map(() => 1) : muPrior(type, target.color, mus)],
+    responses: motion3(),
+  });
+}
+
+/** Comprobador de seguridad de CADA estímulo (§3.3): e dentro de los topes ⇒ Michelson ≤ 22 %. */
+export function safeE(e: number): number {
+  return Math.min(E_MAX, Math.max(E_MIN, e));
+}
+
+export function michelsonOf(stim: { test: Vec3; ref: Vec3 }): number {
+  const a = luminance(stim.test);
+  const b = luminance(stim.ref);
+  return Math.abs(a - b) / (a + b);
+}
 
 export function motionV2Enabled(search: string, stored: string | null): boolean {
   const q = new URLSearchParams(search).get("motion");
@@ -174,6 +246,8 @@ interface Stair {
   extensions: number;
   done: boolean;
   bound: MeasuredMatch["bound"];
+  /** Estimación QUEST+ de μ = log(e_nulo): media e IC 95 %. */
+  qpEst?: { mean: number; lo: number; hi: number };
   /** 1: el test necesita aún más brillo relativo que el tope; −1: aún menos. */
   atLeastSide?: 1 | -1;
 }
@@ -216,6 +290,9 @@ export interface MotionV2State {
   block: { trials: number; still: number };
   /** Bloques cerrados. `unreliable`: «quieto» > 60 % de sus ensayos. */
   blocks: BlockRecord[];
+  /** QUEST+ por color (solo con `?qp=1`); mutable, no se serializa. */
+  qp?: QuestPlus[];
+  method?: "staircase" | "quest+";
   /** Último escalón usado (para el nivel de gris de los catch del final). */
   lastIndex: number;
   current: { index: number; catch: boolean; sign: 1 | -1 } | null;
@@ -315,7 +392,7 @@ function nextRand(state: number): { state: number; value: number } {
   return { state: next, value: ((t ^ (t >>> 14)) >>> 0) / 4294967296 };
 }
 
-export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">, seed: number): MotionV2State {
+export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">, seed: number, questPlus?: JsQuest): MotionV2State {
   const v3 = profile.luminance ?? defaultLuminanceV3(profile);
   const type = v3.type ?? "unknown";
   const weights = v3.predicted ?? predictedLumWeights("normal");
@@ -334,7 +411,9 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
     done: false,
     bound: "converged",
   }));
-  return pick({ type, weights, stairs, rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
+  const qp = questPlus ? targets.map((t) => makeQuest(questPlus, type, t)) : undefined;
+  if (qp) qp.forEach((q, i) => (stairs[i].logE = Math.log(safeE(Math.exp(q.next())))));
+  return pick({ type, weights, stairs, qp, method: qp ? "quest+" : "staircase", rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
 }
 
 /** Cierra el bloque: si faltan catch trials hasta MIN_CATCHES_PER_BLOCK, se piden antes de la pausa. */
@@ -376,7 +455,7 @@ function pick(state: MotionV2State): MotionV2State {
 export function stimulusOf(state: MotionV2State): { test: Vec3; ref: Vec3; sign: 1 | -1; e: number; catch: boolean } | null {
   if (!state.current) return null;
   const stair = state.stairs[state.current.index];
-  const e = Math.exp(stair.logE);
+  const e = safeE(Math.exp(stair.logE));
   const c = stair.target.color;
   const yc = luminance(c);
   const yRef = Math.min(MAX_REF_Y, 0.95 * e * yc);
@@ -427,6 +506,30 @@ export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | 
     });
   }
   const next: Stair = { ...stair, reversals: [...stair.reversals], trials: stair.trials + 1 };
+  const q = state.qp?.[cur.index];
+  if (q) {
+    // QUEST+: 0 = test más claro que su nulo (x < μ), 1 = quieto, 2 = más oscuro.
+    const brighter = (answer === "right") === (cur.sign === 1);
+    q.update(next.logE, answer === "still" ? 1 : brighter ? 0 : 2);
+    const est = q.estimate();
+    next.qpEst = { mean: est.mean, lo: est.lo, hi: est.hi };
+    const lo = Math.log(E_MIN);
+    const hi = Math.log(E_MAX);
+    if (est.hi < lo || est.lo > hi) {
+      next.done = true;
+      next.bound = "at-least";
+      next.atLeastSide = est.lo > hi ? 1 : -1;
+    } else if (est.width < QP_MOTION.stopWidth) next.done = true;
+    else if (next.trials >= QP_MOTION.maxTrials) {
+      next.done = true;
+      next.bound = est.mean < lo || est.mean > hi ? "at-least" : "cap";
+      if (next.bound === "at-least") next.atLeastSide = est.mean > hi ? 1 : -1;
+    }
+    next.logE = Math.log(safeE(Math.exp(q.next())));
+    const stairs = state.stairs.slice();
+    stairs[cur.index] = next;
+    return pick({ ...state, stairs, log: [...state.log, record], sinceCatch: state.sinceCatch + 1 });
+  }
   if (answer === "still") {
     // Fuera de los catch, «quieto» es informativo: casi equiluminancia, cerca del nulo.
     next.reversals.push(next.logE);
@@ -479,6 +582,25 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
     .filter((s) => s.trials > 0)
     .map((s) => {
       const atLeast = s.bound === "at-least";
+      if (s.qpEst) {
+        const e = safeE(Math.exp(s.qpEst.mean));
+        const yc = luminance(s.target.color);
+        return {
+          id: s.target.id,
+          hue: s.target.hue,
+          kind: s.target.kind,
+          test: s.target.color.map((v) => round((v * 0.1) / yc, 1e6)) as Vec3,
+          ref: [0.1, 0.1, 0.1] as Vec3,
+          gain: round(1 / e, 1e4),
+          efficiency: round(e, 1e4),
+          width: round(Math.max(0.01, Math.exp(s.qpEst.hi - s.qpEst.lo) - 1), 1e4),
+          reversals: 0,
+          trials: s.trials,
+          bound: s.bound,
+          atLeast,
+          ...(atLeast ? { atLeastSide: s.atLeastSide ?? 1 } : {}),
+        };
+      }
       const values = !atLeast && s.reversals.length >= 2 ? s.reversals.slice(-6) : [s.logE];
       const { mean, ci } = spread(values);
       const e = Math.exp(mean);
@@ -534,6 +656,7 @@ export function attachMotionV2(
       cssPxPerMm: meta.cssPxPerMm ?? null,
       stimulusDeg: meta.stimulusDeg ?? null,
       sizingHeuristic: meta.sizingHeuristic ?? null,
+      searchMethod: state.method ?? "staircase",
       checks: {
         controlError: solved.controlError,
         catches: state.catches,
