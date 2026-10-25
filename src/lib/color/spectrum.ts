@@ -463,7 +463,15 @@ type Notch = {
   hiOut: number;
   tInner: number;
   tRim: number;
+  /** Lado sin borde medido (no encontrado, hasta el final o sin explorar): no es un destino distinguible. */
+  loOpen: boolean;
+  hiOpen: boolean;
 };
+
+/** Un lado está abierto si no tiene un borde medido de verdad. */
+export function sideOpen(side: EdgeFile["minus"]): boolean {
+  return !side.found || side.toEnd === true;
+}
 
 /** A measured notch. A side that reaches the last hue of that color stays painted to the end. */
 export function edgeNotches(files: EdgeFile[]): Notch[] {
@@ -488,7 +496,8 @@ export function edgeNotches(files: EdgeFile[]): Notch[] {
     const outerHi = Math.max(loOutDeg, hiOutDeg, innerHi);
     if (!(outerHi > outerLo) && !minusEnd && !plusEnd) continue;
     if (outerHi - outerLo > 170) continue;
-    const tInner = file.depth && file.depth.scale > 0 ? file.depth.scale : Math.max(file.sourceThreshold, file.edgeScale);
+    // Red de seguridad: una profundidad medida en el borde no rebaja el umbral de origen.
+    const tInner = Math.max(file.depth && file.depth.scale > 0 ? file.depth.scale : 0, file.sourceThreshold, file.edgeScale);
     const lo = rad(outerLo);
     const hi = rad(outerHi);
     notches.push({
@@ -499,6 +508,8 @@ export function edgeNotches(files: EdgeFile[]): Notch[] {
       hiOut: hi,
       tInner,
       tRim: file.edgeScale > 0 ? file.edgeScale : tInner,
+      loOpen: sideOpen(file.minus),
+      hiOpen: sideOpen(file.plus),
     });
   }
   return notches;
@@ -553,11 +564,19 @@ function edgePaint(rgb: Vec3, profile: UmbralProfile, files: EdgeFile[], kind: P
   const others = notches.filter((notch) => notch !== best.notch);
   const blocked = (angle: number) => others.some((notch) => notchSample(angle, notch).w >= 0.5);
   if (kind === "assist" || kind === "extreme") {
-    const hardLo = Math.abs(best.notch.loIn - best.notch.loOut) < 1e-3;
-    const hardHi = Math.abs(best.notch.hiIn - best.notch.hiOut) < 1e-3;
-    let target = hardLo && !hardHi ? best.notch.hiOut : hardHi && !hardLo ? best.notch.loOut : angDist(theta, best.notch.loOut) <= angDist(theta, best.notch.hiOut) ? best.notch.loOut : best.notch.hiOut;
+    // Nunca hacia un lado abierto: allí sigue la confusión. Sin ningún borde medido, la asistencia del perfil.
+    if (best.notch.loOpen && best.notch.hiOpen) {
+      return kind === "extreme" ? extremeColor(rgb, profile.axes, floor, luma) : assistColor(rgb, profile.axes, floor, luma);
+    }
+    let target = best.notch.loOpen
+      ? best.notch.hiOut
+      : best.notch.hiOpen
+        ? best.notch.loOut
+        : angDist(theta, best.notch.loOut) <= angDist(theta, best.notch.hiOut)
+          ? best.notch.loOut
+          : best.notch.hiOut;
     if (blocked(target)) {
-      const free = [best.notch.loOut, best.notch.hiOut].filter((angle) => !blocked(angle));
+      const free = [best.notch.loOpen ? null : best.notch.loOut, best.notch.hiOpen ? null : best.notch.hiOut].filter((angle): angle is number => angle != null && !blocked(angle));
       if (free.length) target = free.sort((a, b) => angDist(theta, a) - angDist(theta, b))[0];
     }
     const from = dirFromTheta(theta);

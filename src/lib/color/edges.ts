@@ -517,7 +517,8 @@ function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: num
 
 function beginDepth(run: EdgeRun): EdgeRun {
   const known = [run.minus, run.plus].filter((side) => side.found && side.edge != null).map((side) => side.edge as number);
-  const depthAngle = snap(known.length ? known.reduce((sum, angle) => sum + angle, 0) / known.length : run.peak);
+  // Con un solo borde conocido, la media sería ese borde: la profundidad se mide en el pico.
+  const depthAngle = snap(known.length === 2 ? (known[0] + known[1]) / 2 : run.peak);
   const recovered = run.minus.found && run.plus.found && !run.minus.toEnd && !run.plus.toEnd;
   const ceiling = depthCeiling(run.floor, run.sourceThreshold, depthAngle);
   const next = place(
