@@ -10,7 +10,8 @@ export type Vec3 = [number, number, number];
 
 export const ANCHOR = 0.22;
 
-const Y_COEF: Vec3 = [0.2126729, 0.7151522, 0.072175];
+/** CIE Y estándar (sRGB/D65). Pesos por defecto de `luminance`/`killLuminance`. */
+export const Y_COEF: Vec3 = [0.2126729, 0.7151522, 0.072175];
 
 const RGB_TO_XYZ: number[][] = [
   [0.4124564, 0.3575761, 0.1804375],
@@ -18,19 +19,24 @@ const RGB_TO_XYZ: number[][] = [
   [0.0193339, 0.119192, 0.9503041],
 ];
 
-/** Hunt-Pointer-Estevez, D65. */
+/** Hunt-Pointer-Estevez (normalizada a iluminante E, no D65). */
 const XYZ_TO_LMS: number[][] = [
   [0.4002, 0.7076, -0.0808],
   [-0.2263, 1.1653, 0.0457],
   [0, 0, 0.9182],
 ];
 
-export function luminance(rgb: Vec3): number {
-  return Y_COEF[0] * rgb[0] + Y_COEF[1] * rgb[1] + Y_COEF[2] * rgb[2];
+/**
+ * Luminancia de un color lineal. `w` son pesos por canal (p. ej. personales,
+ * de la prueba de movimiento); por defecto la Y estándar.
+ */
+export function luminance(rgb: Vec3, w: Vec3 = Y_COEF): number {
+  return w[0] * rgb[0] + w[1] * rgb[1] + w[2] * rgb[2];
 }
 
-export function killLuminance(rgb: Vec3): Vec3 {
-  const y = luminance(rgb);
+/** Quita la luminancia (con pesos `w`, por defecto Y estándar). */
+export function killLuminance(rgb: Vec3, w: Vec3 = Y_COEF): Vec3 {
+  const y = luminance(rgb, w);
   return [rgb[0] - y, rgb[1] - y, rgb[2] - y];
 }
 
