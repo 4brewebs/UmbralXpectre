@@ -192,8 +192,11 @@ export function thresholdAt(theta: number, axes: AxisMark[], floor: number): num
 const GATE = 1.6;
 /** A bad axis paints this far and then stops. The pure red this display measured as seen stays outside. */
 const BAND_HALF = (10 * Math.PI) / 180;
-/** Assist and extreme only step onto an intact colour this close. Farther is a different object. */
-const LAND_MAX = (32 * Math.PI) / 180;
+/** Tope duro de giro de tono de la asistencia del perfil (60° en Extremo). */
+const ROT_CAP = (45 * Math.PI) / 180;
+const ROT_CAP_EXTREME = (60 * Math.PI) / 180;
+const DALTON_GAIN = 1;
+const DALTON_GAIN_EXTREME = 2;
 const ASSIST_TURN = 0.7;
 const EXTREME_GAIN = 5.5;
 const ALIAS_LEAK = 1;
@@ -201,13 +204,17 @@ const ASSIST_LUMA = 0.35;
 const RED_FAMILY = new Set(["rojizo", "anaranjado", "amarillento", "magenta"]);
 
 type Family = "l" | "m" | "s";
-type Band = { mid: number; T: number; both: boolean; redLand: number | null; greenLand: number | null };
+type Band = { mid: number; T: number; both: boolean };
 type FilterModel = {
   floor: number;
   bands: Band[];
   weak: Family | null;
   catcher: number | null;
   blue: number | null;
+  /** Línea de confusión de la daltonización: la banda del cono más débil (o la peor). */
+  confusion: Band | null;
+  /** Ángulo (plano) del extremo S al que va el lado rojizo; el verdoso va al opuesto. */
+  sDir: number | null;
 };
 
 const modelCache = new WeakMap<AxisMark[], FilterModel>();
@@ -237,17 +244,30 @@ function lobeWeight(theta: number, band: Band): number {
   return raised * raised;
 }
 
-function nearestGood(target: number, good: number[]): number | null {
+/**
+ * Eje S de referencia para la daltonización. Vale el eje S o el azul extremo (referencia de pantalla) si los separa
+ * bien; LAND_MAX adaptativo: el candidato más cercano a la perpendicular de la línea de confusión, si queda dentro
+ * del tope de giro (45°). Si no, la propia perpendicular. Signo: hacia el lado azul (S+).
+ */
+function sTarget(axes: AxisMark[], mid: number, gate: number): number {
+  const perp0 = mid + Math.PI / 2;
+  const blueSide = (a: number) => {
+    const v = dirFromTheta(a);
+    return v[2] - (v[0] + v[1]) / 2;
+  };
+  const perp = blueSide(perp0) >= 0 ? perp0 : perp0 + Math.PI;
   let best: number | null = null;
-  let bestD = LAND_MAX;
-  for (const angle of good) {
-    const d = angDist(target, angle);
+  let bestD = ROT_CAP;
+  for (const axis of axes) {
+    if (axis.role !== "s" && axis.role !== "blue-end") continue;
+    if (axis.threshold == null || !(axis.threshold > 0) || axis.threshold > gate || !Number.isFinite(axis.angleDeg)) continue;
+    const d = angDist(perp, rad(axis.angleDeg));
     if (d < bestD) {
       bestD = d;
-      best = angle;
+      best = rad(axis.angleDeg);
     }
   }
-  return best;
+  return best ?? perp;
 }
 
 function roleAngle(axes: AxisMark[], role: string): number | null {
@@ -274,7 +294,6 @@ function filterModel(axes: AxisMark[], floor: number): FilterModel {
       Number.isFinite(axis.angleDeg),
   );
   const bad = usable.filter((axis) => (axis.threshold ?? 0) > gate);
-  const good = usable.filter((axis) => (axis.threshold ?? 0) <= gate).map((axis) => rad(axis.angleDeg));
   const cones = bad.filter((axis) => axis.role === "l" || axis.role === "m" || axis.role === "s");
   let weak: Family | null = null;
   if (cones.length) {
@@ -295,11 +314,12 @@ function filterModel(axes: AxisMark[], floor: number): FilterModel {
       mid,
       T: axis.threshold ?? gate,
       both,
-      redLand: nearestGood(mid, good),
-      greenLand: nearestGood(mid + Math.PI, good),
     };
   });
-  const model = { floor, bands, weak, catcher, blue };
+  const confusion = bands.length
+    ? bands.reduce((x, y) => (x.both !== y.both ? (x.both ? x : y) : x.T >= y.T ? x : y))
+    : null;
+  const model = { floor, bands, weak, catcher, blue, confusion, sDir: confusion ? sTarget(axes, confusion.mid, gate) : null };
   modelCache.set(axes, model);
   return model;
 }
@@ -406,50 +426,65 @@ export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
   return planeColor(y, plane2);
 }
 
-function steer(rgb: Vec3, axes: AxisMark[], floor: number, luma: LumaGain[], extreme: boolean): Vec3 {
+/**
+ * Daltonización clásica (Fidaner et al.), base de Asistencia y Extremo en modo Perfil (Colorado, 6.ª ronda).
+ * La señal L−M que este perfil pierde en su línea de confusión (p·(1 − visto)) se reinyecta en el eje S, con signo:
+ * el lado rojizo y el verdoso de la banda van a extremos OPUESTOS de S. Desplazamiento proporcional a lo perdido,
+ * con tope de giro de tono (45°, 60° en Extremo). Solo croma: la Y personal no cambia. Si se sale del gamut, se
+ * acorta el desplazamiento; nunca se recorta el canal.
+ */
+function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
   const radius = norm(plane);
   if (radius < 1e-4) return rgb;
   const model = filterModel(axes, floor);
-  const hit = activeBand(thetaOf(plane), model);
-  if (!hit) return rgb;
-  const { u, p, n } = splitPlane(plane, hit.band.mid);
-  const sign = p >= 0 ? 1 : -1;
-  const landing = sign > 0 ? hit.band.redLand : hit.band.greenLand;
-  if (landing == null) return rgb;
-  const from: Vec3 = [u[0] * sign, u[1] * sign, u[2] * sign];
-  const land = dirFromTheta(landing);
-  const turn = extreme ? hit.w : ASSIST_TURN * hit.w;
-  const dir = normalize([
-    from[0] * (1 - turn) + land[0] * turn,
-    from[1] * (1 - turn) + land[1] * turn,
-    from[2] * (1 - turn) + land[2] * turn,
-  ]);
-  const mag = Math.abs(p) * (extreme ? 1 + (EXTREME_GAIN - 1) * hit.w : 1);
-  let plane2: Vec3 = [n[0] + dir[0] * mag, n[1] + dir[1] * mag, n[2] + dir[2] * mag];
-  if (!extreme) {
-    const next = norm(plane2) || 1;
-    plane2 = [plane2[0] * (radius / next), plane2[1] * (radius / next), plane2[2] * (radius / next)];
+  const band = model.confusion;
+  if (!band || model.sDir == null) return rgb;
+  const { p } = splitPlane(plane, band.mid);
+  const seen = Math.min(1, floor / band.T);
+  const lost = p * (1 - seen);
+  if (Math.abs(lost) < 1e-6) return rgb;
+  const s = dirFromTheta(model.sDir);
+  const gain = extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN;
+  const d: Vec3 = [s[0] * lost * gain, s[1] * lost * gain, s[2] * lost * gain];
+  const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
+  const at = (t: number): Vec3 => [plane[0] + d[0] * t, plane[1] + d[1] * t, plane[2] + d[2] * t];
+  const ok = (t: number): boolean => {
+    const q = at(t);
+    const c = dot(q, plane) / (norm(q) * radius || 1);
+    if (Math.acos(Math.max(-1, Math.min(1, c))) > cap) return false;
+    return q.every((v) => y + v >= -1e-9 && y + v <= 1 + 1e-9);
+  };
+  let t = 1;
+  if (!ok(1)) {
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 30; i++) {
+      const mid = (lo + hi) / 2;
+      if (ok(mid)) lo = mid;
+      else hi = mid;
+    }
+    t = lo;
   }
-  const gain = lumaGainAt(thetaOf(plane), luma);
-  const y2 = extreme ? y : y / (1 + (gain - 1) * hit.w * ASSIST_LUMA);
-  return planeColor(y2, plane2);
+  if (t <= 0) return rgb;
+  const q = at(t);
+  return [y + q[0], y + q[1], y + q[2]];
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
   return [rgb[0] - y, rgb[1] - y, rgb[2] - y];
 }
 
-/** Same landing as assistance, pushed to the gamut so pixels inside the band come apart. */
-export function extremeColor(rgb: Vec3, axes: AxisMark[], floor: number, luma: LumaGain[] = []): Vec3 {
-  return steer(rgb, axes, floor, luma, true);
+/** La misma daltonización que la asistencia, con más ganancia y giro de hasta 60°. */
+export function extremeColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = []): Vec3 {
+  return daltonize(rgb, axes, floor, true);
 }
 
-/** A short step onto the intact red or green. Pale stays pale, and the original tint stays in the remainder. */
-export function assistColor(rgb: Vec3, axes: AxisMark[], floor: number, luma: LumaGain[] = []): Vec3 {
-  return steer(rgb, axes, floor, luma, false);
+/** Lo perdido en L−M pasa a S (daltonización), giro de tono ≤ 45°, misma Y. */
+export function assistColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = []): Vec3 {
+  return daltonize(rgb, axes, floor, false);
 }
 
 export type FilterSource = "profile" | "edges";
