@@ -150,3 +150,29 @@ Conclusión: QUEST+ es más exacto pero gasta 2–3× más ensayos con las regla
 Calibración: el motor 2AFC (γ = 0,5, decisión 3) existe en `calibqp.ts`, pero NO está cableado:
 la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en conflicto con
 "sin cambiar pares ni catch". Pendiente de decisión.
+
+### Respuestas de Colorado aplicadas (2026-10-25)
+
+1. Parada: movimiento IC < ln 1,10 o 30 ensayos; bordes IC < 2° o 45. β fijo al nominal si el sesgo simulado es < 3 %:
+   movimiento −0,08 % (fijo, 16,5 ens/objetivo frente a 22,4 con β marginal); bordes −0,9 % (fijo).
+2. Calibración: tarea sí/no sin cambios de pares ni catch; γ = falsas alarmas en catch acotada a [0,02, 0,3] con ≥ 5 catch
+   (antes, γ = 0,05 provisional); QUEST+ cableado tras `?qp=1`. Futuro: 2AFC «qué par es distinto», γ = 0,5.
+3. Movimiento: δ ∈ {0,02, 0,04, 0,08} en ln ganancia; β ∈ {0,5, 1, 2}× nominal; prior log-normal σ = 0,25 centrado en la predicción.
+   Calibración: prior uniforme en log ΔE00 0,3–10, β = 3. CIEDE2000 real (`deltaE.ts`), validado con los 34 pares de Sharma et al. (2005).
+4. Fondo constante en la Y más baja alcanzable por todos los ensayos: Y = 0,1475 (límite: ref ≤ 0,18 con e = E_MAX); la red se centra en él.
+5. Fijación Weber −15 %: se mantiene.
+6. Bordes: «Ninguno» = fallo de detección informativo (modelo de 3 respuestas `detect3`); disco equivocado = lapsus.
+   1 ΔE00 se convierte a ángulo por bisección en θ (≈ 8–12° a la escala de los discos) y se guarda con el IC.
+   Catch obvios (tono +90°) cada 6 ensayos QUEST+; > 25 % «ninguno» ⇒ ronda no fiable. Sin regla del 30 %.
+
+### Benchmark (observadores simulados)
+
+| Prueba | QUEST+ (config. final) | QUEST+ β marginal | Escalera |
+|---|---|---|---|
+| Movimiento normal (6 semillas) | 16,6 ens/obj, 90 % ±5 % | 22,3, 100 % | 9,4, 80 % |
+| Movimiento protan 0,6 | 16,5, 87 % | 22,3, 87 % | 9,4, 80 % |
+| Movimiento deutan 0,6 | 16,3, 83 % | 22,8, 100 % | 9,4, 80 % |
+| Movimiento tritan 1 | 16,5, 90 % | 22,4, 95 % | 9,0, 81 % |
+| Bordes, borde 9° (20 semillas) | 109,4 ens/ronda, 20/20 ±3°, sesgo −0,9 % | 112,7, sesgo −1,1 % | 35,8, 18/20 |
+| Calibración normal (3 semillas) | 110 ens/sesión, 16/18 ejes ×1,35 | — | 46,3, 1/8 «estimate» |
+| Calibración protan / deutan / tritan | 159 / 160 / 158 (tope 160), 16/18, 18/18, 18/18 | — | 47 / 46 / 46, 3/9, 1/8, 1/8 |

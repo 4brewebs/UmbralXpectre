@@ -139,6 +139,8 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [ ] Extender la háptica suave (`navigator.vibrate` corto, con detección de soporte, respetando `prefers-reduced-motion` y un interruptor del usuario) a otras partes de la app: respuestas del calibrador, respuestas de la prueba de bordes, interacciones de las láminas, fin de bloque/prueba, y conmutadores de cámara/filtro. Lucas lo quiere; se implementa más adelante y necesita su OK en cada zona. (En movimiento v2 va con la retícula.)
 
 ## QUEST+ (tras flag `?qp=1`)
-- [ ] Decidir regla de parada (hoy QUEST+ gasta 2–3× ensayos que la escalera).
-- [ ] Calibración 2AFC: diseñar la tarea/UI o mantener sí/no (motor listo en `calibqp.ts`).
-- [ ] Fijar β, δ y σ del prior (hoy PROVISIONAL).
+- [x] Regla de parada de Colorado aplicada (movimiento ln 1,10 / 30; bordes 2° / 45).
+- [ ] Bordes y calibración QUEST+ siguen gastando ~3× la escalera: revisar el tope de 45 por lado y el de sesión (160).
+- [x] Calibración sí/no con QUEST+ tras `?qp=1` (provisional).
+- [ ] Futuro: calibración 2AFC «qué par es distinto» con γ = 0,5 (tarea y UI nuevas).
+- [x] β, δ y σ del prior fijados por Colorado.
