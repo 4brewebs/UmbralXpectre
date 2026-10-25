@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { applyAnswer, startRun, edgeFile, searchBounds, sectorOf, type EdgeRun } from "../src/lib/color/edges";
 import { edgeNotches } from "../src/lib/color/spectrum";
 
-const base = { cone: "l" as const, peakDeg: 11.1, floor: 0.024, sourceThreshold: 0.0608, sourceTimes: 2.5, profileSchema: "x", profileCreatedAt: "y", seed: 7 };
+const base = { cone: "l" as const, peakDeg: 11.1, floor: 0.024, sourceThreshold: 0.0229, sourceTimes: 2.5, profileSchema: "x", profileCreatedAt: "y", seed: 7 };
 
 /** Observador determinista: no ve nada en [lo, hi], ve el disco fuera. */
 function run(lo: number, hi: number, seenPeak = false): EdgeRun {
@@ -39,10 +39,25 @@ test("sin borde hasta el gamut: noEdgeToGamut, y cuenta como abierto para la asi
   assert.equal(n.loOpen, false);
 });
 
-test("lado sin explorar (visto ya en el pico): unexplored y nota de pico visto bajo el umbral", () => {
+test("lado sin explorar (visto ya en el pico): unexplored; escala ≥ 3× umbral, sin nota de pico bajo el umbral", () => {
   const f = edgeFile(run(-200, 200, true));
   assert.equal(f.minus.result, "unexplored");
-  assert.ok(f.notes?.some((n) => n.startsWith("peak-seen-below-source")));
+  assert.ok(f.edgeScale >= 3 * f.sourceThreshold - 1e-4);
+  assert.ok(!f.notes?.some((n) => n.startsWith("peak-seen-below-source")));
+});
+
+test("escala de Bordes: ≥ 3× umbral, ≥ 5 ΔE00 del gris, 1 ΔE00 ≤ 10°; si el gamut no deja, banda abierta", async () => {
+  const { edgeScaleFor, angleForDeltaE } = await import("../src/lib/color/edges");
+  // Verdes de Lucas (21:49Z): m a −156,7°, umbral 0,016.
+  const g = edgeScaleFor(-156.7, 0.016);
+  assert.equal(g.limited, false);
+  assert.ok(g.scale >= 0.048 - 1e-6);
+  assert.ok(angleForDeltaE(-156.7, g.scale, 1, 1) <= 10 && angleForDeltaE(-156.7, g.scale, -1, 1) <= 10);
+  const big = edgeScaleFor(11.1, 0.0608);
+  assert.equal(big.limited, true);
+  const r = run(-30, 40);
+  const limited = edgeFile({ ...r, scaleLimited: true, band: "closed" });
+  assert.equal(limited.band, "open");
 });
 
 test("verde: un notch que cruza −180° pinta igual en el ángulo equivalente", async () => {

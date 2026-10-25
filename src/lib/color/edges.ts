@@ -34,7 +34,6 @@ const GEO_STEP = 0.5;
 /** Tope de la búsqueda a cada lado del pico (°): dos lados juntos quedan por debajo de 170°. */
 const MAX_SPAN = 84;
 /** Escala del disco respecto al umbral de la banda cuando el suelo es la propia banda. */
-const BAND_FLOOR_SCALE = 0.8;
 const EDGE_GAP = 2;
 const DEPTH_TRIALS = 8;
 
@@ -65,6 +64,8 @@ export interface EdgeFile {
   schema: "umbral.edges.v1";
   /** «band»: el control del perfil estaba acotado y el suelo es el umbral de la propia banda. */
   floorFrom?: "band";
+  /** La escala pedida no cabe en el gamut: banda abierta por construcción. */
+  scaleLimited?: boolean;
   /** Observaciones del registro (no son errores), p. ej. pico visto por debajo del umbral calibrado. */
   notes?: string[];
   createdAt: string;
@@ -171,6 +172,8 @@ export interface EdgeRun {
   catchTrial?: boolean;
   catches?: { shown: number; none: number };
   floorFrom?: "band";
+  /** El gamut no deja la escala pedida (≥ 3× umbral, ≥ 5 ΔE00 del gris, 1 ΔE00 ≤ 10°): la banda queda abierta. */
+  scaleLimited?: boolean;
 }
 
 export interface EdgeAnswer {
@@ -306,6 +309,46 @@ function atEnd(cursor: number, limit: number): boolean {
   return Math.abs(cursor - limit) < 0.05;
 }
 
+/** Requisitos de escala de Bordes (Colorado, 6.ª ronda). */
+export const EDGE_SCALE = { timesThreshold: 3, grayDeltaE: 5, maxDegPerDeltaE: 10, minSpanDeg: 20 } as const;
+
+/**
+ * Escala del disco: ≥ 3× el umbral del propio eje, ≥ 5 ΔE00 desde el gris y tal que 1 ΔE00 de tono quede en ≤ 10°
+ * a ambos lados del pico. Si el gamut no lo permite, la mayor que cabe y `limited` (la banda se marca abierta).
+ */
+export function edgeScaleFor(peakDeg: number, threshold: number): { scale: number; limited: boolean } {
+  // Además, la escala debe dejar ≥ 20° de búsqueda a cada lado a Y constante; si no, no hay borde que buscar.
+  const spans = (s: number) =>
+    Math.abs(searchLimit(peakDeg, 1, s) - peakDeg) >= EDGE_SCALE.minSpanDeg && Math.abs(peakDeg - searchLimit(peakDeg, -1, s)) >= EDGE_SCALE.minSpanDeg;
+  let room = roomAt(peakDeg);
+  if (!spans(room)) {
+    let a = 0;
+    let b = room;
+    for (let i = 0; i < 30; i++) {
+      const mid = (a + b) / 2;
+      if (spans(mid)) a = mid;
+      else b = mid;
+    }
+    room = a;
+  }
+  const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const dir = dirFromTheta(rad(peakDeg));
+  const fromGray = (s: number) => deltaE00Linear(gray, addScaled(gray, dir, s));
+  const fine = (s: number) =>
+    angleForDeltaE(peakDeg, s, 1, 1, 90) <= EDGE_SCALE.maxDegPerDeltaE &&
+    angleForDeltaE(peakDeg, s, -1, 1, 90) <= EDGE_SCALE.maxDegPerDeltaE;
+  const ok = (s: number) => s >= EDGE_SCALE.timesThreshold * threshold && fromGray(s) >= EDGE_SCALE.grayDeltaE && fine(s);
+  if (!ok(room)) return { scale: Math.max(0.01, room), limited: true };
+  let lo = 0;
+  let hi = room;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (ok(mid)) hi = mid;
+    else lo = mid;
+  }
+  return { scale: hi, limited: false };
+}
+
 function roomAt(angleDeg: number): number {
   const dir = dirFromTheta(rad(angleDeg));
   return Math.min(maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]])) * 0.82;
@@ -350,7 +393,8 @@ export function startRun(input: {
   const fromBand = input.controlBounded === true && input.sourceThreshold > 0;
   const floor = fromBand ? input.sourceThreshold : input.floor > 0 ? input.floor : 0.02;
   // Con el suelo de la banda, el disco va por debajo de su umbral (0,8×): dentro no se ve, fuera sí.
-  const edgeScale = fromBand ? Math.max(0.01, Math.min(input.sourceThreshold * BAND_FLOOR_SCALE, roomAt(input.peakDeg))) : scaleAt(floor, input.peakDeg);
+  const sized = edgeScaleFor(input.peakDeg, input.sourceThreshold > 0 ? input.sourceThreshold : floor);
+  const edgeScale = sized.scale;
   const rolled = roll(input.seed ?? ((Date.now() >>> 0) || 1));
   const peak = input.peakDeg;
   return {
@@ -360,6 +404,7 @@ export function startRun(input: {
     edgeScale,
     peak,
     ...(fromBand ? { floorFrom: "band" as const } : {}),
+    ...(sized.limited ? { scaleLimited: true } : {}),
     sourceThreshold: input.sourceThreshold,
     sourceTimes: input.sourceTimes,
     profileSchema: input.profileSchema,
@@ -710,7 +755,8 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     startAngleDeg: round1(run.peak),
     sourceThreshold: round4(run.sourceThreshold),
     sourceTimes: run.sourceTimes,
-    band: run.band ?? (run.phase === "done" ? "none" : "open"),
+    band: run.scaleLimited && run.band === "closed" ? "open" : (run.band ?? (run.phase === "done" ? "none" : "open")),
+    ...(run.scaleLimited ? { scaleLimited: true } : {}),
     minus,
     plus,
     depth,

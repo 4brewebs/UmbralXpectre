@@ -34,12 +34,14 @@ test("arranque ±1 peldaño: semillas distintas empiezan en niveles distintos", 
   for (const a of createSession(3).axes) assert.ok([0, 1, 2].includes(a.descendStart!));
 });
 
-test("control acotado: el suelo de bordes es el umbral de la banda y el disco queda por debajo", () => {
+test("control acotado: el suelo de bordes es el umbral de la banda; la escala la fija el umbral (≥ 3×) o el gamut", () => {
   const p = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-movil.json", import.meta.url), "utf8"))!;
   assert.equal(p.fit.controlBounded, true);
   assert.equal(p.fit.timesControlKind, "at-least");
   const run = startRun({ cone: "l", peakDeg: 11.1, floor: 0.024, sourceThreshold: 0.0608, sourceTimes: 2.5, profileSchema: "x", profileCreatedAt: "y", controlBounded: true });
   assert.equal(run.floor, 0.0608);
-  assert.ok(run.edgeScale < 0.0608);
+  // 3 × 0,0608 no cabe con 20° de búsqueda a cada lado: la mayor que cabe, y banda abierta.
+  assert.ok(run.edgeScale > 0.0608);
+  assert.equal(run.scaleLimited, true);
   assert.equal(edgeFile(run).floorFrom, "band");
 });
