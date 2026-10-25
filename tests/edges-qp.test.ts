@@ -104,7 +104,7 @@ test("bordes: catch obvios; > 25 % «ninguno» marca la ronda como no fiable", a
   for (let seed = 1; seed <= 20; seed++) {
     const good = edgeFile(simulate(startRun({ ...base, seed, questPlus: Q }), 9, seed, 0));
     const bad = edgeFile(simulate(startRun({ ...base, seed, questPlus: Q }), 9, seed, 0.6));
-    assert.ok(good.reliability!.catches >= 1 && bad.reliability!.catches >= 1, "mínimo 1 catch por ronda");
+    assert.ok(good.reliability!.catches >= 2 && bad.reliability!.catches >= 2, "mínimo 2 catch por ronda");
     shown += good.reliability!.catches;
     if (good.reliability!.unreliable) goodFlag++;
     if (bad.reliability!.catches > 0) {
@@ -138,7 +138,7 @@ test("bordes: fiabilidad agregada en la sesión; < 5 catch ⇒ indeterminada", a
     const b = [0, 1, 2].map((k) => edgeFile(simulate(startRun({ ...base, seed: seed * 10 + k, questPlus: Q }), 9, seed * 10 + k, 0.6)));
     const rg = sessionReliability(g)!;
     const rb = sessionReliability(b)!;
-    assert.ok(rg.catches >= 3);
+    assert.ok(rg.catches >= 6);
     for (const r of [rg, rb]) if (r.catches < 5) assert.equal(r.status, "indeterminada");
     if (rg.status === "no fiable") good++;
     if (rb.status === "no fiable") bad++;
@@ -147,7 +147,8 @@ test("bordes: fiabilidad agregada en la sesión; < 5 catch ⇒ indeterminada", a
   }
   console.log(`bordes sesión (3 rondas, 10 semillas): ${(catches / 10).toFixed(1)} catch, ${undecided}/10 indeterminadas (atento); desatento ${bad}/10 no fiables`);
   assert.equal(good, 0);
-  // Con la parada en 1 ΔE00 tres rondas dan ~3 catch: la sesión queda casi siempre «indeterminada» (pregunta abierta).
+  assert.ok(undecided === 0, `${undecided}/10 indeterminadas`);
+  assert.ok(bad >= 5, `desatento ${bad}/10`);
 });
 
 test("bordes: el catch obvio añade ≥ 20 % de Y al disco distinto; fuera de catch, igual que discEnds", async () => {

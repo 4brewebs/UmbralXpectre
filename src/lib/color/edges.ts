@@ -10,12 +10,12 @@ import { deltaE00Linear } from "./deltaE";
  * disco equivocado = lapsus/azar. La escalera por defecto no cambia.
  * Parada (Colorado): IC 95 % < 1 ΔE00 medido en ΔE00 entre los extremos del IC (respaldo 8° sin escala),
  * o 45 ensayos por lado. El IC se guarda en ° y en ΔE00; `angleForDeltaE` da el ángulo de 1 ΔE00.
- * Fiabilidad: catch de diferencia obvia (tono +90° del pico), 1 cada 6 y al menos 1 por ronda; se agregan en la
+ * Fiabilidad: catch de diferencia obvia (tono +90° del pico), 1 cada 6 y al menos 2 por ronda; se agregan en la
  * sesión (`sessionReliability`): < 5 catch ⇒ «indeterminada», > 25 % «ninguno» ⇒ no fiable. `reliability` por ronda
  * se guarda igual (dato en bruto; su `unreliable` es solo orientativo).
  */
 /** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5 };
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -557,8 +557,8 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
       }
       return place(patched, run.phase, stepped.cursor, run.edgeScale);
     }
-    // Mínimo 1 catch por ronda: si QUEST+ cerró ambos lados sin ninguno, se muestra uno antes de seguir.
-    if (run.phase === "plus" && run.questPlus && (run.catches?.shown ?? 0) === 0) {
+    // Mínimo 2 catch por ronda (Colorado, 5.ª ronda): si QUEST+ cerró ambos lados con menos, se muestran antes de seguir.
+    if (run.phase === "plus" && run.questPlus && (run.catches?.shown ?? 0) < QP_EDGES.catchPerRound) {
       return { ...place(patched, "plus", catchAngle(run.peak), run.edgeScale), catchTrial: true };
     }
     if (run.phase === "minus") {
@@ -604,7 +604,10 @@ export function applyAnswer(run: EdgeRun, input: EdgeAnswer): EdgeRun {
     const catches = { shown: c.shown + 1, none: c.none + (kind === "none" ? 1 : 0) };
     const side = run.phase === "minus" ? run.minus : run.plus;
     // Catch obligatorio de cierre (ronda sin ninguno): el lado ya terminó, se sigue a la profundidad.
-    if (side.status === "done") return beginDepth({ ...recorded, trials, catches, catchTrial: false });
+    if (side.status === "done") {
+      if (catches.shown < QP_EDGES.catchPerRound) return { ...place({ ...recorded, trials, catches }, run.phase, catchAngle(run.peak), run.edgeScale), catchTrial: true };
+      return beginDepth({ ...recorded, trials, catches, catchTrial: false });
+    }
     return { ...place({ ...recorded, trials, catches }, run.phase, side.cursor, run.edgeScale), catchTrial: false };
   }
   if (run.phase === "confirm") {
