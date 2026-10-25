@@ -10,6 +10,8 @@
 ## 0b. Luminancia personal — fase 1 hecha
 - `space.ts` pesos opcionales; `cones.ts` (Smith-Pokorny + Machado); `lumweights.ts` (mínimos cuadrados con prior); perfil `umbral.profile.v3` (clave `umbral-profile-v3`, lee v2/v1); `motion2.ts` + `MotionTestV2.svelte` tras `?motion=v2`.
 - Fase 2 pendiente: pesos en simulador/asistencia, caché LUT/cámara, re-proyección y recalibración.
+- Ajustes de seguridad v2 hechos: colores a 0.65 del borde, Michelson ≤ 22 % (cotas «al menos»), distancia 40/60 cm, prior severity 0.6, ≥ 5 catch por bloque.
+- Siguiente: QUEST+ (ver `PLAN-questplus.md`).
 - Probar la prueba v2 con personas reales (Lucas) antes de activarla por defecto.
 
 ## 1. Revisión de Colorado

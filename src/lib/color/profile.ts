@@ -117,19 +117,24 @@ export interface MeasuredMatch {
   width: number;
   reversals: number;
   trials: number;
-  bound: "converged" | "cap" | "edge";
+  bound: "converged" | "cap" | "edge" | "at-least";
+  /** Llegó al tope de contraste (22 % Michelson): el valor es una cota, no una igualación. */
+  atLeast: boolean;
+  /** 1: hace falta al menos este brillo relativo (o más); −1: como mucho este. */
+  atLeastSide?: 1 | -1;
 }
 
 export interface LuminanceV3 {
   /** Pesos {wR, wG, wB} de este observador en esta pantalla, suma 1. */
   weights: Vec3;
   weightsSource: WeightsSource;
-  /** Predicción del modelo de conos (severity de Machado 1), o null si el tipo es normal/desconocido. */
+  /** Predicción del modelo de conos (severity de Machado PREDICTION_SEVERITY), o null si el tipo es normal/desconocido. */
   predicted: Vec3 | null;
   type: ObserverType;
   refreshHz: number | null;
   temporalHzV2?: number | null;
   cyclesPerDeg: number | null;
+  viewingCm?: number | null;
   checks: {
     controlError: number | null;
     catches: { shown: number; missed: number };
@@ -146,7 +151,8 @@ export interface LuminanceV3 {
   legacyMatches: boolean;
 }
 
-export const PREDICTION_SEVERITY = 1;
+/** Severity de Machado de la que parte la predicción (no es `fit.severity`). */
+export const PREDICTION_SEVERITY = 0.6;
 
 /** Campos v3 por defecto: pesos = predicción del tipo, o Y estándar. Nunca derivados de igualaciones antiguas. */
 export function defaultLuminanceV3(profile: Pick<UmbralProfile, "fit">, legacyMatches = false): LuminanceV3 {

@@ -133,6 +133,9 @@
         <p class="font-semibold">Pesos de brillo medidos (prueba v2)</p>
         <p class="mt-1 text-muted">R {lum.weights[0].toFixed(3)} · G {lum.weights[1].toFixed(3)} · B {lum.weights[2].toFixed(3)} (estándar 0.213 · 0.715 · 0.072)</p>
         <p class="mt-1 text-muted">Confianza {lum.checks?.confidence === "high" ? "alta" : "baja"}{lum.checks?.withinNoise ? " · dentro del ruido de Y estándar" : ""} · {lum.measuredMatches.length} colores · refresco {lum.refreshHz ?? "—"} Hz. Aún no cambia los filtros (fase 2).</p>
+        {#each lum.measuredMatches.filter((m) => m.atLeast) as m (m.id)}
+          <p class="mt-1 text-muted">{m.hue}: {m.atLeastSide === -1 ? "como mucho" : "al menos"} {m.efficiency.toFixed(2)}× (tope de contraste; cota, no igualación).</p>
+        {/each}
       </section>
     {/if}
     {#if onMotionV2 && profile.luminance?.matches?.length}

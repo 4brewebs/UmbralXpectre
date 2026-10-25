@@ -2,8 +2,12 @@
  * Modelo de conos y predicción de pesos de luminancia (fase 1 del plan de luminancia).
  *
  * - LMS de Smith-Pokorny a partir de XYZ 1931 (L + M = Y), primarios sRGB nominales.
- * - Cono anómalo como Machado 2009: severity 1 = 20 nm de Machado = cono sobre el otro
- *   (aquí, la separación L–M de la plantilla, 29 nm)
+ * - Cono anómalo como Machado 2009: severity 0..1 desplaza el pico del cono afectado.
+ *   severity 1 = dicromacia: desplazamiento completo L→M (protán) o M→L (deután), que con
+ *   los picos de esta plantilla (559/530 nm, como Smith-Pokorny) son 29 nm, no 20 nm.
+ *   Por qué no 20 nm literales: Machado usa 20 nm como desplazamiento máximo de *su* modelo
+ *   y trata severity 1 como dicromacia; aplicar 20 nm aquí deja L y M a 9 nm y el rojo de un
+ *   protán severo saldría a ~0.65× en vez de ~0.46× (dicromático). Se reescala a la separación.
  *   (protán: L hacia M; deután: M hacia L). Tritán: S escalado (no entra en la luminancia).
  * - El desplazamiento se calcula con la plantilla de fotopigmento de Govardovskii (2000)
  *   y se proyecta por mínimos cuadrados sobre L y M de Smith-Pokorny.
@@ -44,8 +48,9 @@ export function pigment(lambda: number, peak: number): number {
 }
 
 /**
- * MacLeod-Boynton l = L/(L+M) a 555 nm en Smith-Pokorny (≈0.64). Fija la altura relativa
- * de L y M de Smith-Pokorny en unidades de plantilla. Aproximación documentada.
+ * APROXIMACIÓN: MacLeod-Boynton l = L/(L+M) ≈ 0.64 a 555 nm en Smith-Pokorny (valor redondeado,
+ * no tabulado aquí). Fija la altura relativa de L y M en unidades de plantilla; afecta a los
+ * pesos predichos de observadores anómalos (no al normal ni al dicromático extremo).
  */
 const MB_L_555 = 0.64;
 const LAMBDAS = Array.from({ length: 61 }, (_, i) => 400 + i * 5);

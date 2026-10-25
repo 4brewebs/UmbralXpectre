@@ -4,6 +4,11 @@
     BLOCK_MS,
     CYCLES_PER_DEG,
     answerMotionV2,
+    blockReady,
+    requireBlockCatches,
+    startBlock,
+    viewingDistanceCm,
+    MAX_MICHELSON,
     createMotionV2,
     gratingSize,
     paintMotionV2,
@@ -20,7 +25,7 @@
     onStop,
   }: {
     profile: UmbralProfile;
-    onDone: (state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number }) => void;
+    onDone: (state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number }) => void;
     onStop: () => void;
   } = $props();
 
@@ -36,6 +41,7 @@
   let host: HTMLDivElement | undefined = $state();
   let size = $state({ width: 480, height: 160 });
   let blockStart = 0;
+  let viewing = $state({ cm: 40, diagonalIn: 0 });
   let block = $state(1);
   let finished = false;
 
@@ -45,6 +51,12 @@
   const canStart = $derived(agreed && refreshHz != null && (!reduced || reducedOk));
 
   onMount(() => {
+    viewing = viewingDistanceCm(
+      window.screen.width || window.innerWidth,
+      window.screen.height || window.innerHeight,
+      window.devicePixelRatio || 1,
+      (navigator.maxTouchPoints ?? 0) > 0,
+    );
     reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     // Refresco medido con rAF: mediana de los intervalos de 60 fotogramas.
     const stamps: number[] = [];
@@ -85,7 +97,7 @@
     el.width = w;
     el.height = h;
     const image = ctx.createImageData(w, h);
-    const period = periodPx() * dpr;
+    const period = periodPx(CYCLES_PER_DEG, viewing.cm) * dpr;
     const k = temporal.framesPerPhase;
     let frame = 0;
     let id = 0;
@@ -105,19 +117,25 @@
     if (!motion.complete || finished) return;
     finished = true;
     step = "done";
-    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG });
+    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG, viewingCm: viewing.cm });
   });
 
   function begin() {
+    if (step === "pause") motion = startBlock(motion);
     blockStart = performance.now();
     step = "run";
   }
 
   function choose(answer: "left" | "right" | "unsure") {
     motion = answerMotionV2(motion, answer, Date.now());
-    if (!motion.complete && performance.now() - blockStart > BLOCK_MS) {
-      block += 1;
-      step = "pause";
+    if (motion.complete) return;
+    if (performance.now() - blockStart > BLOCK_MS) {
+      // Antes de la pausa, el bloque completa sus catch trials mínimos.
+      if (motion.pendingCatches === 0 && motion.blockCatches < 5) motion = requireBlockCatches(motion);
+      if (blockReady(motion)) {
+        block += 1;
+        step = "pause";
+      }
     }
   }
 </script>
@@ -133,7 +151,7 @@
       <p>Verás una franja de rayas que parpadea a unos {temporal.hz} Hz y parece moverse. Dinos hacia dónde va. Sirve para medir cómo de brillante ves cada color en esta pantalla.</p>
       <p class="rounded-2xl border border-border p-4 text-sm"><strong>Aviso de fotosensibilidad.</strong> Esta prueba contiene parpadeo y colores saturados. Ocupa como mucho una cuarta parte de la pantalla y su contraste de luminancia es bajo, pero no afirmamos que cumpla WCAG 2.3.1. Si tienes epilepsia fotosensible, migrañas con la luz o te mareas, no la hagas. Es opcional: tu perfil de color ya está guardado.</p>
       <p class="text-sm text-muted">Antes de empezar: desactiva True Tone, el modo noche (Night Shift / luz nocturna) y el brillo automático, y no cambies el brillo durante la prueba. Bloques de unos 25 s con pausas. Puedes parar cuando quieras.</p>
-      <p class="text-sm text-muted">Refresco medido: {refreshHz == null ? "midiendo…" : `${refreshHz} Hz`}.</p>
+      <p class="text-sm text-muted">Refresco medido: {refreshHz == null ? "midiendo…" : `${refreshHz} Hz`}. Distancia supuesta: {viewing.cm} cm (ponte a unos {viewing.cm} cm de la pantalla). Contraste de brillo limitado al {Math.round(MAX_MICHELSON * 100)} %.</p>
       {#if reduced}
         <label class="flex items-start gap-3 text-sm"><input type="checkbox" bind:checked={reducedOk} class="mt-1" /> Tu sistema pide reducir el movimiento. Marca esto solo si aun así quieres ver la prueba.</label>
       {/if}

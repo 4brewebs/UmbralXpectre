@@ -20,7 +20,7 @@ test("migra v2 → v3 sin derivar pesos de las igualaciones antiguas", () => {
   assert.equal(lum.weightsSource, "predicted");
   assert.equal(lum.legacyMatches, true);
   assert.deepEqual(lum.measuredMatches, []);
-  const w = predictedLumWeights("protan", 1);
+  const w = predictedLumWeights("protan", 0.6);
   lum.weights.forEach((v, i) => assert.ok(Math.abs(v - w[i]) < 1e-4));
   assert.equal(lum.matches.length, v2.luminance.matches.length);
   // Los filtros de fase 1 leen lo mismo que antes.

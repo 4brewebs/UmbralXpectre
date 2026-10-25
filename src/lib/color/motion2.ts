@@ -24,8 +24,21 @@ export const LUMA_CONTRAST = 0.08;
 /** Fracción máxima de la pantalla ocupada por la red. */
 export const MAX_AREA = 0.25;
 export const CYCLES_PER_DEG = 0.75;
-/** Distancia de visión supuesta (cm). */
+/** Distancia de visión en móvil (cm). */
 export const VIEWING_CM = 40;
+/** Distancia de visión en pantallas de más de 10 pulgadas (cm). */
+export const VIEWING_CM_LARGE = 60;
+/**
+ * Tope del contraste de Michelson en Y estándar, en cualquier fotograma: |Yt−Yr|/(Yt+Yr) ≤ 22 %.
+ * Equivale a e ∈ [(1−c)/(1+c), (1+c)/(1−c)] ≈ [0.639, 1.564].
+ */
+export const MAX_MICHELSON = 0.22;
+export const E_MIN = (1 - MAX_MICHELSON) / (1 + MAX_MICHELSON);
+export const E_MAX = (1 + MAX_MICHELSON) / (1 - MAX_MICHELSON);
+/** Fracción del camino gris → borde del gamut que usan los colores de prueba (no el borde). */
+export const SATURATION = 0.65;
+/** Catch trials mínimos por bloque. */
+export const MIN_CATCHES_PER_BLOCK = 5;
 const CSS_PX_PER_CM = 96 / 2.54;
 const MAX_REF_Y = 0.18;
 const FINE_STEP = Math.log(1.015);
@@ -33,7 +46,7 @@ const START_STEP = Math.log(1.1);
 const STOP_REVERSALS = 8;
 const STOP_CI = Math.log(1.025);
 export const TRIALS_PER_TARGET = 30;
-export const CATCH_EVERY = 7;
+export const CATCH_EVERY = 4;
 export const BLOCK_MS = 25_000;
 
 export function motionV2Enabled(search: string, stored: string | null): boolean {
@@ -54,6 +67,18 @@ export function pickTemporal(refreshHz: number): { framesPerPhase: number; hz: n
   if (best) return { framesPerPhase: best.framesPerPhase, hz: round(best.hz, 100) };
   const k = Math.max(1, Math.round(r / 30));
   return { framesPerPhase: k, hz: round(r / (4 * k), 100) };
+}
+
+/**
+ * Distancia de visión estimada. Heurística: los px CSS no son físicos, así que se supone
+ * una densidad por tipo de dispositivo (96 px CSS/pulgada sin pantalla táctil; táctil:
+ * 150 si devicePixelRatio ≥ 3, típico de móvil, y 132 si no, típico de tablet) y se estima
+ * la diagonal. > 10 pulgadas ⇒ 60 cm; si no, 40 cm.
+ */
+export function viewingDistanceCm(screenCssW: number, screenCssH: number, dpr: number, touch: boolean): { cm: number; diagonalIn: number } {
+  const ppi = !touch ? 96 : dpr >= 3 ? 150 : 132;
+  const diagonalIn = Math.hypot(screenCssW, screenCssH) / ppi;
+  return { cm: diagonalIn > 10 ? VIEWING_CM_LARGE : VIEWING_CM, diagonalIn: round(diagonalIn, 10) };
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a VIEWING_CM. */
@@ -93,6 +118,8 @@ interface Stair {
   extensions: number;
   done: boolean;
   bound: MeasuredMatch["bound"];
+  /** 1: el test necesita aún más brillo relativo que el tope; −1: aún menos. */
+  atLeastSide?: 1 | -1;
 }
 
 export interface MotionV2Trial {
@@ -112,11 +139,17 @@ export interface MotionV2State {
   weights: Vec3;
   stairs: Stair[];
   rng: number;
+  /** Catch trials obligados antes de cerrar el bloque o la prueba. */
+  pendingCatches: number;
+  blockCatches: number;
+  /** Último escalón usado (para el nivel de gris de los catch del final). */
+  lastIndex: number;
   current: { index: number; catch: boolean; sign: 1 | -1 } | null;
   log: MotionV2Trial[];
   sinceCatch: number;
   catches: { shown: number; missed: number };
   complete: boolean;
+  endCatchesAsked?: boolean;
 }
 
 const RANGES: Record<ObserverType, [number, number]> = {
@@ -156,7 +189,13 @@ function bandEnds(dir: Vec3 | null | undefined): Vec3[] {
 const GRAY: Vec3 = [0.18, 0.18, 0.18];
 
 /** Colores por tipo: confusión contra gris, contrastes y un control en un eje no afectado. */
+/** Punto a `SATURATION` del camino desde el gris medio hasta el borde del gamut, como cromaticidad. */
+export function towardEdge(edge: Vec3, k = SATURATION): Vec3 {
+  return chroma([0.5 + k * (edge[0] - 0.5), 0.5 + k * (edge[1] - 0.5), 0.5 + k * (edge[2] - 0.5)]);
+}
+
 export function targetsFor(type: ObserverType, weights: Vec3, confusionDir?: Vec3 | null): MotionV2Target[] {
+  const span = type === "protan" || type === "deutan" ? [predictedLumWeights(type, 0), predictedLumWeights(type, 1)] : [];
   const [lo, hi] = RANGES[type];
   const list: Array<{ id: string; hue: string; color: Vec3; kind: "test" | "control"; main: boolean; repeat?: number }> = [];
   const band = bandEnds(confusionDir);
@@ -181,11 +220,16 @@ export function targetsFor(type: ObserverType, weights: Vec3, confusionDir?: Vec
     list.push({ id: "amarillo", hue: "amarillo #FFFF00", color: [1, 1, 0], kind: "test", main: true });
   }
   return list.map((t) => {
-    const predicted = predictedMatch(t.color, GRAY, weights);
-    // Centro en la predicción ±50 %; los colores de confusión además cubren la tabla del tipo.
-    const tlo = t.main ? Math.min(lo, predicted / 1.25) : predicted / 1.5;
-    const thi = t.main ? Math.max(hi, predicted * 1.25) : predicted * 1.5;
-    return { id: t.id, hue: t.hue, color: t.color, kind: t.kind, predicted: round(predicted, 1e4), lo: round(tlo, 1e3), hi: round(thi, 1e3) };
+    const color = towardEdge(t.color);
+    const predicted = Math.min(E_MAX, Math.max(E_MIN, predictedMatch(color, GRAY, weights)));
+    // Centro en la predicción ±50 %; los colores de confusión además cubren la tabla del tipo
+    // y la predicción para severity 0..1. Todo dentro del tope de contraste.
+    const ends = span.map((w) => predictedMatch(color, GRAY, w));
+    let tlo = t.main ? Math.min(lo, predicted / 1.25, ...ends) : Math.min(predicted / 1.5, ...ends);
+    let thi = t.main ? Math.max(hi, predicted * 1.25, ...ends) : Math.max(predicted * 1.5, ...ends);
+    tlo = Math.max(E_MIN, tlo);
+    thi = Math.min(E_MAX, thi);
+    return { id: t.id, hue: t.hue, color, kind: t.kind, predicted: round(predicted, 1e4), lo: round(tlo, 1e4), hi: round(thi, 1e4) };
   });
 }
 
@@ -216,19 +260,40 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
     done: false,
     bound: "converged",
   }));
-  return pick({ type, weights, stairs, rng: seed >>> 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
+  return pick({ type, weights, stairs, rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
+}
+
+/** Cierra el bloque: si faltan catch trials hasta MIN_CATCHES_PER_BLOCK, se piden antes de la pausa. */
+export function requireBlockCatches(state: MotionV2State): MotionV2State {
+  const pendingCatches = Math.max(0, MIN_CATCHES_PER_BLOCK - state.blockCatches);
+  return pick({ ...state, pendingCatches });
+}
+
+/** Empieza un bloque nuevo tras la pausa. */
+export function startBlock(state: MotionV2State): MotionV2State {
+  return { ...state, blockCatches: 0, pendingCatches: 0 };
+}
+
+/** El bloque ya tiene sus catch trials obligados. */
+export function blockReady(state: MotionV2State): boolean {
+  return state.pendingCatches === 0;
 }
 
 function pick(state: MotionV2State): MotionV2State {
   const open = state.stairs.map((s, i) => (s.done ? -1 : i)).filter((i) => i >= 0);
-  if (!open.length) return { ...state, current: null, complete: true };
+  let pending = state.pendingCatches;
+  if (!open.length && !state.complete && pending === 0 && state.blockCatches < MIN_CATCHES_PER_BLOCK && !state.endCatchesAsked) {
+    pending = MIN_CATCHES_PER_BLOCK - state.blockCatches;
+    state = { ...state, endCatchesAsked: true };
+  }
+  if (!open.length && pending === 0) return { ...state, pendingCatches: 0, current: null, complete: true };
   let r = nextRand(state.rng);
-  const index = open[Math.floor(r.value * open.length)];
+  const index = open.length ? open[Math.floor(r.value * open.length)] : state.lastIndex;
   r = nextRand(r.state);
   const sign: 1 | -1 = r.value < 0.5 ? 1 : -1;
   r = nextRand(r.state);
-  const isCatch = state.sinceCatch >= CATCH_EVERY - 1 && r.value < 0.8;
-  return { ...state, rng: r.state, current: { index, catch: isCatch, sign } };
+  const isCatch = pending > 0 || (state.sinceCatch >= CATCH_EVERY - 1 && r.value < 0.8);
+  return { ...state, pendingCatches: pending, rng: r.state, lastIndex: index, current: { index, catch: isCatch, sign } };
 }
 
 /** Colores lineales del ensayo actual. */
@@ -278,6 +343,8 @@ export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | 
       ...state,
       log: [...state.log, { ...record, correct }],
       sinceCatch: 0,
+      pendingCatches: Math.max(0, state.pendingCatches - 1),
+      blockCatches: state.blockCatches + 1,
       catches: { shown: state.catches.shown + 1, missed: state.catches.missed + (correct ? 0 : 1) },
     });
   }
@@ -294,18 +361,23 @@ export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | 
     }
     next.lastDir = dir;
     let le = next.logE + dir * next.step;
+    const capHi = Math.log(E_MAX);
+    const capLo = Math.log(E_MIN);
     if (le > next.hi || le < next.lo) {
       le = Math.min(next.hi, Math.max(next.lo, le));
       next.pinned += 1;
-      if (next.pinned >= 2 && next.extensions < 2) {
-        // Toca el límite: se ensancha ese lado un 50 %.
-        if (dir > 0) next.hi += Math.log(1.5);
-        else next.lo -= Math.log(1.5);
+      const atCap = dir > 0 ? next.hi >= capHi - 1e-9 : next.lo <= capLo + 1e-9;
+      if (next.pinned >= 2 && next.extensions < 2 && !atCap) {
+        // Toca el límite: se ensancha ese lado un 50 %, sin pasar el tope de contraste.
+        if (dir > 0) next.hi = Math.min(capHi, next.hi + Math.log(1.5));
+        else next.lo = Math.max(capLo, next.lo - Math.log(1.5));
         next.extensions += 1;
         next.pinned = 0;
       } else if (next.pinned >= 3) {
         next.done = true;
-        next.bound = "edge";
+        // En el tope de contraste: el resultado es una cota («al menos»), no una igualación.
+        next.bound = atCap ? "at-least" : "edge";
+        next.atLeastSide = dir;
       }
     } else next.pinned = 0;
     next.logE = le;
@@ -327,7 +399,8 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
   return state.stairs
     .filter((s) => s.trials > 0)
     .map((s) => {
-      const values = s.reversals.length >= 2 ? s.reversals.slice(-6) : [s.logE];
+      const atLeast = s.bound === "at-least";
+      const values = !atLeast && s.reversals.length >= 2 ? s.reversals.slice(-6) : [s.logE];
       const { mean, ci } = spread(values);
       const e = Math.exp(mean);
       const width = Number.isFinite(ci) ? Math.max(0.01, 2 * (Math.exp(ci) - 1)) : Math.max(0.05, 2 * (Math.exp(s.step) - 1));
@@ -346,6 +419,8 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
         reversals: s.reversals.length,
         trials: s.trials,
         bound: s.bound,
+        atLeast,
+        ...(atLeast ? { atLeastSide: s.atLeastSide ?? 1 } : {}),
       };
     });
 }
@@ -354,15 +429,16 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
 export function attachMotionV2(
   profile: UmbralProfile,
   state: MotionV2State,
-  meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number },
+  meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm?: number },
 ): UmbralProfile {
   const base = profile.luminance ?? { ...defaultLuminanceV3(profile), method: "", temporalHz: 1, count: 0, sampleCount: 0, reading: "", matches: [] };
   const matches = measuredMatches(state);
-  const usable = matches.filter((m) => m.bound !== "edge");
+  // Las cotas («al menos») no son igualaciones: no entran en el ajuste.
+  const usable = matches.filter((m) => m.bound !== "edge" && !m.atLeast);
   const solved = solveLumWeights(
     usable.map((m) => ({ test: m.test, ref: m.ref, gain: m.gain, width: m.width, kind: m.kind, id: m.id })),
     base.predicted ?? null,
-    { missedCatches: state.catches.missed > Math.max(0, Math.floor(state.catches.shown / 4)) ? state.catches.missed : 0 },
+    { missedCatches: state.catches.missed > state.catches.shown / 4 ? state.catches.missed : 0 },
   );
   return {
     ...profile,
@@ -373,6 +449,7 @@ export function attachMotionV2(
       refreshHz: meta.refreshHz == null ? null : round(meta.refreshHz, 10),
       temporalHzV2: meta.temporalHz,
       cyclesPerDeg: meta.cyclesPerDeg,
+      viewingCm: meta.viewingCm ?? null,
       checks: {
         controlError: solved.controlError,
         catches: state.catches,

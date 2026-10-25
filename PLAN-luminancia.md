@@ -147,3 +147,11 @@ Pasos 1–6 implementados, un commit por paso; filtros sin cambios (los filtros 
 - Machado 20 nm ≙ dicromacia; con la plantilla de Govardovskii (picos 559/530 nm) el desplazamiento se reescala a la separación L–M (29 nm).
 - Las igualaciones nuevas van a `luminance.measuredMatches` (no a `matches`, que quedan como legado 1 Hz con `legacyMatches: true`).
 - Pendiente fase 2: pasos 7–9.
+
+## 11. Ajustes de seguridad (25/10, decisión de Lucas)
+- Colores de prueba a 0.65 del camino gris → borde del gamut (`SATURATION`), no en el borde (el rojo pasa a ≈ `[1, 0.21, 0.21]` lineal).
+- Tope duro: contraste de Michelson en Y estándar ≤ 22 % (`MAX_MICHELSON`) en cualquier fotograma ⇒ brillo relativo e ∈ [0.639, 1.564]. Si la escalera pide más, se recorta y el color queda como cota (`bound: "at-least"`, `atLeast`, `atLeastSide`), visible en la UI («al menos» / «como mucho») y fuera del ajuste de pesos.
+- Distancia de visión: 40 cm; 60 cm si la diagonal estimada > 10" (px CSS / densidad supuesta: 96 sin táctil, 150 táctil con DPR ≥ 3, 132 táctil resto). Se guarda en `luminance.viewingCm`.
+- La predicción parte de severity 0.6 (`PREDICTION_SEVERITY`); el rango cubre severity 0..1 y se ensancha al tocar límites (sin pasar el tope).
+- Mínimo 5 catch trials por bloque (`MIN_CATCHES_PER_BLOCK`), también en el último; > 25 % fallados ⇒ confianza baja.
+- Área ≤ 25 % y bloques de 25 s sin cambios.
