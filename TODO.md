@@ -3,6 +3,9 @@
 Revisado el 25/10/2026 contra el código y `git log` (`main` = `origin/main`). **No hacer push sin el OK de Lucas**:
 cada push a `main` despliega en Pages.
 
+## 00. URGENTE
+- [ ] **Persistencia** (no implementado aún): migrar localStorage a IndexedDB con `idb` (ISC, Jake Archibald) + `navigator.storage.persist()` + exportar/importar JSON + migración automática desde localStorage, con prefijo por entorno (`qa.`). Sync entre dispositivos opcional más adelante; descartados Firebase (datos de salud RGPD, cuentas, backend) y FalkorDB (servidor).
+
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
 - [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).
