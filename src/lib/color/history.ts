@@ -1,4 +1,5 @@
 import type { DeviceFingerprint } from "./device";
+import { BUILD, type BuildInfo } from "../env";
 /**
  * Historial completo de sesiones dentro del perfil (Colorado, 4.ª ronda).
  *
@@ -53,6 +54,8 @@ export interface HistorySession {
   device?: DeviceFingerprint;
   /** Interfaz de la prueba de brillo (ausente en sesiones anteriores y en las que no son de brillo). */
   ui?: "legacy" | "v2" | "v3";
+  /** Build con la que se hizo: entorno, rama y commit (ausente en sesiones anteriores). */
+  build?: BuildInfo;
   count: number;
   trials?: Trial[];
   packed?: PackedTrials;
@@ -100,7 +103,7 @@ export function trialsOf(s: HistorySession): Trial[] {
 
 export function makeSession(
   kind: HistoryKind,
-  data: Omit<HistorySession, "id" | "kind" | "count" | "trials" | "packed" | "engine"> & { method: "staircase" | "quest+" },
+  data: Omit<HistorySession, "id" | "kind" | "count" | "trials" | "packed" | "engine" | "build"> & { method: "staircase" | "quest+" },
   trials: unknown[],
   rand: () => number = Math.random,
 ): HistorySession {
@@ -113,6 +116,7 @@ export function makeSession(
     kind,
     ...rest,
     engine: { version: ENGINE_VERSION, method },
+    build: BUILD,
     count: raw.length,
     ...(big ? { packed: packTrials(raw) } : { trials: raw }),
   };

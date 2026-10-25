@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { copyFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -39,8 +40,29 @@ function githubPagesPlugin(): Plugin {
   };
 }
 
+/** Rama y commit corto de la build: de GitHub Actions si los hay; si no, de git; si no, "local". */
+function gitInfo(): { branch: string; commit: string } {
+  const run = (cmd: string) => {
+    try {
+      return execSync(cmd, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    } catch {
+      return "";
+    }
+  };
+  const branch = process.env.APP_BRANCH || process.env.GITHUB_REF_NAME || run("git rev-parse --abbrev-ref HEAD") || "local";
+  const sha = process.env.APP_COMMIT || process.env.GITHUB_SHA || run("git rev-parse HEAD");
+  return { branch, commit: sha ? sha.slice(0, 7) : "local" };
+}
+
+const git = gitInfo();
+
 export default defineConfig({
   base: resolveBase(),
+  define: {
+    __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV === "qa" ? "qa" : "prod"),
+    __APP_BRANCH__: JSON.stringify(git.branch),
+    __APP_COMMIT__: JSON.stringify(git.commit),
+  },
   server: { host: "0.0.0.0", port: 8080 },
   preview: { host: "127.0.0.1", port: 8081 },
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },

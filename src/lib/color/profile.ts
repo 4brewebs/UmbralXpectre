@@ -14,6 +14,7 @@ import {
 } from "./space";
 import { readHistory, type HistoryLog } from "./history";
 import type { DeviceFingerprint } from "./device";
+import { BUILD, type BuildInfo } from "../env";
 import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
@@ -45,6 +46,8 @@ export interface UmbralProfile {
   history?: HistoryLog;
   disclaimer: string;
   createdAt: string;
+  /** Build que generó el perfil: entorno, rama y commit. */
+  build?: BuildInfo;
   hardware: HardwareSnapshot;
   method: {
     space: string;
@@ -173,6 +176,7 @@ export interface LuminanceV3 {
   searchMethod?: "staircase" | "quest+";
   /** Interfaz de la última prueba de brillo (legacy|v2|v3). */
   ui?: "legacy" | "v2" | "v3";
+  build?: BuildInfo;
   /** Dispositivo en que se midieron estos pesos (no valen en otra pantalla). */
   device?: DeviceFingerprint;
   checks: {
@@ -295,6 +299,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
     disclaimer:
       "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
     createdAt: now.toISOString(),
+    build: BUILD,
     hardware,
     method: {
       space: "linear sRGB, constant CIE Y, anchor 0.22",
