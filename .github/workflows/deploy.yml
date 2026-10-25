@@ -1,8 +1,12 @@
 name: Deploy to GitHub Pages
 
+# Un solo sitio de Pages con dos builds:
+#   main    → raíz  (https://4brewebs.github.io/UmbralXpectre/)
+#   develop → /qa/  (https://4brewebs.github.io/UmbralXpectre/qa/), VITE_APP_ENV=qa
+# Un push a cualquiera de las dos ramas reconstruye y publica las dos.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   release:
     types: [published]
   workflow_dispatch:
@@ -21,22 +25,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: develop
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: npm
-      - run: npm ci
+          cache-dependency-path: |
+            main/package-lock.json
+            develop/package-lock.json
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
-      - name: Build
-        run: npm run build
+      - name: Build main (producción, raíz)
+        working-directory: main
+        run: |
+          npm ci
+          APP_COMMIT=$(git rev-parse HEAD) npm run build
         env:
-          # p. ej. "/umbralxpectre/" (o "/" con dominio propio)
           BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          APP_BRANCH: main
+          VITE_APP_ENV: prod
+      - name: Build develop (QA, /qa/)
+        working-directory: develop
+        run: |
+          npm ci
+          APP_COMMIT=$(git rev-parse HEAD) npm run build
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/qa/
+          APP_BRANCH: develop
+          VITE_APP_ENV: qa
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp -r main/dist/. site/
+          rm -rf site/qa
+          mkdir -p site/qa
+          cp -r develop/dist/. site/qa/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build
