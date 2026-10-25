@@ -15,7 +15,7 @@ import { deltaE00Linear } from "./deltaE";
 import { ANCHOR, addScaled, dirFromTheta, type Vec3 } from "./space";
 
 export const QP_CALIB = {
-  deMin: 0.3,
+  deMin: 0.1,
   deMax: 10,
   points: 40,
   beta: 3,
@@ -26,9 +26,9 @@ export const QP_CALIB = {
   minCatches: 5,
   /** γ antes de tener 5 catch. PROVISIONAL. */
   gammaDefault: 0.05,
-  /** Parada: IC 95 % de α con anchura < 1 ΔE00, o 30 ensayos por eje (máximo PROVISIONAL, igual que movimiento). */
+  /** Parada: IC 95 % de α con anchura < 1 ΔE00, o 36 ensayos por eje (Colorado, 4.ª ronda: el normal seguía con > 5/36 ejes fuera de ×1,35 tras bajar el prior a 0,1). */
   stopDeltaE: 1,
-  maxTrials: 30,
+  maxTrials: 36,
   /** Tope de ensayos por sesión con QUEST+ (Colorado); lo que falte sigue en otra sesión. */
   sessionCap: 80,
 } as const;
