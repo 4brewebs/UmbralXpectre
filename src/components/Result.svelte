@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, Copy, Download, RotateCcw } from "@lucide/svelte";
-  import { edgeFilename, type ConeId, type EdgeFile } from "@/lib/color/edges";
+  import { edgeFilename, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
   import { buildTransformFile } from "@/lib/color/lut";
   import type { UmbralProfile } from "@/lib/color/profile";
   import ConeCard from "./ConeCard.svelte";
@@ -37,6 +37,7 @@
 
   const json = $derived(JSON.stringify(profile, null, 2));
   const edgeList = $derived(Object.values(edgeFiles) as EdgeFile[]);
+  const edgeReliability = $derived(sessionReliability(edgeList));
   let baking = $state(false);
   let measuring = $state<ConeId | null>(null);
 
@@ -174,6 +175,9 @@
     </ul>
     {#if profile.fit.pathways?.length}
       <ConeCard {profile} edgeFiles={edgeList} />
+    {/if}
+    {#if edgeReliability}
+      <p class="text-sm text-muted" data-testid="edge-reliability">Fiabilidad de bordes: {edgeReliability.status} · {edgeReliability.catches} controles en {edgeReliability.rounds} {edgeReliability.rounds === 1 ? "ronda" : "rondas"}{edgeReliability.none ? `, ${edgeReliability.none} sin ver` : ""}.</p>
     {/if}
     <Plates {profile} />
     <AssistCamera {profile} edgeFiles={edgeList} />

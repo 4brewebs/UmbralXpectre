@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyAnswer, startRun, edgeFile, angleForDeltaE, QP_EDGES, type EdgeRun } from "../src/lib/color/edges";
+import { sessionReliability, applyAnswer, startRun, edgeFile, angleForDeltaE, QP_EDGES, type EdgeRun } from "../src/lib/color/edges";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
 
 function rng(seed: number) {
@@ -104,6 +104,7 @@ test("bordes: catch obvios; > 25 % «ninguno» marca la ronda como no fiable", a
   for (let seed = 1; seed <= 20; seed++) {
     const good = edgeFile(simulate(startRun({ ...base, seed, questPlus: Q }), 9, seed, 0));
     const bad = edgeFile(simulate(startRun({ ...base, seed, questPlus: Q }), 9, seed, 0.6));
+    assert.ok(good.reliability!.catches >= 1 && bad.reliability!.catches >= 1, "mínimo 1 catch por ronda");
     shown += good.reliability!.catches;
     if (good.reliability!.unreliable) goodFlag++;
     if (bad.reliability!.catches > 0) {
@@ -116,6 +117,37 @@ test("bordes: catch obvios; > 25 % «ninguno» marca la ronda como no fiable", a
   assert.equal(goodFlag, 0);
   assert.ok(badRuns > 0 && badFlag / badRuns >= 0.5, `${badFlag}/${badRuns}`);
   assert.equal(edgeFile(simulate(startRun({ ...base, seed: 3 }), 9, 3)).reliability, undefined);
+});
+
+test("bordes: fiabilidad agregada en la sesión; < 5 catch ⇒ indeterminada", async () => {
+  const Q = await loadQuestPlus();
+  const one = edgeFile(simulate(startRun({ ...base, seed: 1, questPlus: Q }), 9, 1, 0));
+  const r1 = sessionReliability([one])!;
+  if (r1.catches < 5) assert.equal(r1.status, "indeterminada");
+  assert.equal(sessionReliability([{ reliability: { catches: 4, none: 4, unreliable: true } }])!.status, "indeterminada");
+  assert.equal(sessionReliability([{ reliability: { catches: 3, none: 0, unreliable: false } }, { reliability: { catches: 3, none: 1, unreliable: true } }])!.status, "fiable");
+  assert.equal(sessionReliability([{ reliability: { catches: 3, none: 1, unreliable: true } }, { reliability: { catches: 3, none: 1, unreliable: true } }, { reliability: { catches: 0, none: 0, unreliable: false } }])!.status, "no fiable");
+  assert.equal(sessionReliability([{}]), null);
+  // Sesión simulada de 3 rondas (una por cono en la app): suma de catch.
+  let good = 0;
+  let bad = 0;
+  let undecided = 0;
+  let catches = 0;
+  for (let seed = 1; seed <= 10; seed++) {
+    const g = [0, 1, 2].map((k) => edgeFile(simulate(startRun({ ...base, seed: seed * 10 + k, questPlus: Q }), 9, seed * 10 + k, 0)));
+    const b = [0, 1, 2].map((k) => edgeFile(simulate(startRun({ ...base, seed: seed * 10 + k, questPlus: Q }), 9, seed * 10 + k, 0.6)));
+    const rg = sessionReliability(g)!;
+    const rb = sessionReliability(b)!;
+    assert.ok(rg.catches >= 3);
+    for (const r of [rg, rb]) if (r.catches < 5) assert.equal(r.status, "indeterminada");
+    if (rg.status === "no fiable") good++;
+    if (rb.status === "no fiable") bad++;
+    if (rg.status === "indeterminada") undecided++;
+    catches += rg.catches;
+  }
+  console.log(`bordes sesión (3 rondas, 10 semillas): ${(catches / 10).toFixed(1)} catch, ${undecided}/10 indeterminadas (atento); desatento ${bad}/10 no fiables`);
+  assert.equal(good, 0);
+  // Con la parada en 1 ΔE00 tres rondas dan ~3 catch: la sesión queda casi siempre «indeterminada» (pregunta abierta).
 });
 
 test("bordes: el catch obvio añade ≥ 20 % de Y al disco distinto; fuera de catch, igual que discEnds", async () => {
