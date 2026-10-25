@@ -3,16 +3,20 @@
 ## 0. Despliegue
 - **Destino: GitHub Pages** (SPA estática, `.github/workflows/deploy.yml`). Eliminados Vercel, Nitro, better-auth, PGlite y plantilla de servidor.
 - **Interfaz migrada de React a Svelte 5** (runes, sin SvelteKit). `src/lib/color/*` sin cambios. Paridad visual comprobada con Playwright (capturas en `/workspace/parity`).
-- `npm test` ejecuta `runSelfCheck` (`scripts/selfcheck.ts`).
+- `npm test` ejecuta `runSelfCheck` (`scripts/selfcheck.ts`) y `tests/*.test.ts` (node:test, 22 tests).
 - Pendiente: crear repo público, Settings > Pages > Source: GitHub Actions, y push a `main`.
 - Iconos PWA 192/512 son reescalados del de 180 px: sustituir por iconos nativos.
-- Faltan tests unitarios más allá del autochequeo.
+
+## 0b. Luminancia personal — fase 1 hecha
+- `space.ts` pesos opcionales; `cones.ts` (Smith-Pokorny + Machado); `lumweights.ts` (mínimos cuadrados con prior); perfil `umbral.profile.v3` (clave `umbral-profile-v3`, lee v2/v1); `motion2.ts` + `MotionTestV2.svelte` tras `?motion=v2`.
+- Fase 2 pendiente: pesos en simulador/asistencia, caché LUT/cámara, re-proyección y recalibración.
+- Probar la prueba v2 con personas reales (Lucas) antes de activarla por defecto.
 
 ## 1. Revisión de Colorado
 - **(ALTA)** Ejes L y M no son independientes tras `killLuminance` (`src/lib/color/space.ts:96-100`, `:225-231`; `src/lib/color/profile.ts:618-635`). Para protán/deután colapsan en la misma línea, `elevatedCount=2`, y no se calcula ángulo de confusión. Propuesta: ejes DKL y puntuar L/M como una sola línea de confusión.
 - **(MEDIA)** `ABS_CLOSE=0.02` (`src/lib/color/session.ts:35`) demasiado alto; bajar a ~0.006 con dithering o canvas `display-p3`/`rgba16float`.
 - **(MEDIA)** `--color-border #3a3832` contraste 1,50:1; WCAG 1.4.11 exige 3:1. Propuesta `#6b665c`.
-- **(BAJA)** `muted` sobre `stage` 3,32:1 < 4,5:1; APCA de botones accent Lc 58 (justo); comentario HPE `space.ts:21` dice D65 pero la matriz es para iluminante E.
+- **(BAJA)** `muted` sobre `stage` 3,32:1 < 4,5:1; APCA de botones accent Lc 58 (justo); ~~comentario HPE `space.ts:21` dice D65~~ (corregido en fase 1).
 
 ## 2. Revisión anterior
 - ~~`npm test` falla~~ → ahora ejecuta `runSelfCheck` (pasa).

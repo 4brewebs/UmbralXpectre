@@ -83,12 +83,12 @@ Orden propuesto:
 No se itera más de una vez.
 
 ## 4. Pasos pequeños y seguros
-1. `space.ts`: parámetro `w` opcional (sin cambio de comportamiento) + tests.
-2. `cones.ts` + tests de predicción (protán severo `#FF0000` 0.46–0.57×; normal ≈ 1).
-3. `lumweights.ts` + tests sintéticos (recuperar w conocidos con ruido; suma 1; w ≥ 0).
-4. `profile.ts` v3 + migración v2 + fixtures con los JSON de Lucas (copiados a `tests/fixtures`).
-5. `motion.ts` nuevo motor (4 fotogramas, objetivos por tipo, QUEST, rango auto), detrás de un flag; la UI vieja sigue.
-6. `motion.tsx`: refresco, seguridad, avisos de pantalla.
+1. ✅ `space.ts`: parámetro `w` opcional (sin cambio de comportamiento) + tests.
+2. ✅ `cones.ts` + tests de predicción (protán severo `#FF0000` 0.46–0.57×; normal ≈ 1).
+3. ✅ `lumweights.ts` + tests sintéticos (recuperar w conocidos con ruido; suma 1; w ≥ 0).
+4. ✅ `profile.ts` v3 + migración v2 + fixtures con los JSON de Lucas (copiados a `tests/fixtures`).
+5. ✅ (en `motion2.ts`) `motion.ts` nuevo motor (4 fotogramas, objetivos por tipo, QUEST, rango auto), detrás de un flag; la UI vieja sigue.
+6. ✅ (en `MotionTestV2.svelte`) `motion.tsx`: refresco, seguridad, avisos de pantalla.
 7. `spectrum.ts`: pesos en simulador/asistencia (signo y tope 2×).
 8. `lut.ts`/`camera.tsx`: claves de caché y transforms v2.
 9. Re-proyección de la calibración.
@@ -139,3 +139,11 @@ No se itera más de una vez.
 - Fase 2: el filtro de asistencia usa los pesos medidos para compensar el brillo, de modo que los colores que el usuario no distingue por longitud de onda se puedan separar por brillo y se vean más vivos de lo que percibe (con el límite de 2× y la ayuda de G de la §8).
 - Lucas repetirá su perfil cuando la prueba nueva esté lista, no antes. Los JSON actuales solo son fixtures de prueba.
 - 25/10: la reproyección y recalibración de umbrales (§3 puntos 3-4, paso 9) pasa a la fase 2 junto con los filtros. La fase 1 son los pasos 1-6 de §4.
+
+## 10. Fase 1 hecha (25/10)
+Pasos 1–6 implementados, un commit por paso; filtros sin cambios (los filtros siguen leyendo `luminance.matches` antiguas).
+- Flag: `?motion=v2` o `localStorage["umbral-motion"]="v2"` (`?motion=v1` lo fuerza apagado). Por defecto, la prueba antigua a 1 Hz.
+- `predictedMatch` = brillo relativo del test con Y estándar igualada (protán severo `#FF0000` ≈ 0.46); la ganancia que iguala es su inversa (`predictedGain`).
+- Machado 20 nm ≙ dicromacia; con la plantilla de Govardovskii (picos 559/530 nm) el desplazamiento se reescala a la separación L–M (29 nm).
+- Las igualaciones nuevas van a `luminance.measuredMatches` (no a `matches`, que quedan como legado 1 Hz con `legacyMatches: true`).
+- Pendiente fase 2: pasos 7–9.
