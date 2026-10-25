@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+artifacts/
+attachments/
+screenshots/
+.tanstack/
+.grok/
+.project_id
