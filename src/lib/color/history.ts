@@ -53,6 +53,8 @@ export interface HistorySession {
   device?: DeviceFingerprint;
   /** Interfaz de la prueba de brillo (ausente en sesiones anteriores y en las que no son de brillo). */
   ui?: "legacy" | "v2" | "v3";
+  /** Weber del punto de fijación (solo sesiones de brillo v2/v3). */
+  fixationWeber?: number;
   count: number;
   trials?: Trial[];
   packed?: PackedTrials;

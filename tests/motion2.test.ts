@@ -82,6 +82,9 @@ test("recupera el brillo del rojo de un protán simulado y guarda pesos v3", () 
   assert.ok(expected > E_MIN && !red.atLeast);
   assert.ok(Math.abs(red.efficiency / expected - 1) < 0.04, `${red.efficiency} vs ${expected}`);
   const p = attachMotionV2(profile(), s, { refreshHz: 60, temporalHz: 7.5, cyclesPerDeg: 0.75 });
+  assert.equal(p.luminance!.fixationWeber, -0.15);
+  assert.equal(p.history!.sessions.at(-1)!.fixationWeber, -0.15);
+  assert.equal(attachMotionV2(profile(), s, { refreshHz: 60, temporalHz: 7.5, cyclesPerDeg: 0.75, ui: "v3", fixationWeber: -0.4 }).history!.sessions.at(-1)!.fixationWeber, -0.4);
   const lum = p.luminance!;
   assert.equal(lum.weightsSource, "measured");
   assert.ok(Math.abs(lum.weights[0] - truth[0]) < 0.03, `${lum.weights} vs ${truth}`);

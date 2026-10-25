@@ -194,6 +194,8 @@ export interface MotionV2Meta {
   device?: DeviceFingerprint;
   /** Interfaz con la que se hizo (v2 o v3; mismo motor). */
   ui?: MotionUi;
+  /** Weber del punto de fijación usado (v2: SCREEN.dotWeber = −0.15; v3: −0.40). */
+  fixationWeber?: number;
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
@@ -687,6 +689,7 @@ export function attachMotionV2(
       method: state.method ?? "staircase",
       ...(meta.device ? { device: meta.device } : {}),
       ui: meta.ui ?? "v2",
+      fixationWeber: meta.fixationWeber ?? SCREEN.dotWeber,
     },
     state.log,
   );
@@ -706,6 +709,7 @@ export function attachMotionV2(
       sizingHeuristic: meta.sizingHeuristic ?? null,
       searchMethod: state.method ?? "staircase",
       ui: meta.ui ?? "v2",
+      fixationWeber: meta.fixationWeber ?? SCREEN.dotWeber,
       ...(meta.device ? { device: meta.device } : {}),
       checks: {
         controlError: solved.controlError,
