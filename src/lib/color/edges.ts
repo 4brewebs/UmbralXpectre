@@ -29,6 +29,10 @@ export const EDGE_NAME: Record<ConeId, EdgeName> = {
 };
 
 const WALK_STEP = 4;
+/** Más allá del sector, cada paso es este factor de lo ya andado desde el pico (pasos geométricos). */
+const GEO_STEP = 0.5;
+/** Tope de la búsqueda a cada lado del pico (°): dos lados juntos quedan por debajo de 170°. */
+const MAX_SPAN = 84;
 const EDGE_GAP = 2;
 const DEPTH_TRIALS = 8;
 
@@ -57,6 +61,8 @@ export interface EdgeTrial {
 
 export interface EdgeFile {
   schema: "umbral.edges.v1";
+  /** Observaciones del registro (no son errores), p. ej. pico visto por debajo del umbral calibrado. */
+  notes?: string[];
   createdAt: string;
   basedOn: { schema: string; createdAt: string };
   cone: ConeId;
@@ -78,8 +84,15 @@ export interface EdgeFile {
   reliability?: { catches: number; none: number; unreliable: boolean };
 }
 
+export type EdgeResult = "found" | "noEdgeToGamut" | "unexplored";
+
 interface EdgeBound {
   found: boolean;
+  /**
+   * found: borde medido. noEdgeToGamut: el fallo siguió hasta el límite del gamut a la Y del estímulo.
+   * unexplored: no se recorrió (por ejemplo, el disco se vio ya en el pico). Ausente en archivos antiguos.
+   */
+  result?: EdgeResult;
   /** True when this side was still a miss at the last hue of this color. Absent on older files. */
   toEnd?: boolean;
   /** Last miss that was actually shown. Never a midpoint that was not a trial. */
@@ -256,8 +269,31 @@ function blankSide(side: "minus" | "plus", peak: number): Side {
   };
 }
 
-function reach(cursor: number, limit: number, sign: number): number {
-  const next = snap(cursor + sign * WALK_STEP);
+/**
+ * Límite de la búsqueda: el último tono donde los dos discos (gris ± escala) caben en el gamut a la Y
+ * constante del estímulo, hasta MAX_SPAN. A Y constante el rojo se acaba antes. Analítico, no el sector.
+ */
+export function searchLimit(peak: number, sign: 1 | -1, scale: number): number {
+  let last = peak;
+  for (let d = 0.5; d <= MAX_SPAN + 1e-9; d += 0.5) {
+    const a = peak + sign * d;
+    if (roomAt(a) < scale) break;
+    last = a;
+  }
+  return snap(last);
+}
+
+export function searchBounds(run: Pick<EdgeRun, "peak" | "edgeScale">): { lo: number; hi: number } {
+  return { lo: searchLimit(run.peak, -1, run.edgeScale), hi: searchLimit(run.peak, 1, run.edgeScale) };
+}
+
+/** Paso de 4° dentro del sector del color; fuera, geométrico (la mitad de lo andado), hasta el límite. */
+function reach(cursor: number, limit: number, sign: number, peak?: number, sectorEnd?: number): number {
+  const past = peak != null && sectorEnd != null && (sign < 0 ? cursor <= sectorEnd + 1e-9 : cursor >= sectorEnd - 1e-9);
+  const step = past ? Math.max(WALK_STEP, Math.abs(cursor - (peak as number)) * GEO_STEP) : WALK_STEP;
+  let next = snap(cursor + sign * step);
+  // No saltar el final del sector sin probarlo.
+  if (!past && sectorEnd != null && (sign < 0 ? next < sectorEnd : next > sectorEnd)) next = snap(sectorEnd);
   return sign < 0 ? snap(Math.max(limit, next)) : snap(Math.min(limit, next));
 }
 
@@ -464,7 +500,7 @@ function tighten(side: Side, peak?: number, Q?: QpCtx): Side {
   return { ...side, status: "done", confirm: null, found: true, edge: side.inside, cursor: side.inside };
 }
 
-function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number, Q?: QpCtx, raw?: AnswerKind): Side {
+function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number, Q?: QpCtx, raw?: AnswerKind, sectorEnd?: number): Side {
   const sign = side.side === "minus" ? -1 : 1;
   if (side.qp && side.status === "bisect") {
     const r = raw ?? kind;
@@ -483,7 +519,7 @@ function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: num
       return tighten({ ...side, outside: snap(side.cursor), outsideHits: 1, inside: snap(peak), insideHits: 1, confirm: null, toEnd: false }, peak, Q);
     }
     if (kind === "seen") return tighten({ ...side, outsideHits: side.outsideHits + 1, confirm: null, toEnd: false }, peak, Q);
-    const next = reach(side.cursor, limit, sign);
+    const next = reach(side.cursor, limit, sign, peak, sectorEnd);
     if (atEnd(side.cursor, limit) || next === snap(side.cursor)) return finishAtEnd(side, limit);
     return {
       ...side,
@@ -500,7 +536,7 @@ function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: num
   }
   if (side.status === "walk") {
     if (kind === "none") {
-      const next = reach(side.cursor, limit, sign);
+      const next = reach(side.cursor, limit, sign, peak, sectorEnd);
       if (atEnd(side.cursor, limit) || next === snap(side.cursor)) {
         return { ...side, inside: snap(side.cursor), insideHits: side.insideHits + 1, cursor: snap(limit), status: "confirm", confirm: "inside" };
       }
@@ -545,12 +581,16 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
       }
       return { ...run, phase: "done", band: "none", edgeConfirm: null };
     }
-    return place({ ...run, minus: { ...blankSide("minus", run.peak), cursor: reach(run.peak, sectorOf(run.cone).lo, -1) } }, "minus", reach(run.peak, sectorOf(run.cone).lo, -1), run.edgeScale);
+    const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone).lo);
+    return place({ ...run, minus: { ...blankSide("minus", run.peak), cursor: first } }, "minus", first, run.edgeScale);
   }
   if (run.phase === "minus" || run.phase === "plus") {
     const current = run.phase === "minus" ? run.minus : run.plus;
-    const limit = run.phase === "minus" ? sectorOf(run.cone).lo : sectorOf(run.cone).hi;
-    const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus ? { Q: run.questPlus, scale: run.edgeScale } : undefined, raw);
+    const bounds = searchBounds(run);
+    const sector = sectorOf(run.cone);
+    const limit = run.phase === "minus" ? bounds.lo : bounds.hi;
+    const sectorEnd = run.phase === "minus" ? sector.lo : sector.hi;
+    const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus ? { Q: run.questPlus, scale: run.edgeScale } : undefined, raw, sectorEnd);
     const patched = run.phase === "minus" ? { ...run, minus: stepped } : { ...run, plus: stepped };
     if (stepped.status !== "done") {
       if (stepped.qp && (stepped.qpTrials ?? 0) > 0 && (stepped.qpTrials ?? 0) % QP_EDGES.catchEvery === 0 && (current.qpTrials ?? 0) !== stepped.qpTrials) {
@@ -563,8 +603,7 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
       return { ...place(patched, "plus", catchAngle(run.peak), run.edgeScale), catchTrial: true };
     }
     if (run.phase === "minus") {
-      const sector = sectorOf(run.cone);
-      const cursor = reach(run.peak, sector.hi, 1);
+      const cursor = reach(run.peak, bounds.hi, 1, run.peak, sector.hi);
       const plus = { ...blankSide("plus", run.peak), cursor };
       return place({ ...patched, plus }, "plus", cursor, run.edgeScale);
     }
@@ -623,9 +662,11 @@ export function armConfirm(run: EdgeRun, angleDeg: number): EdgeRun {
 }
 
 function boundOf(side: Side): EdgeBound {
+  const result: EdgeResult = side.found && !side.toEnd ? "found" : side.toEnd ? "noEdgeToGamut" : "unexplored";
   return {
     found: side.found,
     toEnd: side.toEnd,
+    result,
     angleDeg: side.edge == null ? null : round1(side.edge),
     insideDeg: side.found && side.inside != null ? round1(side.inside) : null,
     outsideDeg: side.found && side.outside != null ? round1(side.outside) : null,
@@ -665,7 +706,17 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     confirmed: confirmed ?? { minus: minus.angleDeg, plus: plus.angleDeg },
     trials: run.trials,
     ...(run.questPlus ? { reliability: reliabilityOf(run) } : {}),
+    ...(notesOf(run).length ? { notes: notesOf(run) } : {}),
   };
+}
+
+/** Registro, no error: el pico se vio a una escala menor que el umbral calibrado (ruido entre sesiones o día). */
+function notesOf(run: EdgeRun): string[] {
+  const first = run.trials.find((t) => t.side === "peak");
+  if (first?.kind === "seen" && run.edgeScale < run.sourceThreshold) {
+    return [`peak-seen-below-source: pico visto a ${round4(run.edgeScale)} con umbral calibrado ${round4(run.sourceThreshold)}`];
+  }
+  return [];
 }
 
 export function reliabilityOf(run: EdgeRun): { catches: number; none: number; unreliable: boolean } {

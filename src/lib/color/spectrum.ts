@@ -470,6 +470,7 @@ type Notch = {
 
 /** Un lado está abierto si no tiene un borde medido de verdad. */
 export function sideOpen(side: EdgeFile["minus"]): boolean {
+  if (side.result) return side.result !== "found";
   return !side.found || side.toEnd === true;
 }
 
@@ -519,7 +520,10 @@ export function edgesReady(files: EdgeFile[]): boolean {
   return edgeNotches(files).length > 0;
 }
 
-function notchSample(theta: number, notch: Notch): { w: number; T: number } {
+function notchSample(rawTheta: number, notch: Notch): { w: number; T: number } {
+  // La búsqueda puede pasar de ±180° (verde hacia −240°): el ángulo se lleva junto al centro del notch.
+  const center = (notch.loOut + notch.hiOut) / 2;
+  const theta = center + Math.atan2(Math.sin(rawTheta - center), Math.cos(rawTheta - center));
   if (theta < notch.loOut || theta > notch.hiOut) return { w: 0, T: notch.tRim };
   if (theta < notch.loIn) {
     const span = notch.loIn - notch.loOut;

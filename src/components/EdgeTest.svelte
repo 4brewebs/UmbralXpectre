@@ -3,7 +3,7 @@
   import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
   import { questPlusEnabled } from "@/lib/color/motion2";
-  import { applyAnswer, armConfirm, discsOf, edgeFile, sectorOf, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
+  import { applyAnswer, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
 
@@ -81,8 +81,9 @@
   $effect(() => {
     if (run.phase !== "confirm" || draft) return;
     draft = {
-      minus: run.minus.edge ?? sectorOf(run.cone).lo,
-      plus: run.plus.edge ?? sectorOf(run.cone).hi,
+      // Lado sin explorar: sin pruebas de banda más allá del pico.
+      minus: run.minus.edge ?? run.peak,
+      plus: run.plus.edge ?? run.peak,
     };
   });
 
@@ -120,7 +121,7 @@
 
   const name = $derived(run.name);
   const showDiscs = $derived(asking && run.phase !== "done");
-  const sector = $derived(sectorOf(run.cone));
+  const sector = $derived(searchBounds(run));
 </script>
 
 {#snippet edgeSlider(label: string, min: number, max: number, value: number, onChange: (value: number) => void)}
@@ -164,7 +165,7 @@
   {#if run.phase === "confirm" && !probe && draft}
     {@const d = draft}
     <div class="flex flex-col gap-5">
-      <p class="text-base leading-relaxed text-fg">{run.minus.toEnd && run.plus.toEnd ? "Por ninguno de los dos lados ha vuelto el color. El fallo sigue hasta los dos finales de este tono." : run.minus.toEnd || run.plus.toEnd ? "Un lado tiene un corte. En el otro el fallo sigue hasta el final de este tono." : run.minus.found && run.plus.found ? "Los dos cortes han quedado acotados. Puedes moverlos y probarlos." : "Un lado no ha encontrado el corte. Puedes probar el que sí, o guardar así."}</p>
+      <p class="text-base leading-relaxed text-fg">{run.minus.toEnd && run.plus.toEnd ? "Por ninguno de los dos lados ha vuelto el color. El fallo sigue hasta el límite de la pantalla en los dos sentidos." : run.minus.toEnd || run.plus.toEnd ? "Un lado tiene un corte. En el otro el fallo sigue hasta el límite de la pantalla." : run.minus.found && run.plus.found ? "Los dos cortes han quedado acotados. Puedes moverlos y probarlos." : "Un lado no ha encontrado el corte. Puedes probar el que sí, o guardar así."}</p>
       <p class="text-sm text-muted">Centro del contraste: {run.depthBound === "at-least" ? "≥ " : ""}{((run.depthLo + run.depthHi) / 2).toFixed(3)}</p>
       {@render edgeSlider("Un borde", sector.lo, sector.hi, d.minus, (value) => (draft = { ...d, minus: value }))}
       {@render edgeSlider("El otro borde", sector.lo, sector.hi, d.plus, (value) => (draft = { ...d, plus: value }))}
