@@ -122,4 +122,5 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 - En los catch (movimiento evidente), «Quieto» cuenta como fallo (atención).
 - Regla del 60 % implementada: cada bloque guarda `{trials, still, unreliable}` en `luminance.checks.blocks`; con algún bloque poco fiable la confianza pasa a `"low"`.
 - Aviso de distancia visible en la preparación y en las pausas: móvil (`pointer: coarse` y lado corto < 600 px CSS) 40 cm «un antebrazo», PC 60 cm «un brazo extendido». Periodo de la red calculado para ~0.75 ciclos/grado con px/mm supuestos (PC 96 px/in; móvil 150 px/in si dpr ≥ 3, si no 132). Se guardan `viewingCm`, `deviceType` y `cssPxPerMm` en el perfil v3.
+- Sin calibración del usuario (decisión de Lucas, 25/10): ni tarjeta ni ajuste de tamaño. Los estímulos se dimensionan con tipo de dispositivo + distancia supuesta + densidad heurística; basta porque el mínimo de movimiento (Anstis & Cavanagh 1983) es robusto entre 0.5 y 2 ciclos/grado, y el error de la heurística (±15 %) deja 0.75 c/° dentro de ese rango.
 - Pendiente: modelo de 3 respuestas en QUEST+.

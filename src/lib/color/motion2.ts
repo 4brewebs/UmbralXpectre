@@ -80,8 +80,8 @@ export type DeviceType = "phone" | "pc";
  * SUPUESTO px/mm: los px CSS no son físicos. En PC se toma el px de referencia CSS
  * (96 px/pulgada ≈ 3.78 px/mm). En móvil, ~150 px CSS/pulgada (≈ 5.9 px/mm) si
  * devicePixelRatio ≥ 3 y ~132 (≈ 5.2 px/mm) si no. Error típico ±15 %, que mueve los
- * ciclos/grado en la misma proporción (0.75 → 0.64–0.86, dentro de 0.5–1). Calibración
- * opcional con una tarjeta: ver TODO.
+ * ciclos/grado en la misma proporción (0.75 → 0.64–0.86). Sin calibración del usuario
+ * (decisión de Lucas): el mínimo de movimiento es robusto entre 0.5 y 2 ciclos/grado.
  */
 export function viewingSetup(
   screenCssW: number,
