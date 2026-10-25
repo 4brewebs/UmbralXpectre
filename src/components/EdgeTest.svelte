@@ -47,6 +47,8 @@
       sourceTimes: pathway?.timesControl ?? null,
       profileSchema: profile.schema,
       profileCreatedAt: profile.createdAt,
+      // Control acotado en el último peldaño: no es un suelo medido (Colorado).
+      controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
       });
     }),
   );

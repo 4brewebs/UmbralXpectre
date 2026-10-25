@@ -63,6 +63,8 @@ export interface UmbralProfile {
     /** Peak absolute threshold divided by the control. Lower bound when the control only has an upper bound. */
     timesControl: number | null;
     timesControlKind: "at-least" | "estimate" | null;
+    /** El control solo tiene cota superior (llegó al último peldaño): las razones son «al menos». */
+    controlBounded?: boolean;
     peakAbs: number | null;
     controlAbs: number | null;
     confusionAngleDeg: number | null;
@@ -77,6 +79,8 @@ export interface UmbralProfile {
       threshold: number;
       kind: Axis["thresholdKind"];
       timesControl: number | null;
+      /** «al menos» mientras el control esté acotado (cota superior). */
+      timesControlKind?: "at-least";
       elevated: boolean;
       /** Set when this cone label is the other end of a line already counted. */
       sameLineAs?: string | null;
@@ -320,6 +324,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       severity: scored.severity,
       timesControl: scored.timesControl,
       timesControlKind: scored.timesControlKind,
+      controlBounded: scored.controlKind === "upper-bound",
       peakAbs: scored.peakAbs,
       controlAbs: scored.controlAbs == null ? null : Math.round(scored.controlAbs * 10000) / 10000,
       confusionAngleDeg: scored.confusionAngleDeg,
@@ -477,6 +482,7 @@ function scoreCones(axes: ConeAxis[]): ConeScore {
         threshold: Math.round(axis.threshold * 10000) / 10000,
         kind: axis.thresholdKind,
         timesControl: times == null ? null : Math.round(times * 10) / 10,
+        ...(times != null && controlKind === "upper-bound" ? { timesControlKind: "at-least" as const } : {}),
         elevated,
         sameLineAs: null,
       },
@@ -663,6 +669,7 @@ function syncImportedReading(profile: UmbralProfile): { summary: string; confide
       severity: scored.severity,
       timesControl: scored.timesControl,
       timesControlKind: scored.timesControlKind,
+      controlBounded: scored.controlKind === "upper-bound",
       peakAbs: scored.peakAbs,
       controlAbs: scored.controlAbs == null ? null : Math.round(scored.controlAbs * 10000) / 10000,
       elevatedCount: scored.elevatedCount,

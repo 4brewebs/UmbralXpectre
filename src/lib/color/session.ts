@@ -29,8 +29,15 @@ export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
 export type ThresholdKind = "upper-bound" | "estimate";
 
-/** Fractions of the in-gamut scale. Large first, then tighter. */
-export const DESCEND: readonly number[] = [0.62, 0.34, 0.18, 0.09];
+/**
+ * Fractions of the in-gamut scale. Large first, then tighter. Extended down to ≈0.006 lineal
+ * (0.0225 × ~0.27) so a good control is measured, not clipped at the grid. Index 0 only for the jitter.
+ */
+export const DESCEND: readonly number[] = [0.85, 0.62, 0.34, 0.18, 0.09, 0.045, 0.0225];
+/** Rung where a descent normally starts; each axis starts ±1 rung at random (same answers ≠ same levels). */
+export const DESCEND_START = 1;
+/** Near the threshold the bisection stops on a relative gap too (finer steps at small thresholds). */
+const BISECT_REL_GAP = 0.25;
 
 const CLOSE_NORM = 0.12;
 /** Smallest step asked on every axis, in linear sRGB. A long-gamut red is not "closed" at a coarser step. */
@@ -50,6 +57,8 @@ export interface Axis {
   searchPrior: string | null;
   maxS: number;
   descendIndex: number;
+  /** Rung where this axis started (jitter ±1). Absent: DESCEND_START (older saved sessions). */
+  descendStart?: number;
   phase: Phase;
   lo: number;
   hi: number;
@@ -139,7 +148,8 @@ function axisFromPrior(
     hue,
     searchPrior,
     maxS,
-    descendIndex: 0,
+    descendIndex: DESCEND_START,
+    descendStart: DESCEND_START,
     phase,
     lo: 0,
     hi: maxS,
@@ -164,7 +174,7 @@ function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchP
   const aligned = dirFromTheta(theta);
   const opposite: Vec3 = [-aligned[0], -aligned[1], -aligned[2]];
   const scale = Math.min(maxScale(aligned), maxScale(opposite));
-  return axisFromPrior(id, theta, id, hue, searchPrior, scale, "descend", DESCEND[0] * scale);
+  return axisFromPrior(id, theta, id, hue, searchPrior, scale, "descend", DESCEND[DESCEND_START] * scale);
 }
 
 /** γ actual: falsas alarmas («distinto» en un par idéntico) de los catch. */
@@ -262,13 +272,22 @@ function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
 export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null): Session {
   const priors = searchPriors();
   const axes = disambiguate([
-    ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[0] * p.maxS)),
+    ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[DESCEND_START] * p.maxS)),
     endAxis("red-end", [1, 0, 0], "rojo extremo", "last red this display emits"),
     endAxis("blue-end", [0, 0, 1], "azul extremo", "first blue this display emits"),
   ]);
   let rngState = (now || 1) >>> 0;
   const startRoll = nextRand(rngState);
   rngState = startRoll.state;
+  // Arranque ±1 peldaño por eje (escalera): las mismas respuestas ya no dan los mismos niveles.
+  for (const a of axes) {
+    const j = nextRand(rngState);
+    rngState = j.state;
+    const start = DESCEND_START + Math.min(1, Math.floor(j.value * 3) - 1);
+    a.descendIndex = start;
+    a.descendStart = start;
+    a.cursor = DESCEND[start] * a.maxS;
+  }
   const catchRoll = nextRand(rngState);
   rngState = catchRoll.state;
   const resumed = questPlus && resume ? resumeAxes(resume, questPlus, gammaOf(resume.catchHits + resume.catchMisses, resume.catchMisses)) : null;
@@ -467,7 +486,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
       }
     } else {
       axis.lo = axis.cursor;
-      axis.hi = axis.descendIndex === 0 ? axis.maxS : DESCEND[axis.descendIndex - 1] * axis.maxS;
+      axis.hi = axis.descendIndex <= (axis.descendStart ?? 0) ? axis.maxS : DESCEND[axis.descendIndex - 1] * axis.maxS;
       axis.phase = "bisect";
       axis.cursor = (axis.lo + axis.hi) / 2;
       note = "Aquí no coincide. Estrecho el límite de esta vía.";
@@ -489,7 +508,8 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     axis.bisectSteps += 1;
     const gap = axis.maxS > 0 ? (axis.hi - axis.lo) / axis.maxS : 0;
     const cap = axis.priorKey === "refine" ? REFINE_CAP : BISECT_CAP;
-    if (gap < BISECT_GAP || axis.bisectSteps >= cap) {
+    const rel = axis.hi > 0 ? (axis.hi - axis.lo) / axis.hi : 0;
+    if ((gap < BISECT_GAP && rel < BISECT_REL_GAP) || axis.bisectSteps >= cap) {
       const threshold = (axis.lo + axis.hi) / 2;
       const norm = axis.maxS > 0 ? threshold / axis.maxS : 0;
       finish(axis, threshold, "estimate");

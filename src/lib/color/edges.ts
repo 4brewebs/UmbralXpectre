@@ -33,6 +33,8 @@ const WALK_STEP = 4;
 const GEO_STEP = 0.5;
 /** Tope de la búsqueda a cada lado del pico (°): dos lados juntos quedan por debajo de 170°. */
 const MAX_SPAN = 84;
+/** Escala del disco respecto al umbral de la banda cuando el suelo es la propia banda. */
+const BAND_FLOOR_SCALE = 0.8;
 const EDGE_GAP = 2;
 const DEPTH_TRIALS = 8;
 
@@ -61,6 +63,8 @@ export interface EdgeTrial {
 
 export interface EdgeFile {
   schema: "umbral.edges.v1";
+  /** «band»: el control del perfil estaba acotado y el suelo es el umbral de la propia banda. */
+  floorFrom?: "band";
   /** Observaciones del registro (no son errores), p. ej. pico visto por debajo del umbral calibrado. */
   notes?: string[];
   createdAt: string;
@@ -166,6 +170,7 @@ export interface EdgeRun {
   /** Ensayo actual es un catch de diferencia obvia (solo con QUEST+). */
   catchTrial?: boolean;
   catches?: { shown: number; none: number };
+  floorFrom?: "band";
 }
 
 export interface EdgeAnswer {
@@ -339,9 +344,13 @@ export function startRun(input: {
   profileCreatedAt: string;
   seed?: number;
   questPlus?: JsQuest;
+  /** El control del perfil está acotado (último peldaño): no se hereda; el suelo es el umbral de la banda. */
+  controlBounded?: boolean;
 }): EdgeRun {
-  const floor = input.floor > 0 ? input.floor : 0.02;
-  const edgeScale = scaleAt(floor, input.peakDeg);
+  const fromBand = input.controlBounded === true && input.sourceThreshold > 0;
+  const floor = fromBand ? input.sourceThreshold : input.floor > 0 ? input.floor : 0.02;
+  // Con el suelo de la banda, el disco va por debajo de su umbral (0,8×): dentro no se ve, fuera sí.
+  const edgeScale = fromBand ? Math.max(0.01, Math.min(input.sourceThreshold * BAND_FLOOR_SCALE, roomAt(input.peakDeg))) : scaleAt(floor, input.peakDeg);
   const rolled = roll(input.seed ?? ((Date.now() >>> 0) || 1));
   const peak = input.peakDeg;
   return {
@@ -350,6 +359,7 @@ export function startRun(input: {
     floor,
     edgeScale,
     peak,
+    ...(fromBand ? { floorFrom: "band" as const } : {}),
     sourceThreshold: input.sourceThreshold,
     sourceTimes: input.sourceTimes,
     profileSchema: input.profileSchema,
@@ -695,6 +705,7 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     name: run.name,
     offeredBecause: "estimate >= 1.6× control",
     floor: round4(run.floor),
+    ...(run.floorFrom === "band" ? { floorFrom: "band" as const } : {}),
     edgeScale: round4(run.edgeScale),
     startAngleDeg: round1(run.peak),
     sourceThreshold: round4(run.sourceThreshold),

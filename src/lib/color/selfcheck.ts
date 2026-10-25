@@ -1,5 +1,5 @@
 import { angDist, luminance, searchPriors, addScaled, dirFromTheta, ANCHOR } from "./space";
-import { answer, createSession, stimulusOf, type Judgment, type Session } from "./session";
+import { answer, createSession, isClosed, stimulusOf, type Judgment, type Session } from "./session";
 
 function play(judge: (session: Session) => Judgment): Session {
   let session = createSession(1);
@@ -43,8 +43,9 @@ export function runSelfCheck(): string[] {
     errors,
   );
   assert(
-    normal.axes.filter((axis) => axis.priorKey !== "refine").every((axis) => axis.thresholdKind === "upper-bound"),
-    "normal axes should close as upper bounds",
+    // Rejilla hasta ≈0,006: un control bueno (0,015) se mide, no se recorta; queda cerrado igual.
+    normal.axes.filter((axis) => axis.priorKey !== "refine").every((axis) => isClosed(axis)),
+    "normal axes should close",
     errors,
   );
   assert(normal.axes.some((axis) => axis.id === "red-end"), "missing the last red", errors);
@@ -61,9 +62,9 @@ export function runSelfCheck(): string[] {
   });
   assert(blueOk.complete, "mixed session did not finish", errors);
   const blueAxis = blueOk.axes.find((a) => a.id === "s");
-  assert(blueAxis?.thresholdKind === "upper-bound", "intact blue axis was not closed", errors);
+  assert(blueAxis != null && isClosed(blueAxis), "intact blue axis was not closed", errors);
   const blueTrials = blueOk.log.filter((t) => t.axisId === "s").length;
-  assert(blueTrials === 5, `blue axis kept going: ${blueTrials} trials`, errors);
+  assert(blueTrials <= 12, `blue axis kept going: ${blueTrials} trials`, errors);
   const open = blueOk.axes.filter((a) => a.priorKey !== "s" && a.priorKey !== "refine" && a.thresholdKind === "estimate");
   assert(open.length >= 1, "expected a measured non-blue axis", errors);
 
