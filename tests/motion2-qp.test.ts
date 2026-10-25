@@ -88,3 +88,28 @@ test("QUEST+ guarda searchMethod en el perfil", async () => {
   assert.equal(p.luminance!.searchMethod, "quest+");
   void luminance;
 });
+
+test("benchmark: ensayos y acierto, QUEST+ frente a la escalera", async () => {
+  const Q = await loadQuestPlus();
+  const rows: string[] = [];
+  for (const [type, sev] of [["normal", 0], ["protan", 0.6], ["deutan", 0.6], ["tritan", 1]] as Array<[ObserverType, number]>) {
+    const w = predictedLumWeights(type, sev);
+    const acc = { qp: [0, 0, 0], st: [0, 0, 0] };
+    for (let seed = 1; seed <= 6; seed++) {
+      for (const [k, s] of [["qp", observe(createMotionV2(profileOf(type), seed, Q), w, seed)], ["st", observe(createMotionV2(profileOf(type), seed), w, seed)]] as const) {
+        const a = acc[k];
+        for (const m of measuredMatches(s)) {
+          const tgt = s.stairs.find((x) => x.target.id === m.id)!.target;
+          const truth = predictedMatch(tgt.color, [0.18, 0.18, 0.18], w);
+          a[2]++;
+          a[0] += m.trials;
+          if (m.atLeast ? truth <= E_MIN * 1.03 || truth >= E_MAX / 1.03 : Math.abs(Math.log(m.efficiency / truth)) < 0.05) a[1]++;
+        }
+      }
+    }
+    const f = (a: number[]) => `${(a[0] / a[2]).toFixed(1)} ens/obj, ${((100 * a[1]) / a[2]).toFixed(0)}% ±5%`;
+    rows.push(`${type} ${sev}: QUEST+ ${f(acc.qp)} | escalera ${f(acc.st)}`);
+  }
+  console.log("BENCH\n" + rows.join("\n"));
+  assert.ok(rows.length === 4);
+});
