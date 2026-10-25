@@ -90,6 +90,10 @@ test("recupera el brillo del rojo de un protán simulado y guarda pesos v3", () 
   assert.ok(lum.checks!.catches.shown > 0);
   const again = parseProfile(JSON.stringify(p))!;
   assert.deepEqual(again.luminance!.weights, lum.weights);
+  const h = again.history!.sessions.at(-1)!;
+  assert.equal(h.kind, "motion-v2");
+  assert.equal(h.backgroundY, s.bgY);
+  assert.equal(h.count, s.log.length);
 });
 
 const lin = (v: number) => ((v / 255 + 0.055) / 1.055) ** 2.4;

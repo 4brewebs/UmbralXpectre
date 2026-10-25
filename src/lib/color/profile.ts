@@ -12,6 +12,7 @@ import {
   roundMatrix,
   type Vec3,
 } from "./space";
+import { readHistory, type HistoryLog } from "./history";
 import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
@@ -39,6 +40,8 @@ export interface UmbralProfile {
   schema: "umbral.profile.v3";
   /** Solo con QUEST+ y ejes cerrados por el tope de 80: posterior por eje para seguir en otra sesión. */
   calibrationResume?: QpResume;
+  /** Historial completo de sesiones (`umbral.history.v1`, ver `history.ts`). Opcional: perfiles previos no lo traen. */
+  history?: HistoryLog;
   disclaimer: string;
   createdAt: string;
   hardware: HardwareSnapshot;
@@ -692,8 +695,12 @@ export function parseProfile(raw: string): UmbralProfile | null {
       .sort((a, b) => a.at - b.at)
       .map((trial, index) => ({ ...trial, order: index + 1 }));
     const folded = syncImportedReading({ ...parsed, axes });
+    const history = readHistory(parsed.history);
+    const { history: _dropHistory, ...rest } = parsed;
+    void _dropHistory;
     return {
-      ...parsed,
+      ...rest,
+      ...(history ? { history } : {}),
       schema: "umbral.profile.v3",
       summary: folded.summary,
       confidence: folded.confidence,

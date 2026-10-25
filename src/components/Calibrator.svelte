@@ -15,7 +15,9 @@
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
   import MotionTestV2 from "./MotionTestV2.svelte";
-  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, questPlusEnabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
+  import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
+  import { ANCHOR } from "@/lib/color/space";
+  import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionV2Enabled, questPlusEnabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import Result from "./Result.svelte";
 
   type Phase = "intro" | "run" | "motion" | "done";
@@ -84,12 +86,23 @@
     phase = "run";
   }
 
+  /** Sesión del historial con el montaje de esta pantalla (misma heurística que movimiento v2). */
+  function historyEntry(kind: HistoryKind, method: "staircase" | "quest+", backgroundY: number | null, trials: unknown[]) {
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    const setup = viewingSetup(window.screen.width, window.screen.height, window.devicePixelRatio || 1, coarse);
+    return makeSession(kind, { date: new Date().toISOString(), deviceType: setup.device, viewingCm: setup.cm, stimulusDeg: null, backgroundY, method }, trials);
+  }
+
   function choose(judgment: Judgment) {
     if (!session) return;
     const next = answer(session, judgment, Date.now());
     session = next;
     if (next.complete) {
-      const built = buildProfile(next, readHardware());
+      // Historial: se conserva el del perfil anterior y se añade esta calibración (fondo gris ANCHOR lineal).
+      const built = appendHistory(
+        { ...buildProfile(next, readHardware()), ...(stored?.history ? { history: stored.history } : {}) },
+        historyEntry("calibration", next.questPlus ? "quest+" : "staircase", ANCHOR, next.log),
+      );
       if (next.questPlus) {
         // QUEST+: lo que el tope de 80 dejó abierto se guarda para seguir en otra sesión.
         try {
@@ -108,7 +121,10 @@
 
   function takeLuminance(result: LuminanceResult) {
     if (!profile) return;
-    const enriched = attachLuminance(profile, result);
+    const enriched = appendHistory(
+      attachLuminance(profile, result),
+      historyEntry("motion-v1", "staircase", null, result.matches.flatMap((m) => m.samples)),
+    );
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
@@ -185,7 +201,15 @@
       onMotion={() => (phase = "motion")}
       onMotionV2={motionV2 ? () => (phase = "motion") : undefined}
       {edgeFiles}
-      onEdgeFile={(file) => (edgeFiles = { ...edgeFiles, [file.cone]: file })}
+      onEdgeFile={(file) => {
+        edgeFiles = { ...edgeFiles, [file.cone]: file };
+        if (profile) {
+          const enriched = appendHistory(profile, historyEntry("edges", file.reliability ? "quest+" : "staircase", null, file.trials));
+          persistProfile(enriched);
+          profile = enriched;
+          stored = enriched;
+        }
+      }}
     />
   {/if}
 </main>

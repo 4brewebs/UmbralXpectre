@@ -13,6 +13,7 @@
  *
  * Detrás de un flag (?motion=v2 o localStorage). La prueba antigua a 1 Hz (motion.ts) no cambia.
  */
+import { appendHistory, makeSession } from "./history";
 import { luminance, type Vec3 } from "./space";
 import { predictedMatch, predictedLumWeights, type ObserverType } from "./cones";
 import { solveLumWeights } from "./lumweights";
@@ -176,6 +177,8 @@ export interface MotionV2Meta {
   /** Tamaño de la red en grados (ancho × alto). */
   stimulusDeg?: { width: number; height: number };
   sizingHeuristic?: string;
+  /** Fin de la sesión (para el historial); por defecto, ahora. */
+  now?: Date;
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
@@ -658,7 +661,19 @@ export function attachMotionV2(
     { missedCatches: state.catches.missed > state.catches.shown / 4 ? state.catches.missed : 0 },
   );
   const unreliable = state.blocks.filter((b) => b.unreliable).length;
-  return {
+  const entry = makeSession(
+    "motion-v2",
+    {
+      date: (meta.now ?? new Date()).toISOString(),
+      deviceType: meta.deviceType ?? null,
+      viewingCm: meta.viewingCm ?? null,
+      stimulusDeg: meta.stimulusDeg ?? null,
+      backgroundY: state.bgY ?? null,
+      method: state.method ?? "staircase",
+    },
+    state.log,
+  );
+  return appendHistory({
     ...profile,
     luminance: {
       ...base,
@@ -686,7 +701,7 @@ export function attachMotionV2(
       calibratedWith: "standard-Y",
       measuredMatches: matches,
     },
-  };
+  }, entry);
 }
 
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
