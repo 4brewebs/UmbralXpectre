@@ -14,6 +14,8 @@
   import Intro from "./Intro.svelte";
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
+  import MotionTestV2 from "./MotionTestV2.svelte";
+  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, type MotionV2State } from "@/lib/color/motion2";
   import Result from "./Result.svelte";
 
   type Phase = "intro" | "run" | "motion" | "done";
@@ -53,7 +55,14 @@
   let copied = $state(false);
   let edgeFiles = $state.raw<Partial<Record<ConeId, EdgeFile>>>({});
 
+  let motionV2 = $state(false);
+
   onMount(() => {
+    try {
+      motionV2 = motionV2Enabled(window.location.search, window.localStorage.getItem(MOTION_V2_FLAG));
+    } catch {
+      motionV2 = false;
+    }
     stored = loadStored();
   });
 
@@ -81,6 +90,15 @@
   function takeLuminance(result: LuminanceResult) {
     if (!profile) return;
     const enriched = attachLuminance(profile, result);
+    persistProfile(enriched);
+    profile = enriched;
+    stored = enriched;
+    phase = "done";
+  }
+
+  function takeMotionV2(state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number }) {
+    if (!profile) return;
+    const enriched = attachMotionV2(profile, state, meta);
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
@@ -129,8 +147,12 @@
     <Trial {session} onChoose={choose} />
   {/if}
 
-  {#if phase === "motion" && profile}
+  {#if phase === "motion" && profile && !motionV2}
     <MotionTest {profile} onDone={takeLuminance} onSkip={() => (phase = "done")} />
+  {/if}
+
+  {#if phase === "motion" && profile && motionV2}
+    <MotionTestV2 {profile} onDone={takeMotionV2} onStop={() => (phase = "done")} />
   {/if}
 
   {#if phase === "done" && profile}
@@ -142,6 +164,7 @@
       onAgain={start}
       onImport={keep}
       onMotion={() => (phase = "motion")}
+      onMotionV2={motionV2 ? () => (phase = "motion") : undefined}
       {edgeFiles}
       onEdgeFile={(file) => (edgeFiles = { ...edgeFiles, [file.cone]: file })}
     />

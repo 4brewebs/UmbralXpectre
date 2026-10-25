@@ -17,6 +17,7 @@
     onAgain,
     onImport,
     onMotion,
+    onMotionV2,
     edgeFiles,
     onEdgeFile,
   }: {
@@ -27,6 +28,7 @@
     onAgain: () => void;
     onImport: (profile: UmbralProfile) => void;
     onMotion: () => void;
+    onMotionV2?: () => void;
     edgeFiles: Partial<Record<ConeId, EdgeFile>>;
     onEdgeFile: (file: EdgeFile) => void;
   } = $props();
@@ -124,6 +126,17 @@
       {@render brightness(profile.luminance.matches)}
     {:else}
       <button type="button" onclick={onMotion} class="text-sm text-muted">Medir el brillo con las bandas</button>
+    {/if}
+    {#if profile.luminance?.weightsSource === "measured"}
+      {@const lum = profile.luminance}
+      <section class="rounded-2xl border border-border p-4 text-sm text-fg" data-testid="weights-v2">
+        <p class="font-semibold">Pesos de brillo medidos (prueba v2)</p>
+        <p class="mt-1 text-muted">R {lum.weights[0].toFixed(3)} · G {lum.weights[1].toFixed(3)} · B {lum.weights[2].toFixed(3)} (estándar 0.213 · 0.715 · 0.072)</p>
+        <p class="mt-1 text-muted">Confianza {lum.checks?.confidence === "high" ? "alta" : "baja"}{lum.checks?.withinNoise ? " · dentro del ruido de Y estándar" : ""} · {lum.measuredMatches.length} colores · refresco {lum.refreshHz ?? "—"} Hz. Aún no cambia los filtros (fase 2).</p>
+      </section>
+    {/if}
+    {#if onMotionV2 && profile.luminance?.matches?.length}
+      <button type="button" onclick={onMotionV2} class="text-sm text-muted">Medir pesos de brillo (prueba v2)</button>
     {/if}
     <dl class="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border">
       {@render stat("Confianza", profile.confidence === "high" ? "Alta" : "Baja")}
