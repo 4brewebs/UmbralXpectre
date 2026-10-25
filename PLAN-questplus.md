@@ -24,7 +24,7 @@ QUEST+ (Watson 2017, *J. Vision* 17(3):10) **solo sustituye la elección del sig
 - Parámetros: umbral `α` (siempre), pendiente `β` (opcional, por sujeto), lapse `λ` ∈ {0.02, 0.035, 0.05} **marginalizado** (no se reporta).
 - Rejillas precalculadas una vez por prueba: tabla `P(respuesta | estímulo, parámetros)` (lo que jsQuestPlus llama `precomputed_outcome_proportions`).
 - Estimación final: media posterior de `α` e IC 95 % de su marginal.
-- Respuestas «no sé»: no actualizan la posterior (o se tratan como respuesta al azar, a decidir; ver §8).
+- Respuestas «no sé»: elección al azar que actualiza la posterior; > 30 % en un bloque ⇒ bloque poco fiable (§8.4).
 - Catch trials y controles: **fuera de QUEST+**, intercalados por el planificador como hoy; sirven para la confianza y para estimar el lapse.
 
 ## 3. Por prueba
@@ -94,14 +94,15 @@ QUEST+ (Watson 2017, *J. Vision* 17(3):10) **solo sustituye la elección del sig
 - Rendimiento en móviles antiguos → Worker y rejillas reducidas.
 - La pista de brillo en la calibración (constant-Y estándar) no la arregla QUEST+ → sigue siendo la fase 2 de luminancia.
 
-## 8. Preguntas abiertas
-**Colorado**
-1. ¿Pendiente `β` libre por sujeto o fija por prueba? ¿Qué rango?
-2. Calibración: ¿pasar a 2AFC (`γ` = 0.5) o mantener sí/no con `γ` estimado de los catch?
-3. ¿Qué hacemos con «no sé»: ignorarlo o tratarlo como respuesta al azar?
-4. ¿Equivalencia ΔE00 → parada en bordes y calibración: 0.5 o 1?
-5. Protán 0.3–1.1× frente al tope del 22 % (≈ 0.64×): ¿aceptamos la cota «al menos» o subimos la saturación hacia el 70 %?
+## 8. Decisiones de Colorado (25/10)
+Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
+1. **Cota por el tope de seguridad:** se acepta. Se guarda `gain ≤ 0.64×` con un flag (`atLeast`); la saturación se queda en el 65 %. Si un color queda recortado, la compensación (fase 2) usa la cota y avisa de que la severidad real puede ser mayor.
+2. **Pendiente:** libre pero estrecha, con 3–5 valores en escala logarítmica entre 0.5× y 2× la nominal, marginalizada (no se reporta).
+3. **Calibración:** pasa a **2AFC con γ = 0.5** (sustituye el sí/no con γ estimado de §3.1).
+4. **«No sé»:** se trata como elección al azar y actualiza la posterior (verosimilitud 0.5 por opción en 2AFC). Se cuentan; si superan el 30 % en un bloque, ese bloque se marca como poco fiable.
+5. **Parada:** IC 95 % < 1 ΔE00 (o su equivalente en cada prueba), con un máximo de **40 ensayos** por eje/color como tope de fatiga (sustituye los 20/30 de §3).
 
+## 9. Preguntas abiertas
 **Lucas**
 1. ¿Vendorizar (propuesta) o instalar desde npm con la dependencia de GitHub?
 2. ¿Orden de implantación: movimiento v2 → bordes → calibración?
