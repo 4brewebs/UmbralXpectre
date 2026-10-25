@@ -143,7 +143,10 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [x] Calibración QUEST+: tope 80 por sesión y reanudación del posterior por eje (localStorage + perfil).
 - [x] Catch de bordes con +25 % de Y.
 - [x] Bordes: fiabilidad agregada en la sesión, ≥ 1 catch por ronda.
-- [ ] Bordes: con 3 rondas (una por cono) salen ~3 catch ⇒ la sesión queda «indeterminada» casi siempre; decidir si subir catch.
+- [x] Bordes: 2 catch por ronda (sesión de 3 rondas ⇒ 6 catch, ya no «indeterminada»).
+- [x] Calibración: parada relativa ln 1,5 (sin 1 ΔE00 absoluto).
+- [ ] Pendiente de Lucas: calibración de 12 ejes con ajuste de elipse.
+- [ ] Pendiente de Lucas: historial en IndexedDB (migración) y exportar/importar.
 - [x] Prior de calibración 0,1–10 ΔE00 y 36 ensayos/eje.
 - [x] Historial completo de sesiones en el perfil (`umbral.history.v1`).
 - [ ] Historial: sin límite de tamaño; vigilar la cuota de localStorage (≈ 5 MB).

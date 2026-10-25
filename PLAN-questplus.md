@@ -190,6 +190,13 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
    dispositivo, distancia, grados del estímulo, Y de fondo, versión y método del motor y ensayos en bruto; > 8 kB se guardan en
    columnas («columns-v1», sin pérdida). Campo opcional: perfiles v3 previos siguen valiendo sin migrar.
 
+### Respuestas de Colorado aplicadas (2026-10-25, 5.ª ronda)
+
+1. Bordes: mínimo 2 catch por ronda (`catchPerRound`); la sesión sigue necesitando 5 para dejar de ser «indeterminada».
+2. Calibración: parada relativa, IC 95 % de ln α con ln(hi/lo) < ln 1,5, o 36 ensayos por eje; se quita el criterio absoluto de 1 ΔE00 (bordes sin cambios).
+3. El plano del observador simulado se documenta como aproximación (RGB lineal isoluminante, no contraste de cono).
+- **Pendiente de Lucas (no implementado):** calibración de 12 ejes con ajuste de elipse; migración del historial a IndexedDB y exportar/importar.
+
 ### Benchmark (observadores simulados)
 
 | Prueba | QUEST+ (config. final) | QUEST+ β marginal | Escalera |
@@ -198,7 +205,7 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
 | Movimiento protan 0,6 | 16,5, 87 % | 22,3, 87 % | 9,4, 80 % |
 | Movimiento deutan 0,6 | 16,3, 83 % | 22,8, 100 % | 9,4, 80 % |
 | Movimiento tritan 1 | 16,5, 90 % | 22,4, 95 % | 9,0, 81 % |
-| Bordes, borde 9° (20 semillas, parada 1 ΔE00, ≥ 1 catch/ronda) | 18,7 ens/ronda, 20/20 ±3°, sesgo +1,8 % | 23,6, sesgo −1,0 % | 35,8, 18/20 |
-| Bordes, sesión de 3 rondas (10 semillas) | 3,0 catch/sesión ⇒ 10/10 «indeterminada» | — | — |
-| Calibración normal (6 semillas, prior 0,1, 36/eje, tope 80 + reanudar, observador 4.ª ronda) | 113 ens en 2,0 sesiones, 30/36 ejes ×1,35 | — | 48,5, 2/19 «estimate» |
-| Calibración protan / deutan / tritan | 194 / 187 / 158 ens en 3,0 / 3,0 / 2,7 sesiones; 30/30, 29/30, 32/36 | — | 55,3 / 55,0 / 49,7; 6/27, 2/22, 5/22 |
+| Bordes, borde 9° (20 semillas, parada 1 ΔE00, ≥ 2 catch/ronda) | 19,6 ens/ronda, 20/20 ±3°, sesgo +1,8 % | 24,3, sesgo −1,0 % | 35,8, 18/20 |
+| Bordes, sesión de 3 rondas (10 semillas) | 6,0 catch/sesión; atento 0/10 «indeterminada», 0/10 «no fiable»; desatento 9/10 «no fiable» | — | — |
+| Calibración normal (6 semillas, parada ln 1,5 / 36, tope 80 + reanudar) | 181 ens en 3,0 sesiones, 35/36 ejes ×1,35 | — | 48,5, 2/19 «estimate» |
+| Calibración protan / deutan / tritan | 161 / 171 / 173 ens en 2,5 / 2,8 / 2,8 sesiones; 29/30, 29/30, 35/36 | — | 55,3 / 55,0 / 49,7; 6/27, 2/22, 5/22 |
