@@ -117,7 +117,12 @@ export interface UmbralProfile {
   }>;
   trials: Array<TrialRecord & { order: number }>;
   /** Identical pairs, kept out of the color sequence. A miss is "different" on two cards of the same color. */
-  catches: { same: number; missed: number; trials: Array<TrialRecord & { order: number }> };
+  catches: {
+    same: number;
+    missed: number;
+    /** Solo QUEST+: pares obvios (+20 % de Y); «igual» en ellos es un fallo de atención. */
+    obvious?: { shown: number; missed: number };
+    trials: Array<TrialRecord & { order: number }> };
   /**
    * Luminancia. `matches` son las igualaciones de la prueba antigua a 1 Hz (legado: los filtros
    * de fase 1 las siguen leyendo igual). Los campos v3 son los pesos personales.
@@ -366,6 +371,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
     catches: {
       same: session.catchHits,
       missed: session.catchMisses,
+      ...(session.obviousShown ? { obvious: { shown: session.obviousShown, missed: session.obviousMissed ?? 0 } } : {}),
       trials: orderCatchTrials(session.log),
     },
   };

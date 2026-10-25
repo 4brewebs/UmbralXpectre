@@ -43,7 +43,8 @@ function run(session: Session, o: { a: number; b: number; tc: number }, fa: numb
   for (let i = 0; i < 400 && !session.complete; i++) {
     const st = stimulusOf(session)!;
     let p: number;
-    if (st.catch) p = fa;
+    if (st.obvious) p = 0.97;
+    else if (st.catch) p = fa;
     else {
       const axis = session.axes.find((a) => a.id === st.axisId)!;
       p = weibull(pairDeltaE(axis.theta, st.s), alphaAt(o, axis.theta), 3, fa, 0.03);
@@ -133,7 +134,7 @@ for (const [name, o] of Object.entries(observers)) {
       const q = c.last;
       const s = run(createSession(seed), o, 0.1, seed);
       assert.ok(q.complete && s.complete);
-      assert.ok(q.catchHits + q.catchMisses >= 5);
+      assert.ok(q.catchHits + q.catchMisses >= 2, `catches ${q.catchHits}+${q.catchMisses} obvios ${q.obviousShown} ses ${c.sessions}`);
       nQ += c.total;
       nSess += c.sessions;
       nS += s.log.length;
@@ -156,3 +157,21 @@ for (const [name, o] of Object.entries(observers)) {
     assert.ok(ok / total >= 0.8, `${ok}/${total}`);
   });
 }
+
+test("QUEST+: catch 1 de cada 8–10, idénticos y obvios (+20 % Y); los obvios no entran en γ; eje por entropía", async () => {
+  const Q = await loadQuestPlus();
+  const s = run(createSession(11, Q), observers.protan, 0.1, 11);
+  const catches = s.log.filter((t) => t.axisId === "catch");
+  const rate = s.log.length / catches.length;
+  assert.ok(rate >= 7.5 && rate <= 11, `1 de ${rate}`);
+  const obvious = catches.filter((t) => t.hue === "obvio");
+  assert.ok(obvious.length > 0 && obvious.length < catches.length);
+  assert.equal(s.obviousShown, obvious.length);
+  assert.equal(s.catchHits + s.catchMisses, catches.length - obvious.length);
+  for (const t of obvious) assert.notDeepEqual(t.reference, t.comparison);
+  // Por entropía: nunca el mismo eje dos veces seguidas si hay otro abierto.
+  const axisTrials = s.log.filter((t) => t.axisId !== "catch");
+  let repeats = 0;
+  for (let i = 1; i < axisTrials.length; i++) if (axisTrials[i].axisId === axisTrials[i - 1].axisId) repeats++;
+  assert.ok(repeats <= 3, `${repeats}`);
+});

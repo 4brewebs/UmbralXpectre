@@ -23,7 +23,7 @@ import {
   type Vec3,
 } from "./space";
 import type { JsQuest } from "./questplus";
-import { QP_CALIB, gammaOf, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
+import { QP_CALIB, entropyOf, gammaOf, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
 
 export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
@@ -109,6 +109,10 @@ export interface Session {
   catchSlot: number;
   catchHits: number;
   catchMisses: number;
+  /** Solo QUEST+: el catch pendiente es un par obvio (+20 % de Y), no idéntico. No entra en γ. */
+  catchObvious?: boolean;
+  obviousShown?: number;
+  obviousMissed?: number;
   /** jsQuestPlus cargado: QUEST+ sí/no por eje (flag `?qp=1`). Pares y catch no cambian. */
   questPlus?: JsQuest;
 }
@@ -128,6 +132,8 @@ export interface Stimulus {
   priorTotal: number;
   refining: boolean;
   catch: boolean;
+  /** Catch de par obvio (respuesta esperada «distinto»). */
+  obvious?: boolean;
 }
 
 function gray(): Vec3 {
@@ -315,7 +321,7 @@ export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | 
     side: "left",
     startedAt: now,
     rngState,
-    pendingCatch: catchRoll.value < 0.34,
+    pendingCatch: questPlus ? false : catchRoll.value < 0.34,
     sinceCatch: 0,
     catchSlot: Math.floor(catchRoll.value * 4),
     catchHits: 0,
@@ -358,7 +364,26 @@ export function stimulusOf(session: Session): Stimulus | null {
     side: session.side,
   };
   if (session.pendingCatch) {
-    const rgb = toSrgb8(catchColor(session.catchSlot));
+    const base = catchColor(session.catchSlot);
+    const rgb = toSrgb8(base);
+    if (session.questPlus && session.catchObvious) {
+      const k = QP_CALIB.obviousLum;
+      const bright = toSrgb8([Math.min(1, base[0] * k), Math.min(1, base[1] * k), Math.min(1, base[2] * k)]);
+      return {
+        axisId: "catch",
+        hue: "obvio",
+        priorKey: "catch",
+        phase: axis.phase,
+        s: 0,
+        sNorm: 0,
+        reference: rgb,
+        comparison: bright,
+        refining: false,
+        catch: true,
+        obvious: true,
+        ...shared,
+      };
+    }
     return {
       axisId: "catch",
       hue: "igual",
@@ -407,10 +432,38 @@ function draw(session: Session): { session: Session; value: number } {
   return { session: { ...session, rngState: rolled.state }, value: rolled.value };
 }
 
+/**
+ * Con QUEST+, eje no elevado: su IC entero está por debajo de 1,6× el umbral del control (en ΔE00).
+ * El control mismo nunca se relaja.
+ */
+function notElevated(axes: Axis[], axis: Axis, Q: JsQuest, gamma: number): boolean {
+  if (axis.priorKey === "control") return false;
+  const control = axes.find((a) => a.priorKey === "control" && a.qpLog);
+  if (!control?.qpLog || control.qpLog.length < QP_CALIB.relaxedMinTrials) return false;
+  const c = control.qpEstimate?.deltaE00 ?? stepAxis(Q, control.qpReach ?? 0, gamma, control.qpLog).estimate.mean;
+  const own = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog ?? []).estimate;
+  return own.hi <= c * 1.6;
+}
+
 function pickNext(session: Session, axes: Axis[], currentId: string): { session: Session; axis: Axis | null } {
   const open = axes.filter((axis) => axis.phase !== "done" && axis.id !== currentId);
   const pool = open.length ? open : axes.filter((axis) => axis.phase !== "done");
   if (!pool.length) return { session, axis: null };
+  const Q = session.questPlus;
+  if (Q && pool.every((a) => a.qpLog)) {
+    // Con QUEST+: el eje de mayor entropía del posterior (no por turnos). Nunca el mismo dos veces si hay otro.
+    const gamma = sessionGamma(session);
+    let best = pool[0];
+    let bestH = -Infinity;
+    for (const a of pool) {
+      const h = entropyOf(Q, a.qpReach ?? 0, gamma, a.qpLog ?? []);
+      if (h > bestH + 1e-12) {
+        bestH = h;
+        best = a;
+      }
+    }
+    return { session, axis: best };
+  }
   const rolled = draw(session);
   return { session: rolled.session, axis: pool[Math.floor(rolled.value * pool.length)] ?? pool[0] };
 }
@@ -476,7 +529,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   if (Q && axis.qpLog) {
     const gamma = sessionGamma(session);
     axis.qpLog = [...axis.qpLog, [axis.qpDe ?? QP_CALIB.deMin, judgment === "different" ? 0 : 1]];
-    const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog);
+    const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog, notElevated(axes, axis, Q, gamma));
     if (res.done) {
       finish(axis, qpThreshold(axis, Q, gamma), "estimate");
       note = axis.qpBound
@@ -561,7 +614,22 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   let sinceCatch = next.session.sinceCatch;
   let catchSlot = session.catchSlot;
   let scheduled = next.session;
-  if (next.axis && sinceCatch >= 3) {
+  let catchObvious = false;
+  if (Q) {
+    // QUEST+: catch 1 de cada 8–10 ensayos, mitad idénticos y mitad obvios (Colorado, 6.ª ronda).
+    if (next.axis && sinceCatch >= QP_CALIB.catchMin) {
+      const rolled = draw(scheduled);
+      scheduled = rolled.session;
+      if (rolled.value < 0.5 || sinceCatch >= QP_CALIB.catchMax) {
+        pendingCatch = true;
+        sinceCatch = 0;
+        catchSlot = Math.floor(rolled.value * 8) % 4;
+        const kind = draw(scheduled);
+        scheduled = kind.session;
+        catchObvious = kind.value < 0.5;
+      }
+    }
+  } else if (next.axis && sinceCatch >= 3) {
     const rolled = draw(scheduled);
     scheduled = rolled.session;
     if (rolled.value < 0.55 || sinceCatch >= 5) {
@@ -581,6 +649,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     pendingCatch: next.axis ? pendingCatch : false,
     sinceCatch,
     catchSlot,
+    ...(Q ? { catchObvious: next.axis ? catchObvious : false } : {}),
   };
 }
 
@@ -597,6 +666,7 @@ function applyCap(session: Session, axes: Axis[], trials: number): void {
 }
 
 function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
+  if (stim.obvious) return answerObvious(session, stim, judgment, now);
   const hit = judgment === "same";
   const log: TrialRecord[] = [
     ...session.log,
@@ -630,6 +700,31 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
     sinceCatch: 0,
     catchHits: session.catchHits + (hit ? 1 : 0),
     catchMisses: session.catchMisses + (hit ? 0 : 1),
+  };
+}
+
+/** Catch obvio (+20 % de Y): «igual» es un fallo de atención; no entra en γ (que solo usa pares idénticos). */
+function answerObvious(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
+  const log: TrialRecord[] = [
+    ...session.log,
+    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now },
+  ];
+  const axes = session.axes.map((a) => ({ ...a }));
+  applyCap(session, axes, log.length);
+  const next = pickNext(session, axes, session.activeId ?? "");
+  return {
+    ...next.session,
+    axes,
+    log,
+    activeId: next.axis?.id ?? null,
+    complete: !next.axis,
+    note: "",
+    side: log.length % 2 === 0 ? "left" : "right",
+    pendingCatch: false,
+    catchObvious: false,
+    sinceCatch: 0,
+    obviousShown: (session.obviousShown ?? 0) + 1,
+    obviousMissed: (session.obviousMissed ?? 0) + (judgment === "same" ? 1 : 0),
   };
 }
 
