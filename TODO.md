@@ -2,9 +2,11 @@
 
 ## 0. Despliegue
 - **Destino: GitHub Pages** (SPA estática, `.github/workflows/deploy.yml`). Eliminados Vercel, Nitro, better-auth, PGlite y plantilla de servidor.
+- **Interfaz migrada de React a Svelte 5** (runes, sin SvelteKit). `src/lib/color/*` sin cambios. Paridad visual comprobada con Playwright (capturas en `/workspace/parity`).
+- `npm test` ejecuta `runSelfCheck` (`scripts/selfcheck.ts`).
 - Pendiente: crear repo público, Settings > Pages > Source: GitHub Actions, y push a `main`.
 - Iconos PWA 192/512 son reescalados del de 180 px: sustituir por iconos nativos.
-- Sin tests reales (`npm test` es placeholder); `runSelfCheck` sigue sin usarse.
+- Faltan tests unitarios más allá del autochequeo.
 
 ## 1. Revisión de Colorado
 - **(ALTA)** Ejes L y M no son independientes tras `killLuminance` (`src/lib/color/space.ts:96-100`, `:225-231`; `src/lib/color/profile.ts:618-635`). Para protán/deután colapsan en la misma línea, `elevatedCount=2`, y no se calcula ángulo de confusión. Propuesta: ejes DKL y puntuar L/M como una sola línea de confusión.
@@ -13,10 +15,10 @@
 - **(BAJA)** `muted` sobre `stage` 3,32:1 < 4,5:1; APCA de botones accent Lc 58 (justo); comentario HPE `space.ts:21` dice D65 pero la matriz es para iluminante E.
 
 ## 2. Revisión anterior
-- ~~`npm test` falla~~ → ahora es un placeholder que pasa; falta escribir tests reales.
-- No hay tests de `src/lib/color`; `runSelfCheck` (`selfcheck.ts`) nunca se llama.
-- Lint: `client.server.ts` eliminado (auth); queda `prefer-const` `session.ts:144` (único error) y 2 warnings de hooks (camera.tsx:232, edges.tsx:80).
-- Hooks: cleanup de `videoRef` en `src/components/camera.tsx:232` (la cámara puede quedar encendida); dependencia faltante en `src/components/edges.tsx:80`.
+- ~~`npm test` falla~~ → ahora ejecuta `runSelfCheck` (pasa).
+- ~~`runSelfCheck` nunca se llama~~ → `npm test`. Faltan tests más finos de `src/lib/color`.
+- Lint: `client.server.ts` eliminado (auth); queda `prefer-const` `session.ts:144` (único error) ; los 2 warnings de hooks de React desaparecen con la migración a Svelte.
+- ~~Hooks: cleanup de `videoRef` / dependencia faltante en edges~~ → resuelto en la versión Svelte (`AssistCamera.svelte` para la cámara al desmontar, verificado).
 - LUTs (3×33³) en el hilo principal → mover a Web Worker.
 - Añadir simulación de referencia Machado/Viénot.
 - Aviso de calibración del monitor.

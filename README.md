@@ -3,7 +3,7 @@
 ## Qué es
 Ayuda de código abierto para personas con alteraciones de la visión del color. Mide, en tu pantalla, qué diferencias de color separas y cuáles no, y genera un perfil personal (guardado solo en tu navegador, `localStorage`) con el que ajustar la cámara, láminas, bordes y pruebas de movimiento. Todo se ejecuta en el cliente: no hay servidor ni cuentas.
 
-Stack: React 19 + TanStack Router + Vite + Tailwind CSS 4.
+Stack: Svelte 5 (runes) + Vite + Tailwind CSS 4. SPA de una sola página, sin SvelteKit ni servidor. La lógica de color (`src/lib/color/*`) es TypeScript puro e independiente del framework.
 
 ## Desarrollo local
 Requiere Node.js 22 (LTS) o superior.
@@ -11,8 +11,9 @@ Requiere Node.js 22 (LTS) o superior.
 ```bash
 npm install
 npm run dev        # http://localhost:8080
-npm run typecheck
+npm run check      # svelte-check (tipos de .svelte y .ts)
 npm run lint
+npm test           # autochequeo de src/lib/color
 ```
 
 ## Build
