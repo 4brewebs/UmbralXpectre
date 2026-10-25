@@ -1,7 +1,8 @@
 import type { FilterKind } from "@/lib/color/lut";
 import type { UmbralProfile } from "@/lib/color/profile";
 import { ANCHOR, addScaled, angDist, dirFromTheta, toSrgb8, type Vec3 } from "@/lib/color/space";
-import { assistColor, extremeColor, lumaFromProfile, paintYours } from "@/lib/color/spectrum";
+import type { EdgeFile } from "@/lib/color/edges";
+import { colorFor, type FilterSource } from "@/lib/color/spectrum";
 
 export type FilterView = "original" | FilterKind;
 export type AxisMark = UmbralProfile["axes"][number];
@@ -162,6 +163,8 @@ export function paint(
   profile: UmbralProfile,
   floor: number,
   view: FilterView,
+  source: FilterSource = "profile",
+  edgeFiles: EdgeFile[] = [],
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -174,16 +177,9 @@ export function paint(
   ctx.beginPath();
   ctx.arc(SIZE / 2, SIZE / 2, SIZE / 2 - 2, 0, Math.PI * 2);
   ctx.fill();
-  const luma = lumaFromProfile(profile);
   for (const dot of dots) {
-    const rgb =
-      view === "simulate"
-        ? paintYours(dot.rgb, profile.axes, floor, luma)
-        : view === "extreme"
-          ? extremeColor(dot.rgb, profile.axes, floor, luma)
-          : view === "assist"
-            ? assistColor(dot.rgb, profile.axes, floor, luma)
-            : dot.rgb;
+    // Mismo camino que el arcoíris y la cámara: perfil o bordes.
+    const rgb = view === "original" ? dot.rgb : colorFor(view, dot.rgb, profile, source, edgeFiles);
     const [r, g, b] = toSrgb8(rgb);
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
     ctx.beginPath();

@@ -17,7 +17,10 @@
   let busy = $state(false);
   let message = $state<string | null>(null);
   let view = $state<View>("assist");
-  let source = $state<FilterSource>("profile");
+  // Bordes por defecto cuando hay bordes medidos (Lucas); el usuario puede volver a Perfil.
+  // svelte-ignore state_referenced_locally
+  let source = $state<FilterSource>(edgesReady(edgeFiles) ? "edges" : "profile");
+  let sourcePicked = false;
   let facing = $state<Facing>("environment");
   let mounted = true;
   const edgeKey = $derived(edgeFiles.map((file) => `${file.cone}:${file.createdAt}`).join("|"));
@@ -111,7 +114,12 @@
     return profileLuts;
   }
 
-  function chooseSource(next: FilterSource) {
+  $effect(() => {
+    if (ready && !sourcePicked && source !== "edges") chooseSource("edges", false);
+  });
+
+  function chooseSource(next: FilterSource, byUser = true) {
+    if (byUser) sourcePicked = true;
     source = next;
     if (!live) return;
     busy = true;

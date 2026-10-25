@@ -1,8 +1,14 @@
 <script lang="ts">
   import type { UmbralProfile } from "@/lib/color/profile";
+  import type { EdgeFile } from "@/lib/color/edges";
+  import { edgesReady, type FilterSource } from "@/lib/color/spectrum";
   import { elevatedAxes, makeDots, paint, pickHealthy, type FilterView } from "./plates";
 
-  let { profile }: { profile: UmbralProfile } = $props();
+  let { profile, edgeFiles = [] }: { profile: UmbralProfile; edgeFiles?: EdgeFile[] } = $props();
+  const ready = $derived(edgesReady(edgeFiles));
+  // Bordes por defecto en cuanto hay un borde medido, salvo que se haya elegido a mano.
+  let picked = $state<FilterSource | null>(null);
+  const source = $derived<FilterSource>(picked ?? (ready ? "edges" : "profile"));
 
   let canvas: HTMLCanvasElement | undefined = $state();
   const floor = $derived(profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02);
@@ -31,7 +37,7 @@
       return;
     }
     const dots = makeDots(hole, active, floor, seed);
-    paint(canvas, dots, profile, floor, view);
+    paint(canvas, dots, profile, floor, view, source, edgeFiles);
   });
 
   const tabs = $derived<Array<{ id: string; label: string }>>([
@@ -50,7 +56,7 @@
   <div>
     <h2 class="font-serif text-2xl text-fg">Láminas</h2>
     <p class="mt-2 text-sm leading-relaxed text-muted">
-      La lámina alta es un 42 en la línea que este JSON no separa. La de control es un 7 en una línea que sí separas. Sin filtro, asistencia, simulador y extremo usan el perfil de esta sesión. No es una carta clínica.
+      La lámina alta es un 42 en la línea que este JSON no separa. La de control es un 7 en una línea que sí separas. Asistencia, simulador y extremo usan el perfil de esta sesión o, con Bordes, los bordes medidos. No es una carta clínica.
     </p>
   </div>
   {#if tabs.length > 1}
@@ -66,6 +72,18 @@
         >{tab.label}</button>
       {/each}
     </div>
+  {/if}
+  <div class="flex flex-wrap gap-2">
+    {#each [["profile", "Perfil"], ["edges", "Bordes"]] as const as [id, label] (id)}
+      <button
+        type="button"
+        onclick={() => (picked = id)}
+        class={`h-10 rounded-xl px-3 text-sm ${source === id ? "bg-accent font-semibold text-accent-fg" : "border border-border text-fg"}`}
+      >{label}</button>
+    {/each}
+  </div>
+  {#if source === "edges" && !ready}
+    <p class="text-sm text-muted">Sin un borde cerrado, este filtro no cambia ningún color.</p>
   {/if}
   <canvas bind:this={canvas} class="mx-auto aspect-square w-full max-w-[520px]" aria-label="Lámina de umbral"></canvas>
   <div class="flex flex-wrap gap-2">
