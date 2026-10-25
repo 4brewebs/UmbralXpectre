@@ -72,6 +72,11 @@ export interface Axis {
   qpDe?: number;
   qpReach?: number;
   qpEstimate?: { deltaE00: number; lo: number; hi: number; gamma: number };
+  /**
+   * «Al menos» el alcance: el posterior sigue por encima del par más fuerte que da la pantalla. Resultado válido
+   * (umbral = alcance del gamut), nunca «cerrado» como umbral medido.
+   */
+  qpBound?: "gamut-limit";
   /** Cerrado por el tope de sesión, no por su regla de parada: se puede reanudar. */
   qpForced?: boolean;
 }
@@ -191,6 +196,11 @@ function initQp(axis: Axis, Q: JsQuest, gamma: number): Axis {
 function qpThreshold(axis: Axis, Q: JsQuest, gamma: number): number {
   const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog ?? []);
   axis.qpEstimate = { deltaE00: res.estimate.mean, lo: res.estimate.lo, hi: res.estimate.hi, gamma };
+  if (res.bound) {
+    axis.qpBound = "gamut-limit";
+    return axis.maxS;
+  }
+  delete axis.qpBound;
   return stepForDeltaE(axis.theta, res.estimate.mean, axis.maxS);
 }
 
@@ -212,6 +222,7 @@ export interface QpResume {
     open: boolean;
     threshold: number | null;
     qpEstimate: Axis["qpEstimate"] | null;
+    qpBound?: Axis["qpBound"];
     /** Posterior marginal de α (ΔE00); se puede reconstruir exacto desde `qpLog` y γ. */
     posterior: { alphas: number[]; probs: number[] };
   }>;
@@ -241,6 +252,7 @@ export function qpResumeOf(session: Session, now = 0): QpResume | null {
       open: !!a.qpForced,
       threshold: a.threshold,
       qpEstimate: a.qpEstimate ?? null,
+      ...(a.qpBound ? { qpBound: a.qpBound } : {}),
       posterior: posteriorOf(Q, a.qpReach ?? pairDeltaE(a.theta, a.maxS), gamma, a.qpLog ?? []),
     })),
   };
@@ -262,7 +274,7 @@ function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
     const base = axisFromPrior(r.id, r.theta, r.priorKey, r.hue, r.searchPrior, r.maxS, "bisect", 0, r.parentId ?? undefined);
     const qpReach = pairDeltaE(r.theta, r.maxS);
     if (!r.open) {
-      return { ...base, phase: "done", threshold: r.threshold, thresholdKind: r.threshold == null ? null : "estimate", cursor: r.threshold ?? 0, qpLog: r.qpLog, qpReach, qpEstimate: r.qpEstimate ?? undefined, trials: r.qpLog.length };
+      return { ...base, phase: "done", threshold: r.threshold, thresholdKind: r.threshold == null ? null : "estimate", cursor: r.threshold ?? 0, qpLog: r.qpLog, qpReach, qpEstimate: r.qpEstimate ?? undefined, trials: r.qpLog.length, ...(r.qpBound ? { qpBound: r.qpBound } : {}) };
     }
     const next = stepAxis(Q, qpReach, gamma, r.qpLog);
     return { ...base, qpLog: r.qpLog, qpReach, qpDe: next.nextDe, cursor: stepForDeltaE(r.theta, next.nextDe, r.maxS), trials: r.qpLog.length };
@@ -467,7 +479,9 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog);
     if (res.done) {
       finish(axis, qpThreshold(axis, Q, gamma), "estimate");
-      note = "Límite medido en este ángulo. Las otras vías siguen su propio margen.";
+      note = axis.qpBound
+        ? "Ni el par más fuerte de esta pantalla basta en este ángulo: queda como «al menos»."
+        : "Límite medido en este ángulo. Las otras vías siguen su propio margen.";
     } else {
       axis.qpDe = res.nextDe;
       axis.cursor = stepForDeltaE(axis.theta, res.nextDe, axis.maxS);
@@ -625,5 +639,6 @@ export function axisNorm(axis: Axis): number {
 }
 
 export function isClosed(axis: Axis): boolean {
+  if (axis.qpBound) return false;
   return axis.phase === "done" && axis.threshold != null && axis.threshold <= ABS_CLOSE * 1.25;
 }

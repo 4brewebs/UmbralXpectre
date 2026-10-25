@@ -16,8 +16,18 @@ import { ANCHOR, addScaled, dirFromTheta, type Vec3 } from "./space";
 
 export const QP_CALIB = {
   deMin: 0.1,
-  deMax: 10,
-  points: 40,
+  /**
+   * Techo de la rejilla de α (Colorado, 6.ª ronda): muy por encima del alcance del gamut (~9 ΔE00 en l y rojo
+   * extremo), para que el posterior no se amontone en el último punto. Los estímulos siguen cortados al alcance.
+   */
+  deMax: 60,
+  /** Mismo paso logarítmico que la rejilla antigua (40 puntos en 0,1–10). */
+  points: 56,
+  /** Masa del posterior por encima del estímulo más alto posible que impide la parada relativa. */
+  pinnedMass: 0.05,
+  /** Con ≥ este número de ensayos y la mitad de la masa fuera de alcance: «al menos» el alcance (límite del gamut). */
+  gamutMinTrials: 10,
+  gamutMass: 0.5,
   beta: 3,
   lapses: [0.02, 0.035, 0.05],
   gammaMin: 0.02,
@@ -90,6 +100,10 @@ export function rebuild(Q: JsQuest, deReach: number, gamma: number, log: QpLog):
 
 export interface AxisQpResult {
   done: boolean;
+  /** Masa del posterior por encima del alcance del gamut (α que no se puede probar en esta pantalla). */
+  beyondReach: number;
+  /** Terminado (o a terminar) como «al menos el alcance»: resultado válido, no un fallo. */
+  bound: "gamut-limit" | null;
   /** ΔE00 del siguiente par. */
   nextDe: number;
   estimate: { mean: number; lo: number; hi: number; width: number };
@@ -103,8 +117,17 @@ export function logWidth(e: { lo: number; hi: number }): number {
 export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog): AxisQpResult {
   const qp = rebuild(Q, deReach, gamma, log);
   const estimate = qp.estimate(0);
-  const done = log.length > 0 && (logWidth(estimate) < QP_CALIB.stopLogWidth || log.length >= QP_CALIB.maxTrials);
-  return { done, nextDe: qp.next(), estimate };
+  const m = qp.marginal(0);
+  const top = Math.min(QP_CALIB.deMax, deReach);
+  let beyondReach = 0;
+  for (let i = 0; i < m.values.length; i++) if (m.values[i] > top + 1e-9) beyondReach += m.probs[i];
+  // Nunca para por anchura con > 5 % fuera de alcance: ese IC lo estrecha el techo, no los datos.
+  const pinned = beyondReach > QP_CALIB.pinnedMass;
+  const narrow = !pinned && logWidth(estimate) < QP_CALIB.stopLogWidth;
+  const gamut = pinned && log.length >= QP_CALIB.gamutMinTrials && beyondReach >= QP_CALIB.gamutMass;
+  const capped = log.length >= QP_CALIB.maxTrials;
+  const done = log.length > 0 && (narrow || gamut || capped);
+  return { done, nextDe: qp.next(), estimate, beyondReach, bound: pinned && (gamut || capped) ? "gamut-limit" : null };
 }
 
 /** Posterior marginal de α (ΔE00) del eje, para guardarlo y mostrarlo. */

@@ -1,0 +1,390 @@
+{
+  "schema": "umbral.edges.v1",
+  "createdAt": "2026-10-25T21:49:32.060Z",
+  "basedOn": {
+    "schema": "umbral.profile.v3",
+    "createdAt": "2026-10-25T21:40:09.800Z"
+  },
+  "cone": "m",
+  "name": "verdes",
+  "offeredBecause": "estimate >= 1.6× control",
+  "floor": 0.0059,
+  "edgeScale": 0.0118,
+  "startAngleDeg": -156.7,
+  "sourceThreshold": 0.016,
+  "sourceTimes": 2.7,
+  "band": "open",
+  "minus": {
+    "found": true,
+    "toEnd": true,
+    "angleDeg": -160,
+    "insideDeg": -160,
+    "outsideDeg": null
+  },
+  "plus": {
+    "found": true,
+    "toEnd": false,
+    "angleDeg": -141,
+    "insideDeg": -150.2,
+    "outsideDeg": -132.7,
+    "qp": {
+      "ciDeg": 17.5,
+      "ciDeltaE00": 0.4978,
+      "deg1DeltaE": 36.3,
+      "trials": 1
+    }
+  },
+  "depth": {
+    "angleDeg": -150.5,
+    "scale": 0.0192,
+    "bound": "at-least",
+    "ceiling": 0.0216
+  },
+  "confirmed": {
+    "minus": -160,
+    "plus": -141
+  },
+  "trials": [
+    {
+      "order": 1,
+      "phase": "edge",
+      "side": "peak",
+      "angleDeg": -156.7,
+      "scale": 0.0118,
+      "oddIndex": 2,
+      "oddSign": -1,
+      "picked": [
+        1
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        129
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 2,
+      "phase": "edge",
+      "side": "minus",
+      "angleDeg": -160,
+      "scale": 0.0118,
+      "oddIndex": 3,
+      "oddSign": -1,
+      "picked": [
+        2
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        129
+      ],
+      "negative": [
+        132,
+        128,
+        129
+      ]
+    },
+    {
+      "order": 3,
+      "phase": "edge",
+      "side": "minus",
+      "angleDeg": -160,
+      "scale": 0.0118,
+      "oddIndex": 3,
+      "oddSign": 1,
+      "picked": [
+        1
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": "inside",
+      "positive": [
+        126,
+        130,
+        129
+      ],
+      "negative": [
+        132,
+        128,
+        129
+      ]
+    },
+    {
+      "order": 4,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -152.7,
+      "scale": 0.0118,
+      "oddIndex": 0,
+      "oddSign": -1,
+      "picked": [
+        2
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 5,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -148.7,
+      "scale": 0.0118,
+      "oddIndex": 3,
+      "oddSign": 1,
+      "picked": [],
+      "none": true,
+      "kind": "none",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 6,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -144.7,
+      "scale": 0.0118,
+      "oddIndex": 3,
+      "oddSign": -1,
+      "picked": [],
+      "none": true,
+      "kind": "none",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 7,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -140.7,
+      "scale": 0.0118,
+      "oddIndex": 0,
+      "oddSign": -1,
+      "picked": [
+        0
+      ],
+      "none": false,
+      "kind": "seen",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 8,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -144.7,
+      "scale": 0.0118,
+      "oddIndex": 2,
+      "oddSign": 1,
+      "picked": [
+        0
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 9,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -66.7,
+      "scale": 0.0118,
+      "oddIndex": 2,
+      "oddSign": -1,
+      "picked": [
+        2
+      ],
+      "none": false,
+      "kind": "seen",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        130,
+        129,
+        126
+      ],
+      "negative": [
+        142,
+        143,
+        146
+      ],
+      "catch": true
+    },
+    {
+      "order": 10,
+      "phase": "edge",
+      "side": "plus",
+      "angleDeg": -66.7,
+      "scale": 0.0118,
+      "oddIndex": 1,
+      "oddSign": 1,
+      "picked": [
+        1
+      ],
+      "none": false,
+      "kind": "seen",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        144,
+        143,
+        140
+      ],
+      "negative": [
+        129,
+        129,
+        132
+      ],
+      "catch": true
+    },
+    {
+      "order": 11,
+      "phase": "depth",
+      "side": "center",
+      "angleDeg": -150.5,
+      "scale": 0.0118,
+      "oddIndex": 2,
+      "oddSign": -1,
+      "picked": [
+        1
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        126,
+        130,
+        128
+      ],
+      "negative": [
+        132,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 12,
+      "phase": "depth",
+      "side": "center",
+      "angleDeg": -150.5,
+      "scale": 0.0167,
+      "oddIndex": 0,
+      "oddSign": -1,
+      "picked": [
+        1
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        125,
+        130,
+        128
+      ],
+      "negative": [
+        133,
+        128,
+        130
+      ]
+    },
+    {
+      "order": 13,
+      "phase": "depth",
+      "side": "center",
+      "angleDeg": -150.5,
+      "scale": 0.0192,
+      "oddIndex": 0,
+      "oddSign": -1,
+      "picked": [
+        2
+      ],
+      "none": false,
+      "kind": "miss",
+      "repeat": false,
+      "check": null,
+      "positive": [
+        124,
+        131,
+        128
+      ],
+      "negative": [
+        134,
+        128,
+        130
+      ]
+    }
+  ],
+  "reliability": {
+    "catches": 2,
+    "none": 0,
+    "unreliable": false
+  }
+}

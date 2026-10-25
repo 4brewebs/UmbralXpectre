@@ -99,7 +99,17 @@ export interface UmbralProfile {
     threshold: number | null;
     thresholdNorm: number | null;
     /** Solo con QUEST+ (`?qp=1`): umbral en ΔE00 (CIEDE2000), IC 95 % y γ (falsas alarmas) usada. */
-    quest?: { deltaE00: number; lo: number; hi: number; gamma: number; trials: number; resumable: boolean };
+    quest?: {
+      deltaE00: number;
+      lo: number;
+      hi: number;
+      gamma: number;
+      trials: number;
+      resumable: boolean;
+      /** «Al menos» el alcance del gamut (`deltaE00` = alcance): resultado válido, no un fallo. */
+      atLeast?: boolean;
+      reason?: "gamut-limit";
+    };
     thresholdKind: Axis["thresholdKind"];
     closed: boolean;
     trials: number;
@@ -350,7 +360,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       closed: isClosed(a),
       trials: a.trials,
       order: index + 1,
-      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced } } : {}),
+      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced, ...(a.qpBound ? { deltaE00: r4(a.qpReach ?? a.qpEstimate.deltaE00), atLeast: true, reason: a.qpBound } : {}) } } : {}),
     })),
     trials: orderColorTrials(session.log, session.axes),
     catches: {
