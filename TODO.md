@@ -117,7 +117,7 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - Plan de implementación (prueba de movimiento a 7.5–15 Hz de 4 fotogramas, pesos personales w_R/w_G/w_B en profile.v3, migración, filtros): ver `/workspace/adan/PLAN-luminancia.md`.
 - Prueba de parpadeo/HFP: **descartada por ahora**; solo se adapta `motion.ts`.
 
-## 7. Láminas (revisión de Colorado, 25/10) — ahora en src/components/Plates.svelte y plates.ts
+## 7. Láminas (revisión de Colorado, 25/10) — DESCARTADO: Lucas decide dejarlas como están; son material visual para probar y enseñar los filtros, no un test — ahora en src/components/Plates.svelte y plates.ts
 - [ALTA] El contorno se lee por el tamaño de los puntos (antes plates.tsx:105-134): aplicar la regla estricta en las tres pasadas o usar la misma distribución de radios dentro y fuera.
 - [ALTA] Fuga de luminancia en protán y deután (antes :93): el ruido es aditivo ±0,028; pasar a un factor multiplicativo k ∈ [0,7, 1,3] con 3-5 niveles y conseguir ΔY < 0,3 σ.
 - [ALTA] El 42 "oculto" se coloca en el umbral entero (antes :69) y se ve con s alto: ponerlo a ~0,7× el umbral o donde ΔE00 (Machado) < 1,5.
