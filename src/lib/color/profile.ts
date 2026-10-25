@@ -88,6 +88,8 @@ export interface UmbralProfile {
     maxScale: number;
     threshold: number | null;
     thresholdNorm: number | null;
+    /** Solo con QUEST+ (`?qp=1`): umbral en ΔE00 (CIEDE2000), IC 95 % y γ (falsas alarmas) usada. */
+    quest?: { deltaE00: number; lo: number; hi: number; gamma: number; trials: number };
     thresholdKind: Axis["thresholdKind"];
     closed: boolean;
     trials: number;
@@ -237,6 +239,8 @@ export function readHardware(now = new Date()): HardwareSnapshot {
   };
 }
 
+const r4 = (n: number) => Math.round(n * 10000) / 10000;
+
 export function buildProfile(session: Session, hardware: HardwareSnapshot, now = new Date()): UmbralProfile {
   const done = session.axes.filter((a) => a.phase === "done" && a.threshold != null);
   const labels = axisLabels(done);
@@ -333,6 +337,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       closed: isClosed(a),
       trials: a.trials,
       order: index + 1,
+      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0 } } : {}),
     })),
     trials: orderColorTrials(session.log, session.axes),
     catches: {

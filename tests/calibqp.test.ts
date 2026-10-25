@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
-import { answerAxis, axisEstimate, nextStep, startAxisQuest } from "../src/lib/color/calibqp";
+import { gammaOf, pairDeltaE, stepForDeltaE, QP_CALIB } from "../src/lib/color/calibqp";
+import { answer, createSession, stimulusOf, type Session } from "../src/lib/color/session";
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -13,27 +14,83 @@ function rng(seed: number) {
   };
 }
 
-// Umbrales de eje simulados (sRGB lineal): normal ~0,03; eje afectado mucho más alto.
-const observers: Record<string, number> = { normal: 0.03, protan: 0.25, deutan: 0.18, tritan: 0.12 };
+/** Umbral simulado en ΔE00 por ángulo: elipse alargada en la dirección de confusión θc. */
+const observers: Record<string, { a: number; b: number; tc: number }> = {
+  normal: { a: 1.5, b: 1.5, tc: 0 },
+  protan: { a: 7, b: 1.5, tc: 0.2 },
+  deutan: { a: 6, b: 1.5, tc: -0.3 },
+  tritan: { a: 5, b: 1.5, tc: 1.6 },
+};
+const alphaAt = (o: { a: number; b: number; tc: number }, th: number) => 1 / Math.hypot(Math.cos(th - o.tc) / o.a, Math.sin(th - o.tc) / o.b);
 
-for (const [name, alpha] of Object.entries(observers)) {
-  test(`calibración QUEST+ 2AFC converge: ${name}`, async () => {
+function run(session: Session, o: { a: number; b: number; tc: number }, fa: number, seed: number): Session {
+  const r = rng(seed);
+  for (let i = 0; i < 400 && !session.complete; i++) {
+    const st = stimulusOf(session)!;
+    let p: number;
+    if (st.catch) p = fa;
+    else {
+      const axis = session.axes.find((a) => a.id === st.axisId)!;
+      p = weibull(pairDeltaE(axis.theta, st.s), alphaAt(o, axis.theta), 3, fa, 0.03);
+    }
+    session = answer(session, r() < p ? "different" : "same", i);
+  }
+  return session;
+}
+
+test("γ = falsas alarmas acotadas a [0,02, 0,3] con ≥ 5 catch", () => {
+  assert.equal(gammaOf(4, 4), QP_CALIB.gammaDefault);
+  assert.equal(gammaOf(10, 0), 0.02);
+  assert.equal(gammaOf(10, 1), 0.1);
+  assert.equal(gammaOf(10, 9), 0.3);
+});
+
+test("ΔE00 → paso s por bisección", () => {
+  for (const th of [0, 1, 2.5, -2]) {
+    const s = stepForDeltaE(th, 2, 0.3);
+    assert.ok(Math.abs(pairDeltaE(th, s) - 2) < 1e-6);
+  }
+});
+
+test("sin flag, la sesión no cambia (sin QUEST+)", () => {
+  const s = createSession(5);
+  assert.equal(s.questPlus, undefined);
+  assert.ok(s.axes.every((a) => a.qpLog === undefined));
+});
+
+for (const [name, o] of Object.entries(observers)) {
+  test(`calibración QUEST+ sí/no converge: ${name}`, async () => {
     const Q = await loadQuestPlus();
     let ok = 0;
-    let n = 0;
-    const N = 6;
+    let total = 0;
+    let nQ = 0;
+    let nS = 0;
+    let okS = 0;
+    let totalS = 0;
+    const N = 3;
     for (let seed = 1; seed <= N; seed++) {
-      const r = rng(seed * 31);
-      let a = startAxisQuest(Q, 0.6);
-      while (!a.done) {
-        const s = nextStep(a);
-        a = answerAxis(a, s, r() < weibull(s, alpha, 3.5, 0.5, 0.03));
+      const q = run(createSession(seed, Q), o, 0.1, seed);
+      const s = run(createSession(seed), o, 0.1, seed);
+      assert.ok(q.complete && s.complete);
+      assert.ok(q.catchHits + q.catchMisses >= 5);
+      nQ += q.log.length;
+      nS += s.log.length;
+      for (const a of s.axes) {
+        if (a.threshold == null || a.thresholdKind !== "estimate") continue;
+        const truth = alphaAt(o, a.theta);
+        if (truth > Math.min(QP_CALIB.deMax, pairDeltaE(a.theta, a.maxS)) * 0.9) continue;
+        totalS++;
+        if (Math.abs(Math.log(pairDeltaE(a.theta, a.threshold) / truth)) < Math.log(1.35)) okS++;
       }
-      const e = axisEstimate(a);
-      if (Math.abs(Math.log(e.mean / alpha)) < Math.log(1.35)) ok++;
-      n += a.qp.trials;
+      for (const a of q.axes) {
+        if (!a.qpEstimate) continue;
+        const truth = alphaAt(o, a.theta);
+        if (truth > Math.min(QP_CALIB.deMax, a.qpReach ?? 0) * 0.9) continue;
+        total++;
+        if (Math.abs(Math.log(a.qpEstimate.deltaE00 / truth)) < Math.log(1.35)) ok++;
+      }
     }
-    console.log(`calib ${name}: ${ok}/${N} dentro de ×1,35, ${(n / N).toFixed(1)} ensayos`);
-    assert.ok(ok >= N - 1);
+    console.log(`calib ${name}: QUEST+ ${ok}/${total} ejes en ×1,35, ${(nQ / N).toFixed(1)} ensayos/sesión; escalera ${okS}/${totalS} (solo «estimate»), ${(nS / N).toFixed(1)}`);
+    assert.ok(ok / total >= 0.8, `${ok}/${total}`);
   });
 }

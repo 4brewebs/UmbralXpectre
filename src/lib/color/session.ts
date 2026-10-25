@@ -22,6 +22,8 @@ import {
   type PriorKey,
   type Vec3,
 } from "./space";
+import type { JsQuest } from "./questplus";
+import { QP_CALIB, gammaOf, pairDeltaE, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
 
 export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
@@ -56,6 +58,11 @@ export interface Axis {
   bisectSteps: number;
   threshold: number | null;
   thresholdKind: ThresholdKind | null;
+  /** Solo con QUEST+ (`?qp=1`): ensayos en ΔE00, ΔE00 del par actual, alcance y estimación. */
+  qpLog?: QpLog;
+  qpDe?: number;
+  qpReach?: number;
+  qpEstimate?: { deltaE00: number; lo: number; hi: number; gamma: number };
 }
 
 export interface TrialRecord {
@@ -86,6 +93,8 @@ export interface Session {
   catchSlot: number;
   catchHits: number;
   catchMisses: number;
+  /** jsQuestPlus cargado: QUEST+ sí/no por eje (flag `?qp=1`). Pares y catch no cambian. */
+  questPlus?: JsQuest;
 }
 
 export interface Stimulus {
@@ -156,7 +165,24 @@ function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchP
   return axisFromPrior(id, theta, id, hue, searchPrior, scale, "descend", DESCEND[0] * scale);
 }
 
-export function createSession(now = 0): Session {
+/** γ actual: falsas alarmas («distinto» en un par idéntico) de los catch. */
+export function sessionGamma(session: Pick<Session, "catchHits" | "catchMisses">): number {
+  return gammaOf(session.catchHits + session.catchMisses, session.catchMisses);
+}
+
+function initQp(axis: Axis, Q: JsQuest, gamma: number): Axis {
+  const qpReach = pairDeltaE(axis.theta, axis.maxS);
+  const first = stepAxis(Q, qpReach, gamma, []);
+  return { ...axis, phase: "bisect", qpLog: [], qpReach, qpDe: first.nextDe, cursor: stepForDeltaE(axis.theta, first.nextDe, axis.maxS) };
+}
+
+function qpThreshold(axis: Axis, Q: JsQuest, gamma: number): number {
+  const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog ?? []);
+  axis.qpEstimate = { deltaE00: res.estimate.mean, lo: res.estimate.lo, hi: res.estimate.hi, gamma };
+  return stepForDeltaE(axis.theta, res.estimate.mean, axis.maxS);
+}
+
+export function createSession(now = 0, questPlus?: JsQuest): Session {
   const priors = searchPriors();
   const axes = disambiguate([
     ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[0] * p.maxS)),
@@ -170,7 +196,8 @@ export function createSession(now = 0): Session {
   rngState = catchRoll.state;
   const start = axes[Math.floor(startRoll.value * axes.length)] ?? null;
   return {
-    axes,
+    axes: questPlus ? axes.map((a) => initQp(a, questPlus, QP_CALIB.gammaDefault)) : axes,
+    ...(questPlus ? { questPlus } : {}),
     activeId: start?.id ?? null,
     log: [],
     complete: false,
@@ -333,8 +360,21 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
 
   axis.trials += 1;
   let note = "";
+  const Q = session.questPlus;
 
-  if (axis.phase === "descend") {
+  if (Q && axis.qpLog) {
+    const gamma = sessionGamma(session);
+    axis.qpLog = [...axis.qpLog, [axis.qpDe ?? QP_CALIB.deMin, judgment === "different" ? 0 : 1]];
+    const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog);
+    if (res.done) {
+      finish(axis, qpThreshold(axis, Q, gamma), "estimate");
+      note = "Límite medido en este ángulo. Las otras vías siguen su propio margen.";
+    } else {
+      axis.qpDe = res.nextDe;
+      axis.cursor = stepForDeltaE(axis.theta, res.nextDe, axis.maxS);
+      note = "Estrecho el margen.";
+    }
+  } else if (axis.phase === "descend") {
     if (judgment === "different") {
       axis.hi = axis.cursor;
       if (axis.descendIndex >= DESCEND.length - 1) {
@@ -392,7 +432,8 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     axis.maxS > 0 &&
     (axis.threshold ?? 0) / axis.maxS > CLOSE_NORM
   ) {
-    const extra = makeRefinements(axis, axes);
+    const made = makeRefinements(axis, axes);
+    const extra = Q ? made.map((a) => initQp(a, Q, sessionGamma(session))) : made;
     if (extra.length) {
       nextAxes = axes.concat(extra);
       note = `Duda en «${axis.hue}». Miro al lado, sin dejar las otras vías.`;
@@ -401,7 +442,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
 
   if (log.length >= SESSION_CAP) {
     for (const a of nextAxes) {
-      if (a.phase !== "done") finish(a, (a.lo + a.hi) / 2 || a.cursor, "estimate");
+      if (a.phase !== "done") finish(a, Q && a.qpLog ? qpThreshold(a, Q, sessionGamma(session)) : (a.lo + a.hi) / 2 || a.cursor, "estimate");
     }
   }
 

@@ -1,68 +1,98 @@
 /**
- * QUEST+ por eje para la calibración (paso 6 de PLAN-questplus.md), detrás de `?qp=1`.
+ * QUEST+ por eje para la calibración (PLAN-questplus paso 6), detrás de `?qp=1`.
  *
- * Decisión 3 de Colorado: 2AFC con γ = 0,5 (Watson 2017, §2; jsQuestPlus README, ejemplo 2AFC).
- * Este módulo es solo el motor por eje: la UI actual de calibración es "igual / distinto"
- * (sí/no) y NO se cambia aquí; cablear 2AFC exige una tarea nueva (pregunta abierta).
- *
- * Dominio: paso s en sRGB lineal (mismas unidades que session.ts), rejilla logarítmica.
- * Weibull ψ = γ + (1−γ−λ)(1−exp(−(s/α)^β)).
+ * Provisional (Colorado): se mantiene la tarea sí/no («igual / distinto») con los mismos pares y
+ * catch. Modelo de Watson (2017) para sí/no: P(«distinto») = γ + (1−γ−λ)(1 − e^−(x/α)^β), con
+ * γ = tasa de falsas alarmas en los catch (pares idénticos) acotada a [0,02, 0,3] cuando hay ≥ 5.
+ * x = ΔE00 entre los dos colores del par (CIEDE2000 real, `deltaE.ts`).
+ * Prior uniforme en log ΔE00 entre 0,3 y 10; β = 3 fijo; λ marginalizado.
+ * Como γ cambia con los catch, el posterior se reconstruye repitiendo los ensayos del eje.
+ * Futuro (TODO): 2AFC «qué par es distinto» con γ = 0,5.
  */
 
-import { createQuestPlus, grid, weibull2afc, type JsQuest, type QuestPlus } from "./questplus";
-import { ABS_CLOSE } from "./session";
+import { createQuestPlus, grid, weibull, type JsQuest, type QuestPlus, type ResponseFn } from "./questplus";
+import { deltaE00Linear } from "./deltaE";
+import { ANCHOR, addScaled, dirFromTheta, type Vec3 } from "./space";
 
 export const QP_CALIB = {
-  gamma: 0.5,
-  /** PROVISIONAL: pendientes nominales. */
-  betas: [2, 3.5, 6],
+  deMin: 0.3,
+  deMax: 10,
+  points: 40,
+  beta: 3,
   lapses: [0.02, 0.035, 0.05],
-  /** Umbral normal esperado (centro del prior log-normal). PROVISIONAL. */
-  priorCenter: 0.03,
-  /** σ en ln del prior. PROVISIONAL (amplio para cubrir protan/deutan/tritan). */
-  priorSd: 1.5,
-  /** Equivalente de "IC < 1 ΔE00": no hay ΔE00 en el código; se usa ABS_CLOSE. PROVISIONAL. */
-  stopWidth: ABS_CLOSE,
-  maxTrials: 40,
+  gammaMin: 0.02,
+  gammaMax: 0.3,
+  /** Catch necesarios antes de usar su tasa de falsas alarmas. */
+  minCatches: 5,
+  /** γ antes de tener 5 catch. PROVISIONAL. */
+  gammaDefault: 0.05,
+  /** Parada: IC 95 % de α con anchura < 1 ΔE00, o 30 ensayos por eje (máximo PROVISIONAL, igual que movimiento). */
+  stopDeltaE: 1,
+  maxTrials: 30,
 } as const;
 
-export interface AxisQuest {
-  qp: QuestPlus;
-  maxS: number;
-  done: boolean;
+export function yesNo(gamma: number): ResponseFn[] {
+  const yes: ResponseFn = (x, a, b, l) => weibull(x, a, b, gamma, l);
+  return [yes, (x, a, b, l) => 1 - yes(x, a, b, l)];
+}
+
+/** γ = falsas alarmas / catch, acotada; `gammaDefault` con menos de 5 catch. */
+export function gammaOf(catches: number, falseAlarms: number): number {
+  if (catches < QP_CALIB.minCatches) return QP_CALIB.gammaDefault;
+  return Math.min(QP_CALIB.gammaMax, Math.max(QP_CALIB.gammaMin, falseAlarms / catches));
+}
+
+const gray = (): Vec3 => [ANCHOR, ANCHOR, ANCHOR];
+
+/** ΔE00 del par gris ± dir(θ)·s que muestra la sesión. */
+export function pairDeltaE(theta: number, s: number): number {
+  const d = dirFromTheta(theta);
+  return deltaE00Linear(addScaled(gray(), d, -s), addScaled(gray(), d, s));
+}
+
+/** Paso s con ΔE00 del par = target, por bisección en [0, maxS]. */
+export function stepForDeltaE(theta: number, target: number, maxS: number): number {
+  if (pairDeltaE(theta, maxS) <= target) return maxS;
+  let lo = 0;
+  let hi = maxS;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (pairDeltaE(theta, mid) < target) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
 }
 
 function logGrid(lo: number, hi: number, n: number): number[] {
   return grid(Math.log(lo), Math.log(hi), n).map((v) => Math.exp(v));
 }
 
-export function startAxisQuest(Q: JsQuest, maxS: number): AxisQuest {
-  const stim = logGrid(0.004, maxS, 40);
-  const alphas = logGrid(0.004, maxS, 40);
-  const c = Math.log(QP_CALIB.priorCenter);
-  const prior = alphas.map((a) => Math.exp(-0.5 * ((Math.log(a) - c) / QP_CALIB.priorSd) ** 2));
+export type QpLog = Array<[number, 0 | 1]>;
+
+/** Reconstruye el QUEST+ del eje con la γ actual y repite sus ensayos (0 = «distinto», 1 = «igual»). */
+export function rebuild(Q: JsQuest, deReach: number, gamma: number, log: QpLog): QuestPlus {
+  const alphas = logGrid(QP_CALIB.deMin, QP_CALIB.deMax, QP_CALIB.points);
+  const top = Math.min(QP_CALIB.deMax, deReach);
+  const stim = alphas.filter((a) => a <= top + 1e-9);
   const qp = createQuestPlus(Q, {
-    responses: weibull2afc(QP_CALIB.gamma),
-    stim,
-    params: [alphas, [...QP_CALIB.betas], [...QP_CALIB.lapses]],
-    prior: [prior],
+    responses: yesNo(gamma),
+    stim: stim.length ? stim : [alphas[0]],
+    params: [alphas, [QP_CALIB.beta], [...QP_CALIB.lapses]],
   });
-  return { qp, maxS, done: false };
+  for (const [x, r] of log) qp.update(x, r);
+  return qp;
 }
 
-/** Siguiente paso s a presentar (mínima entropía esperada). */
-export function nextStep(a: AxisQuest): number {
-  return a.qp.next();
+export interface AxisQpResult {
+  done: boolean;
+  /** ΔE00 del siguiente par. */
+  nextDe: number;
+  estimate: { mean: number; lo: number; hi: number; width: number };
 }
 
-/** `correct`: el observador eligió el intervalo distinto. */
-export function answerAxis(a: AxisQuest, s: number, correct: boolean): AxisQuest {
-  a.qp.update(s, correct ? 0 : 1);
-  const e = a.qp.estimate(0);
-  const done = e.hi - e.lo < QP_CALIB.stopWidth || a.qp.trials >= QP_CALIB.maxTrials;
-  return { ...a, done };
-}
-
-export function axisEstimate(a: AxisQuest) {
-  return a.qp.estimate(0);
+export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog): AxisQpResult {
+  const qp = rebuild(Q, deReach, gamma, log);
+  const estimate = qp.estimate(0);
+  const done = log.length > 0 && (estimate.width < QP_CALIB.stopDeltaE || log.length >= QP_CALIB.maxTrials);
+  return { done, nextDe: qp.next(), estimate };
 }

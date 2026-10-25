@@ -15,7 +15,7 @@
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
   import MotionTestV2 from "./MotionTestV2.svelte";
-  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
+  import { MOTION_V2_FLAG, attachMotionV2, motionV2Enabled, questPlusEnabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import Result from "./Result.svelte";
 
   type Phase = "intro" | "run" | "motion" | "done";
@@ -66,11 +66,13 @@
     stored = loadStored();
   });
 
-  function start() {
+  async function start() {
     copied = false;
     edgeFiles = {};
     profile = null;
-    session = createSession(Date.now());
+    // QUEST+ sí/no solo con `?qp=1` (carga perezosa); por defecto, la escalera de siempre.
+    const Q = questPlusEnabled(window.location.search) ? await (await import("@/lib/color/questplus")).loadQuestPlus() : undefined;
+    session = createSession(Date.now(), Q);
     phase = "run";
   }
 
