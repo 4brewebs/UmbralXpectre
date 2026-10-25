@@ -138,3 +138,4 @@ No se itera más de una vez.
 - Fase 1 (prioridad): solo la medición de brillo fiable con la prueba de movimiento adaptada y los pesos personales en profile.v3. El filtro de asistencia NO cambia en esta fase.
 - Fase 2: el filtro de asistencia usa los pesos medidos para compensar el brillo, de modo que los colores que el usuario no distingue por longitud de onda se puedan separar por brillo y se vean más vivos de lo que percibe (con el límite de 2× y la ayuda de G de la §8).
 - Lucas repetirá su perfil cuando la prueba nueva esté lista, no antes. Los JSON actuales solo son fixtures de prueba.
+- 25/10: la reproyección y recalibración de umbrales (§3 puntos 3-4, paso 9) pasa a la fase 2 junto con los filtros. La fase 1 son los pasos 1-6 de §4.
