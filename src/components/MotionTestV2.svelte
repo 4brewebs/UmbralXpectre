@@ -220,20 +220,18 @@
         <span>{doneTargets}/{totalTargets}</span>
         <button type="button" onclick={onStop} class="rounded-full border px-4 py-2 text-sm" style={`border-color:${shade(-SCREEN.lineWeber)}`}>Parar</button>
       </div>
-      <p class="text-center text-sm tracking-wide">Mira el punto central. ¿Hacia dónde se mueven las rayas?</p>
+      <p class="text-center text-sm tracking-wide" style={`color:${shade(-SCREEN.uiWeber)}`}>Mira el punto central. ¿Hacia dónde se mueven las rayas?</p>
       <div bind:this={host} class="flex w-full justify-center">
         <MotionReticle
           width={size.width}
           height={size.height}
           {marginPx}
-          pxPerDeg={pxOfDegrees(1, viewing.cm, viewing.cssPxPerMm)}
           {shade}
           progress={totalTargets ? doneTargets / totalTargets : 0}
           labels={{
             tl: refreshHz == null ? "— hz" : `${refreshHz.toFixed(1)} hz`,
             tr: `${CYCLES_PER_DEG.toFixed(1)} c/°`,
-            bl: `bloque ${block}`,
-            br: `${motion.log.length + 1}`,
+            bottom: `bloque ${block} · ensayo ${motion.log.length + 1}`,
           }}
         >
           <!-- Al responder se funde a gris (solo en el ISI); al empezar el ensayo aparece sin transición. -->
@@ -244,7 +242,7 @@
           ></canvas>
         </MotionReticle>
       </div>
-      <p class="text-center text-xs tracking-wide">Sin prisa. No hay respuestas malas.</p>
+      <p class="text-center text-xs tracking-wide" style={`color:${shade(-SCREEN.uiWeber)}`}>Sin prisa. No hay respuestas malas.</p>
       <div class="grid w-full max-w-md grid-cols-3 gap-3">
         {#each [["left", "Izquierda"], ["still", "Quieto"], ["right", "Derecha"]] as [v, label] (v)}
           <button
@@ -252,7 +250,7 @@
             disabled={isi}
             onclick={() => choose(v as "left" | "right" | "still")}
             class="h-14 rounded-2xl border text-base"
-            style={`border-color:${shade(-SCREEN.lineWeber)}`}>{label}</button
+            style={`border-color:${shade(-SCREEN.uiWeber)};color:${shade(-SCREEN.uiWeber)}`}>{label}</button
           >
         {/each}
       </div>

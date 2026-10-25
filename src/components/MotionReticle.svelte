@@ -17,7 +17,6 @@
     width,
     height,
     marginPx,
-    pxPerDeg,
     shade,
     progress,
     labels,
@@ -26,10 +25,9 @@
     width: number;
     height: number;
     marginPx: number;
-    pxPerDeg: number;
     shade: (weber: number) => string;
     progress: number;
-    labels: { tl: string; tr: string; bl: string; br: string };
+    labels: { tl: string; tr: string; bottom: string };
     children: Snippet;
   } = $props();
 
@@ -81,19 +79,12 @@
           <path {d} fill="none" stroke={strong} stroke-width="1.5" stroke-linecap="round" />
         {/each}
       {/if}
-      <!-- Escala de 1°, horizontal (perpendicular a las rayas) y bajo el anillo. -->
-      <g stroke={line} stroke-width="1">
-        <line x1={c - pxPerDeg / 2} y1={side - 10} x2={c + pxPerDeg / 2} y2={side - 10} />
-        <line x1={c - pxPerDeg / 2} y1={side - 13} x2={c - pxPerDeg / 2} y2={side - 7} />
-        <line x1={c + pxPerDeg / 2} y1={side - 13} x2={c + pxPerDeg / 2} y2={side - 7} />
-      </g>
     </svg>
     <div class="absolute inset-0 flex items-center justify-center">{@render children()}</div>
     <div class="hud pointer-events-none absolute inset-0 text-[10px]" style={`color:${shade(-SCREEN.textWeber)}`}>
       <span class="absolute left-0 top-0">{labels.tl}</span>
       <span class="absolute right-0 top-0">{labels.tr}</span>
-      <span class="absolute bottom-0 left-0">{labels.bl}</span>
-      <span class="absolute bottom-0 right-0">{labels.br}</span>
+      <span class="absolute bottom-0 left-0 right-0 text-center">{labels.bottom}</span>
     </div>
   </div>
 {:else}

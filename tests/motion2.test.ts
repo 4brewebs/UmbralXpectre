@@ -202,8 +202,9 @@ test("pantalla de prueba: constantes de Colorado, ventana suave y dirección equ
   assert.ok(m.SCREEN.marginDeg >= Math.max(1, 1 / m.CYCLES_PER_DEG));
   assert.equal(m.SCREEN.isiMs, 500);
   const mask = m.patchMask(80, 40, 8, 6);
-  assert.ok(mask[0] < 0.01 && mask[20 * 80 + 40] < 0.01, "bordes y hueco a gris medio");
-  assert.ok(mask[10 * 80 + 20] > 0.99);
+  assert.ok(mask[0] < 0.01 && mask[79] < 0.01 && mask[39 * 80] < 0.01 && mask[20 * 80 + 40] < 0.01, "esquinas y hueco a gris medio");
+  assert.ok(mask[20 * 80 + 20] > 0.99 && mask[10 * 80 + 40] > 0.6);
+  for (let x = 0; x < 80; x++) assert.ok(mask[x] < 0.05 && mask[39 * 80 + x] < 0.05, "bordes superior/inferior suaves");
   for (let i = 1; i < 80; i++) assert.ok(Math.abs(mask[20 * 80 + i] - mask[20 * 80 + i - 1]) < 0.45, "sin saltos");
   let s = m.createMotionV2({ fit: null, luminance: null } as never, 5);
   const signs: number[] = [];

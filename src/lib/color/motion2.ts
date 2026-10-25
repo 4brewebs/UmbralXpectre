@@ -746,6 +746,8 @@ export const SCREEN = {
   /** Weber máximo de las líneas de la retícula y del texto. */
   lineWeber: 0.15,
   textWeber: 0.3,
+  /** Instrucciones y botones, lejos del parche (Colorado): 30–40 %. */
+  uiWeber: 0.35,
   /** Gris neutro entre ensayos. */
   isiMs: 500,
 } as const;
@@ -758,19 +760,24 @@ function ramp(d: number, edge: number): number {
 }
 
 /**
- * Peso por píxel (0..1) del parche: ventana coseno en los bordes y hueco circular central
+ * Peso por píxel (0..1) del parche: apertura ELÍPTICA inscrita en width × height con ventana
+ * coseno RADIAL de `edgePx` en todo el contorno (sin esquinas rectas), y hueco circular central
  * con borde coseno. Fuera del peso la imagen tiende al gris de luminancia media (en lineal).
  */
 export function patchMask(width: number, height: number, edgePx: number, gapRadiusPx: number): Float32Array {
   const m = new Float32Array(width * height);
-  const cx = (width - 1) / 2;
-  const cy = (height - 1) / 2;
+  const cx = width / 2;
+  const cy = height / 2;
+  const a = width / 2;
+  const b = height / 2;
   for (let y = 0; y < height; y++) {
-    const wy = ramp(Math.min(y + 0.5, height - y - 0.5), edgePx);
     for (let x = 0; x < width; x++) {
-      const wx = ramp(Math.min(x + 0.5, width - x - 0.5), edgePx);
-      const r = Math.hypot(x - cx, y - cy);
-      m[y * width + x] = wx * wy * ramp(r - gapRadiusPx, edgePx / 2);
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const r = Math.hypot(dx, dy);
+      // Radio de la elipse en esta dirección: distancia (px) al contorno a lo largo del radio.
+      const re = r > 0 ? (a * b) / Math.hypot(b * (dx / r), a * (dy / r)) : Math.min(a, b);
+      m[y * width + x] = ramp(re - r, edgePx) * ramp(r - gapRadiusPx, edgePx / 2);
     }
   }
   return m;

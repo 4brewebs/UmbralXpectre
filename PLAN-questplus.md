@@ -125,10 +125,10 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 - Sin calibración del usuario (decisión de Lucas, 25/10): ni tarjeta ni ajuste de tamaño. Los estímulos se dimensionan con tipo de dispositivo + distancia supuesta + densidad heurística; basta porque el mínimo de movimiento (Anstis & Cavanagh 1983) es robusto entre 0.5 y 2 ciclos/grado, y el error de la heurística (±15 %) deja 1 c/° dentro de ese rango.
 - Estímulo: parche central de 4° × 2° (`PATCH_DEG`), área ≤ 25 % de la pantalla. Restricciones de Colorado (`SCREEN` en `motion2.ts`):
   - fijación: punto acromático de 0.15° (Weber −15 %) en un hueco circular de 0.5° a la luminancia media; sin brazos de cruz sobre la red;
-  - borde suave: ventana coseno de 0.25° mezclada en lineal hacia el gris medio (nunca sube el contraste; el tope de Michelson se mantiene);
+  - apertura elíptica inscrita en 4° × 2° con ventana coseno RADIAL de 0.25° en todo el contorno, mezclada en lineal hacia el gris medio (nunca sube el contraste; el tope de Michelson se mantiene);
   - margen ≥ máx(1°, un periodo) entre el parche y cualquier decoración;
   - pantalla de prueba a pantalla completa, fondo uniforme a la luminancia media de la red del ensayo, todo acromático (sin modo oscuro); líneas Weber ≤ 15 %, texto ≤ 30 %;
   - dirección real equilibrada por parejas de ensayos (una a cada lado, orden aleatorio);
   - 0.5 s de gris neutro entre ensayos (ISI), respuestas desactivadas durante el ISI.
-- Retícula decorativa (`MotionReticle.svelte`, quitable con `SHOW_RETICLE = false`, fuera de la lógica de medida): anillo de 1 px con marcas radiales cada 15°, anillo de progreso simétrico (arriba y abajo a la vez) que avanza con easing solo en el ISI, escala de 1° horizontal y rótulos monoespaciados en las esquinas, todo gris dentro del margen de Weber. Háptica de 8 ms en móvil al responder (sin `prefers-reduced-motion`).
+- Retícula decorativa (`MotionReticle.svelte`, quitable con `SHOW_RETICLE = false`, fuera de la lógica de medida): anillo de 1 px con marcas radiales cada 15°, anillo de progreso simétrico (arriba y abajo a la vez) que avanza con easing solo en el ISI, rótulos monoespaciados arriba (Hz, c/°) y uno centrado abajo (bloque · ensayo); sin barra de escala. Instrucciones y botones a Weber 35 % (`uiWeber`), todo gris dentro del margen de Weber. Háptica de 8 ms en móvil al responder (sin `prefers-reduced-motion`).
 - Pendiente: modelo de 3 respuestas en QUEST+.
