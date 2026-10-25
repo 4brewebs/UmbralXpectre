@@ -21,8 +21,11 @@ function rng(seed: number) {
  * - normal: casi circular, ejes 1 : 1,5 (el mayor, por convención nuestra, en la dirección de aislamiento S);
  * - daltónico de severidad s: semieje mayor sobre su línea de confusión (dirección de aislamiento del cono
  *   afectado: L protan, M deutan, S tritan) = base × (1 + 4s/(1 − s)), con tope ×10; menor = base.
- * Las direcciones salen de `searchPriors()` (aislamiento de cono proyectado al plano), así que el plano es el
- * de la app y no un plano de contraste de cono estricto; basta para probar el motor.
+ * PLANO APROXIMADO (Colorado, 5.ª ronda): no es el plano isoluminante de contraste de cono (p. ej. MacLeod-Boynton o
+ * DKL). Es el plano isoluminante en RGB lineal de `space.ts` (base u, v), donde θ es el ángulo de los pares de la
+ * calibración. Las líneas de confusión se aproximan con las direcciones de aislamiento L, M y S proyectadas en ese
+ * plano (`searchPriors()`), y el umbral se expresa en ΔE00, que no es lineal en contraste de cono. La elipse es,
+ * por tanto, una aproximación útil para probar el motor de parada y la reanudación, no un modelo del observador.
  */
 const BASE_DE = 1.5;
 const coneTheta = (k: "l" | "m" | "s") => searchPriors().find((p) => p.key === k)!.theta;
