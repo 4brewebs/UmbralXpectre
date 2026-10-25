@@ -165,6 +165,18 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
    1 ΔE00 se convierte a ángulo por bisección en θ (≈ 8–12° a la escala de los discos) y se guarda con el IC.
    Catch obvios (tono +90°) cada 6 ensayos QUEST+; > 25 % «ninguno» ⇒ ronda no fiable. Sin regla del 30 %.
 
+### Últimas respuestas de Colorado aplicadas (2026-10-25, 2.ª ronda)
+
+1. Bordes: parada con IC < 1 ΔE00 medido en ΔE00 punto a punto (respaldo: 8° fijos si no se puede convertir); el IC se guarda en grados y en ΔE00; tope 45 por lado.
+2. Calibración: tope de 80 ensayos por sesión (antes 160). Los ejes abiertos al llegar al tope quedan como estimación
+   y su posterior QUEST+ (registro de ensayos + probabilidades por punto de la rejilla) se guarda en `localStorage`
+   (`umbral.calib.qp.resume`) y en el perfil (`calibrationResume`, `quest.resumable` por eje). La siguiente sesión con `?qp=1`
+   reanuda solo esos ejes; los cerrados se conservan. La escalera mantiene 160.
+3. Calibración 30/eje, γ = 0,05 hasta 5 catch, lapse 0,02–0,05: confirmados.
+4. Catch obvios de bordes: 1 de cada 6, con +25 % de Y en el disco distinto además del tono +90° (≥ 20 % pedido).
+5. Fondo Y = 0,1475 constante; tope de contraste sin cambios.
+6. β fijo aceptado con tolerancia de sesgo ±10 %.
+
 ### Benchmark (observadores simulados)
 
 | Prueba | QUEST+ (config. final) | QUEST+ β marginal | Escalera |
@@ -173,6 +185,6 @@ la UI actual es sí/no ("igual/distinto") y 2AFC exige una tarea nueva, en confl
 | Movimiento protan 0,6 | 16,5, 87 % | 22,3, 87 % | 9,4, 80 % |
 | Movimiento deutan 0,6 | 16,3, 83 % | 22,8, 100 % | 9,4, 80 % |
 | Movimiento tritan 1 | 16,5, 90 % | 22,4, 95 % | 9,0, 81 % |
-| Bordes, borde 9° (20 semillas) | 109,4 ens/ronda, 20/20 ±3°, sesgo −0,9 % | 112,7, sesgo −1,1 % | 35,8, 18/20 |
-| Calibración normal (3 semillas) | 110 ens/sesión, 16/18 ejes ×1,35 | — | 46,3, 1/8 «estimate» |
-| Calibración protan / deutan / tritan | 159 / 160 / 158 (tope 160), 16/18, 18/18, 18/18 | — | 47 / 46 / 46, 3/9, 1/8, 1/8 |
+| Bordes, borde 9° (20 semillas, parada 1 ΔE00) | 17,8 ens/ronda, 20/20 ±3°, sesgo +1,8 % | 22,9, sesgo −1,0 % | 35,8, 18/20 |
+| Calibración normal (6 semillas, tope 80 + reanudar) | 91 ens en 1,8 sesiones, 29/36 ejes ×1,35 | — | 48,5, 2/19 «estimate» |
+| Calibración protan / deutan / tritan | 164 / 171 / 146 ens en 2,5 / 2,7 / 2,2 sesiones; 34/36, 32/36, 33/36 | — | 48,8 / 48,5 / 48,5; 5/21, 4/19, 2/19 |

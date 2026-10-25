@@ -139,8 +139,11 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [ ] Extender la háptica suave (`navigator.vibrate` corto, con detección de soporte, respetando `prefers-reduced-motion` y un interruptor del usuario) a otras partes de la app: respuestas del calibrador, respuestas de la prueba de bordes, interacciones de las láminas, fin de bloque/prueba, y conmutadores de cámara/filtro. Lucas lo quiere; se implementa más adelante y necesita su OK en cada zona. (En movimiento v2 va con la retícula.)
 
 ## QUEST+ (tras flag `?qp=1`)
-- [x] Regla de parada de Colorado aplicada (movimiento ln 1,10 / 30; bordes 2° / 45).
-- [ ] Bordes y calibración QUEST+ siguen gastando ~3× la escalera: revisar el tope de 45 por lado y el de sesión (160).
+- [x] Regla de parada de Colorado aplicada (movimiento ln 1,10 / 30; bordes IC < 1 ΔE00, respaldo 8°, / 45).
+- [x] Calibración QUEST+: tope 80 por sesión y reanudación del posterior por eje (localStorage + perfil).
+- [x] Catch de bordes con +25 % de Y.
+- [ ] Bordes: con la parada en ΔE00 hay pocos catch por ronda (fiabilidad a menudo indeterminada).
+- [ ] Reanudación: el perfil de la sesión reanudada solo trae el registro de esa sesión (los umbrales sí son acumulados).
 - [x] Calibración sí/no con QUEST+ tras `?qp=1` (provisional).
 - [ ] Futuro: calibración 2AFC «qué par es distinto» con γ = 0,5 (tarea y UI nuevas).
 - [x] β, δ y σ del prior fijados por Colorado.
