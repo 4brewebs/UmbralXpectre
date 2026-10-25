@@ -12,7 +12,7 @@ import {
   roundMatrix,
   type Vec3,
 } from "./space";
-import { axisNorm, isClosed, ABS_CLOSE, type Axis, type Session, type TrialRecord } from "./session";
+import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
 import type { WeightsSource } from "./lumweights";
@@ -37,6 +37,8 @@ export interface HardwareSnapshot {
 
 export interface UmbralProfile {
   schema: "umbral.profile.v3";
+  /** Solo con QUEST+ y ejes cerrados por el tope de 80: posterior por eje para seguir en otra sesión. */
+  calibrationResume?: QpResume;
   disclaimer: string;
   createdAt: string;
   hardware: HardwareSnapshot;
@@ -89,7 +91,7 @@ export interface UmbralProfile {
     threshold: number | null;
     thresholdNorm: number | null;
     /** Solo con QUEST+ (`?qp=1`): umbral en ΔE00 (CIEDE2000), IC 95 % y γ (falsas alarmas) usada. */
-    quest?: { deltaE00: number; lo: number; hi: number; gamma: number; trials: number };
+    quest?: { deltaE00: number; lo: number; hi: number; gamma: number; trials: number; resumable: boolean };
     thresholdKind: Axis["thresholdKind"];
     closed: boolean;
     trials: number;
@@ -337,7 +339,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       closed: isClosed(a),
       trials: a.trials,
       order: index + 1,
-      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0 } } : {}),
+      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced } } : {}),
     })),
     trials: orderColorTrials(session.log, session.axes),
     catches: {
@@ -346,7 +348,8 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       trials: orderCatchTrials(session.log),
     },
   };
-  return { ...built, luminance: emptyLuminance(built) };
+  const resume = qpResumeOf(session, now.getTime());
+  return { ...built, luminance: emptyLuminance(built), ...(resume ? { calibrationResume: resume } : {}) };
 }
 
 const ROLE_RANK: Record<string, number> = {

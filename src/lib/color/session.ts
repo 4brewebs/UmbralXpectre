@@ -23,7 +23,7 @@ import {
   type Vec3,
 } from "./space";
 import type { JsQuest } from "./questplus";
-import { QP_CALIB, gammaOf, pairDeltaE, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
+import { QP_CALIB, gammaOf, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
 
 export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
@@ -63,6 +63,8 @@ export interface Axis {
   qpDe?: number;
   qpReach?: number;
   qpEstimate?: { deltaE00: number; lo: number; hi: number; gamma: number };
+  /** Cerrado por el tope de sesión, no por su regla de parada: se puede reanudar. */
+  qpForced?: boolean;
 }
 
 export interface TrialRecord {
@@ -182,7 +184,82 @@ function qpThreshold(axis: Axis, Q: JsQuest, gamma: number): number {
   return stepForDeltaE(axis.theta, res.estimate.mean, axis.maxS);
 }
 
-export function createSession(now = 0, questPlus?: JsQuest): Session {
+/** Estado para reanudar la calibración QUEST+ en otra sesión (localStorage y perfil). */
+export interface QpResume {
+  schema: "umbral.calib.qp.v1";
+  savedAt: number;
+  catchHits: number;
+  catchMisses: number;
+  axes: Array<{
+    id: string;
+    theta: number;
+    priorKey: Axis["priorKey"];
+    parentId: string | null;
+    hue: string;
+    searchPrior: string | null;
+    maxS: number;
+    qpLog: QpLog;
+    open: boolean;
+    threshold: number | null;
+    qpEstimate: Axis["qpEstimate"] | null;
+    /** Posterior marginal de α (ΔE00); se puede reconstruir exacto desde `qpLog` y γ. */
+    posterior: { alphas: number[]; probs: number[] };
+  }>;
+}
+
+export const QP_RESUME_KEY = "umbral.calib.qp.resume";
+
+/** Null si todos los ejes pararon por su regla (nada que reanudar). */
+export function qpResumeOf(session: Session, now = 0): QpResume | null {
+  const Q = session.questPlus;
+  if (!Q || !session.axes.some((a) => a.qpForced)) return null;
+  const gamma = sessionGamma(session);
+  return {
+    schema: "umbral.calib.qp.v1",
+    savedAt: now,
+    catchHits: session.catchHits,
+    catchMisses: session.catchMisses,
+    axes: session.axes.map((a) => ({
+      id: a.id,
+      theta: a.theta,
+      priorKey: a.priorKey,
+      parentId: a.parentId ?? null,
+      hue: a.hue,
+      searchPrior: a.searchPrior,
+      maxS: a.maxS,
+      qpLog: a.qpLog ?? [],
+      open: !!a.qpForced,
+      threshold: a.threshold,
+      qpEstimate: a.qpEstimate ?? null,
+      posterior: posteriorOf(Q, a.qpReach ?? pairDeltaE(a.theta, a.maxS), gamma, a.qpLog ?? []),
+    })),
+  };
+}
+
+export function parseQpResume(raw: string | null): QpResume | null {
+  if (!raw) return null;
+  try {
+    const r = JSON.parse(raw) as QpResume;
+    return r?.schema === "umbral.calib.qp.v1" && Array.isArray(r.axes) ? r : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sesión que sigue una anterior: ejes cerrados se quedan; los abiertos siguen con sus ensayos. */
+function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
+  return resume.axes.map((r) => {
+    const base = axisFromPrior(r.id, r.theta, r.priorKey, r.hue, r.searchPrior, r.maxS, "bisect", 0, r.parentId ?? undefined);
+    const qpReach = pairDeltaE(r.theta, r.maxS);
+    if (!r.open) {
+      return { ...base, phase: "done", threshold: r.threshold, thresholdKind: r.threshold == null ? null : "estimate", cursor: r.threshold ?? 0, qpLog: r.qpLog, qpReach, qpEstimate: r.qpEstimate ?? undefined, trials: r.qpLog.length };
+    }
+    const next = stepAxis(Q, qpReach, gamma, r.qpLog);
+    return { ...base, qpLog: r.qpLog, qpReach, qpDe: next.nextDe, cursor: stepForDeltaE(r.theta, next.nextDe, r.maxS), trials: r.qpLog.length };
+  });
+}
+
+export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null): Session {
   const priors = searchPriors();
   const axes = disambiguate([
     ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[0] * p.maxS)),
@@ -194,9 +271,11 @@ export function createSession(now = 0, questPlus?: JsQuest): Session {
   rngState = startRoll.state;
   const catchRoll = nextRand(rngState);
   rngState = catchRoll.state;
-  const start = axes[Math.floor(startRoll.value * axes.length)] ?? null;
+  const resumed = questPlus && resume ? resumeAxes(resume, questPlus, gammaOf(resume.catchHits + resume.catchMisses, resume.catchMisses)) : null;
+  const openResumed = resumed?.filter((a) => a.phase !== "done") ?? [];
+  const start = resumed ? (openResumed[Math.floor(startRoll.value * openResumed.length)] ?? null) : (axes[Math.floor(startRoll.value * axes.length)] ?? null);
   return {
-    axes: questPlus ? axes.map((a) => initQp(a, questPlus, QP_CALIB.gammaDefault)) : axes,
+    axes: resumed ?? (questPlus ? axes.map((a) => initQp(a, questPlus, QP_CALIB.gammaDefault)) : axes),
     ...(questPlus ? { questPlus } : {}),
     activeId: start?.id ?? null,
     log: [],
@@ -210,6 +289,7 @@ export function createSession(now = 0, questPlus?: JsQuest): Session {
     catchSlot: Math.floor(catchRoll.value * 4),
     catchHits: 0,
     catchMisses: 0,
+    ...(resumed ? { catchHits: resume!.catchHits, catchMisses: resume!.catchMisses, note: "Sigo donde lo dejaste: solo quedan las vías sin cerrar." } : {}),
   };
 }
 
@@ -440,11 +520,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     }
   }
 
-  if (log.length >= SESSION_CAP) {
-    for (const a of nextAxes) {
-      if (a.phase !== "done") finish(a, Q && a.qpLog ? qpThreshold(a, Q, sessionGamma(session)) : (a.lo + a.hi) / 2 || a.cursor, "estimate");
-    }
-  }
+  applyCap(session, nextAxes, log.length);
 
   const next = pickNext({ ...session, sinceCatch: session.sinceCatch + 1 }, nextAxes, axis.id);
   let pendingCatch = false;
@@ -474,6 +550,18 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   };
 }
 
+/** Tope por sesión (80 con QUEST+, 160 en escalera): lo abierto se cierra como estimación; con QUEST+ queda reanudable. */
+function applyCap(session: Session, axes: Axis[], trials: number): void {
+  const Q = session.questPlus;
+  if (trials < (Q ? QP_CALIB.sessionCap : SESSION_CAP)) return;
+  for (const a of axes) {
+    if (a.phase !== "done") {
+      if (Q && a.qpLog) a.qpForced = true;
+      finish(a, Q && a.qpLog ? qpThreshold(a, Q, sessionGamma(session)) : (a.lo + a.hi) / 2 || a.cursor, "estimate");
+    }
+  }
+}
+
 function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
   const hit = judgment === "same";
   const log: TrialRecord[] = [
@@ -492,9 +580,13 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
       at: now,
     },
   ];
-  const next = pickNext(session, session.axes, session.activeId ?? "");
+  const counted = { ...session, catchHits: session.catchHits + (hit ? 1 : 0), catchMisses: session.catchMisses + (hit ? 0 : 1) };
+  const axes = session.questPlus ? session.axes.map((a) => ({ ...a })) : session.axes;
+  applyCap(counted, axes, log.length);
+  const next = pickNext(session, axes, session.activeId ?? "");
   return {
     ...next.session,
+    axes,
     log,
     activeId: next.axis?.id ?? null,
     complete: !next.axis,

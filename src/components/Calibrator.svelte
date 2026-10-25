@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { answer, createSession, type Judgment, type Session } from "@/lib/color/session";
+  import { answer, createSession, parseQpResume, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
   import type { ConeId, EdgeFile } from "@/lib/color/edges";
   import { attachLuminance, type LuminanceResult } from "@/lib/color/motion";
   import {
@@ -72,7 +72,15 @@
     profile = null;
     // QUEST+ sí/no solo con `?qp=1` (carga perezosa); por defecto, la escalera de siempre.
     const Q = questPlusEnabled(window.location.search) ? await (await import("@/lib/color/questplus")).loadQuestPlus() : undefined;
-    session = createSession(Date.now(), Q);
+    let resume = null;
+    if (Q) {
+      try {
+        resume = parseQpResume(window.localStorage.getItem(QP_RESUME_KEY));
+      } catch {
+        resume = null;
+      }
+    }
+    session = createSession(Date.now(), Q, resume);
     phase = "run";
   }
 
@@ -82,6 +90,15 @@
     session = next;
     if (next.complete) {
       const built = buildProfile(next, readHardware());
+      if (next.questPlus) {
+        // QUEST+: lo que el tope de 80 dejó abierto se guarda para seguir en otra sesión.
+        try {
+          if (built.calibrationResume) window.localStorage.setItem(QP_RESUME_KEY, JSON.stringify(built.calibrationResume));
+          else window.localStorage.removeItem(QP_RESUME_KEY);
+        } catch {
+          /* sin almacenamiento: se sigue sin reanudar */
+        }
+      }
       profile = built;
       persistProfile(built);
       stored = built;

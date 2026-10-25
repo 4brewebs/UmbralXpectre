@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
 import { gammaOf, pairDeltaE, stepForDeltaE, QP_CALIB } from "../src/lib/color/calibqp";
-import { answer, createSession, stimulusOf, type Session } from "../src/lib/color/session";
+import { answer, createSession, parseQpResume, qpResumeOf, stimulusOf, type Session } from "../src/lib/color/session";
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -58,6 +58,42 @@ test("sin flag, la sesión no cambia (sin QUEST+)", () => {
   assert.ok(s.axes.every((a) => a.qpLog === undefined));
 });
 
+/** Sesiones QUEST+ encadenadas (tope 80 cada una) hasta que no queda nada que reanudar. */
+async function chain(o: { a: number; b: number; tc: number }, seed: number, Q: Awaited<ReturnType<typeof loadQuestPlus>>) {
+  let resume = null;
+  let total = 0;
+  let sessions = 0;
+  let last: Session | null = null;
+  do {
+    const s = run(createSession(seed * 100 + sessions, Q, resume), o, 0.1, seed * 100 + sessions);
+    assert.ok(s.log.length <= 80, `sesión de ${s.log.length}`);
+    total += s.log.length;
+    sessions++;
+    // Ida y vuelta por JSON, como en localStorage.
+    resume = parseQpResume(JSON.stringify(qpResumeOf(s, 1)));
+    last = s;
+  } while (resume && sessions < 6);
+  return { last: last!, total, sessions };
+}
+
+test("calibración QUEST+: tope de 80 y reanudación con el posterior guardado", async () => {
+  const Q = await loadQuestPlus();
+  const first = run(createSession(1, Q), observers.protan, 0.1, 1);
+  assert.equal(first.log.length, 80);
+  const r = qpResumeOf(first, 1)!;
+  assert.ok(r.axes.some((a) => a.open));
+  const sum = r.axes[0].posterior.probs.reduce((x, y) => x + y, 0);
+  assert.ok(Math.abs(sum - 1) < 1e-6);
+  const next = createSession(2, Q, parseQpResume(JSON.stringify(r)));
+  assert.equal(next.catchHits + next.catchMisses, first.catchHits + first.catchMisses);
+  for (const a of next.axes) {
+    const old = r.axes.find((x) => x.id === a.id)!;
+    assert.equal(a.phase === "done", !old.open);
+    assert.equal(a.qpLog!.length, old.qpLog.length);
+  }
+  assert.equal(qpResumeOf(createSession(3), 1), null);
+});
+
 for (const [name, o] of Object.entries(observers)) {
   test(`calibración QUEST+ sí/no converge: ${name}`, async () => {
     const Q = await loadQuestPlus();
@@ -65,15 +101,18 @@ for (const [name, o] of Object.entries(observers)) {
     let total = 0;
     let nQ = 0;
     let nS = 0;
+    let nSess = 0;
     let okS = 0;
     let totalS = 0;
-    const N = 3;
+    const N = 6;
     for (let seed = 1; seed <= N; seed++) {
-      const q = run(createSession(seed, Q), o, 0.1, seed);
+      const c = await chain(o, seed, Q);
+      const q = c.last;
       const s = run(createSession(seed), o, 0.1, seed);
       assert.ok(q.complete && s.complete);
       assert.ok(q.catchHits + q.catchMisses >= 5);
-      nQ += q.log.length;
+      nQ += c.total;
+      nSess += c.sessions;
       nS += s.log.length;
       for (const a of s.axes) {
         if (a.threshold == null || a.thresholdKind !== "estimate") continue;
@@ -90,7 +129,7 @@ for (const [name, o] of Object.entries(observers)) {
         if (Math.abs(Math.log(a.qpEstimate.deltaE00 / truth)) < Math.log(1.35)) ok++;
       }
     }
-    console.log(`calib ${name}: QUEST+ ${ok}/${total} ejes en ×1,35, ${(nQ / N).toFixed(1)} ensayos/sesión; escalera ${okS}/${totalS} (solo «estimate»), ${(nS / N).toFixed(1)}`);
+    console.log(`calib ${name}: QUEST+ ${ok}/${total} ejes en ×1,35, ${(nQ / N).toFixed(1)} ensayos en ${(nSess / N).toFixed(1)} sesiones; escalera ${okS}/${totalS} (solo «estimate»), ${(nS / N).toFixed(1)}`);
     assert.ok(ok / total >= 0.8, `${ok}/${total}`);
   });
 }

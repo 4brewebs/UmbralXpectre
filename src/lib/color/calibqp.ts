@@ -29,6 +29,8 @@ export const QP_CALIB = {
   /** Parada: IC 95 % de α con anchura < 1 ΔE00, o 30 ensayos por eje (máximo PROVISIONAL, igual que movimiento). */
   stopDeltaE: 1,
   maxTrials: 30,
+  /** Tope de ensayos por sesión con QUEST+ (Colorado); lo que falte sigue en otra sesión. */
+  sessionCap: 80,
 } as const;
 
 export function yesNo(gamma: number): ResponseFn[] {
@@ -95,4 +97,10 @@ export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog)
   const estimate = qp.estimate(0);
   const done = log.length > 0 && (estimate.width < QP_CALIB.stopDeltaE || log.length >= QP_CALIB.maxTrials);
   return { done, nextDe: qp.next(), estimate };
+}
+
+/** Posterior marginal de α (ΔE00) del eje, para guardarlo y mostrarlo. */
+export function posteriorOf(Q: JsQuest, deReach: number, gamma: number, log: QpLog): { alphas: number[]; probs: number[] } {
+  const m = rebuild(Q, deReach, gamma, log).marginal(0);
+  return { alphas: m.values, probs: m.probs };
 }
