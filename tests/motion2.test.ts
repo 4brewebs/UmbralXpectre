@@ -186,3 +186,30 @@ test("«quieto»: informativo fuera de catch, fallo en catch; bloque poco fiable
   assert.equal(p.luminance!.checks!.unreliableBlocks, 1);
   assert.equal(p.luminance!.checks!.confidence, "low");
 });
+
+test("parche central de 4°×2° y ≤ 25 % de la pantalla", async () => {
+  const { patchSize, pxOfDegrees, degreesOf, MAX_AREA } = await import("../src/lib/color/motion2.ts");
+  assert.ok(Math.abs(degreesOf(pxOfDegrees(4, 60, 1 / 0.26), 60, 1 / 0.26) - 4) < 1e-9);
+  const pc = patchSize(60, 1 / 0.26, 900, 1440, 900);
+  assert.ok(Math.abs(degreesOf(pc.width, 60, 1 / 0.26) - 4) < 0.05);
+  const tiny = patchSize(40, 1 / 0.16, 900, 300, 200);
+  assert.ok(tiny.width * tiny.height <= MAX_AREA * 300 * 200 + 2);
+});
+
+test("pantalla de prueba: constantes de Colorado, ventana suave y dirección equilibrada", async () => {
+  const m = await import("../src/lib/color/motion2.ts");
+  assert.ok(m.SCREEN.lineWeber <= 0.15 && m.SCREEN.textWeber <= 0.3 && Math.abs(m.SCREEN.dotWeber) <= 0.15);
+  assert.ok(m.SCREEN.marginDeg >= Math.max(1, 1 / m.CYCLES_PER_DEG));
+  assert.equal(m.SCREEN.isiMs, 500);
+  const mask = m.patchMask(80, 40, 8, 6);
+  assert.ok(mask[0] < 0.01 && mask[20 * 80 + 40] < 0.01, "bordes y hueco a gris medio");
+  assert.ok(mask[10 * 80 + 20] > 0.99);
+  for (let i = 1; i < 80; i++) assert.ok(Math.abs(mask[20 * 80 + i] - mask[20 * 80 + i - 1]) < 0.45, "sin saltos");
+  let s = m.createMotionV2({ fit: null, luminance: null } as never, 5);
+  const signs: number[] = [];
+  for (let i = 0; i < 60 && !s.complete; i++) {
+    signs.push(s.current!.sign);
+    s = m.answerMotionV2(s, i % 3 ? "left" : "right", i);
+  }
+  for (let i = 0; i + 1 < signs.length; i += 2) assert.equal(signs[i] + signs[i + 1], 0);
+});

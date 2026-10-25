@@ -123,4 +123,11 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 - Regla del 60 % implementada: cada bloque guarda `{trials, still, unreliable}` en `luminance.checks.blocks`; con algún bloque poco fiable la confianza pasa a `"low"`.
 - Aviso de distancia visible en la preparación y en las pausas: móvil (`pointer: coarse` y lado corto < 600 px CSS) 40 cm «un antebrazo», PC 60 cm «un brazo extendido». Periodo de la red calculado para 1 ciclo/grado (Colorado) con px CSS ≈ 0.16 mm en móvil y ≈ 0.26 mm en PC; sin ventana fija en cm (los cm CSS no son físicos). Se guardan c/°, tamaño en grados (`stimulusDeg`) y la heurística (`sizingHeuristic`). Se guardan `viewingCm`, `deviceType` y `cssPxPerMm` en el perfil v3.
 - Sin calibración del usuario (decisión de Lucas, 25/10): ni tarjeta ni ajuste de tamaño. Los estímulos se dimensionan con tipo de dispositivo + distancia supuesta + densidad heurística; basta porque el mínimo de movimiento (Anstis & Cavanagh 1983) es robusto entre 0.5 y 2 ciclos/grado, y el error de la heurística (±15 %) deja 1 c/° dentro de ese rango.
+- Estímulo: parche central de 4° × 2° (`PATCH_DEG`), área ≤ 25 % de la pantalla. Restricciones de Colorado (`SCREEN` en `motion2.ts`):
+  - fijación: punto acromático de 0.15° (Weber −15 %) en un hueco circular de 0.5° a la luminancia media; sin brazos de cruz sobre la red;
+  - borde suave: ventana coseno de 0.25° mezclada en lineal hacia el gris medio (nunca sube el contraste; el tope de Michelson se mantiene);
+  - margen ≥ máx(1°, un periodo) entre el parche y cualquier decoración;
+  - pantalla de prueba a pantalla completa, fondo uniforme a la luminancia media de la red del ensayo, todo acromático (sin modo oscuro); líneas Weber ≤ 15 %, texto ≤ 30 %;
+  - dirección real equilibrada por parejas de ensayos (una a cada lado, orden aleatorio);
+  - 0.5 s de gris neutro entre ensayos (ISI), respuestas desactivadas durante el ISI.
 - Pendiente: modelo de 3 respuestas en QUEST+.

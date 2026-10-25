@@ -133,4 +133,4 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [BAJA] El control es demasiado fácil.
 
 
-- [ ] (Pendiente del OK de Lucas) Movimiento v2: estímulo en un campo central pequeño de 2–4° con punto de fijación (propuesta de Colorado). Hoy la red ocupa el ancho del contenedor.
+- [x] Movimiento v2: campo central de 4° × 2° con cruz de fijación acromática (aprobado por Lucas, 25/10).

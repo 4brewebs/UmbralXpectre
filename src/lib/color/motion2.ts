@@ -120,6 +120,29 @@ export function periodPx(cpd = CYCLES_PER_DEG, viewingCm = VIEWING_CM, cssPxPerM
   return pxPerDeg / cpd;
 }
 
+/** Campo de la red (Lucas/Colorado, 25/10): pequeño y central, 4° × 2°, con punto de fijación. */
+export const PATCH_DEG = { width: 4, height: 2 };
+
+/** px CSS que subtienden `deg` grados a `viewingCm` con `cssPxPerMm`. */
+export function pxOfDegrees(deg: number, viewingCm: number, cssPxPerMm: number): number {
+  return 2 * viewingCm * 10 * Math.tan((deg * Math.PI) / 360) * cssPxPerMm;
+}
+
+/** Tamaño del parche en px CSS; nunca más del MAX_AREA de la pantalla ni más ancho que el contenedor. */
+export function patchSize(viewingCm: number, cssPxPerMm: number, containerW: number, screenW: number, screenH: number): { width: number; height: number } {
+  let width = pxOfDegrees(PATCH_DEG.width, viewingCm, cssPxPerMm);
+  let height = pxOfDegrees(PATCH_DEG.height, viewingCm, cssPxPerMm);
+  const k = Math.min(1, (containerW - 16) / width, Math.sqrt((MAX_AREA * screenW * screenH) / (width * height)));
+  width *= k;
+  height *= k;
+  return { width: Math.floor(width), height: Math.floor(height) };
+}
+
+/** Gris acromático con la luminancia media de la red (para el entorno y la fijación). */
+export function meanGray(stim: { test: Vec3; ref: Vec3 }): number {
+  return (luminance(stim.test) + luminance(stim.ref)) / 2;
+}
+
 /** Tamaño de la red: ancho del contenedor, alto limitado a MAX_AREA de la pantalla. */
 export function gratingSize(containerW: number, screenW: number, screenH: number): { width: number; height: number } {
   const width = Math.max(120, Math.min(containerW, 520));
@@ -341,7 +364,9 @@ function pick(state: MotionV2State): MotionV2State {
   let r = nextRand(state.rng);
   const index = open.length ? open[Math.floor(r.value * open.length)] : state.lastIndex;
   r = nextRand(r.state);
-  const sign: 1 | -1 = r.value < 0.5 ? 1 : -1;
+  // Dirección equilibrada (Colorado): por parejas de ensayos, una a cada lado en orden aleatorio.
+  const n = state.log.length;
+  const sign: 1 | -1 = n % 2 === 0 ? (r.value < 0.5 ? 1 : -1) : (-state.log[n - 1].sign as 1 | -1);
   r = nextRand(r.state);
   const isCatch = pending > 0 || (state.sinceCatch >= CATCH_EVERY - 1 && r.value < 0.8);
   return { ...state, pendingCatches: pending, rng: r.state, lastIndex: index, current: { index, catch: isCatch, sign } };
@@ -544,7 +569,9 @@ export function paintMotionV2(
   tick: number,
   stim: { test: Vec3; ref: Vec3; sign: 1 | -1 },
   period: number,
+  mask?: Float32Array,
 ): void {
+  if (mask) return paintMasked(data, width, height, phase, tick, stim, period, mask);
   const yT = luminance(stim.test);
   const yR = luminance(stim.ref);
   const mean = (yT + yR) / 2;
@@ -579,4 +606,111 @@ export function paintMotionV2(
       data[i + 3] = 255;
     }
   }
+}
+
+/** Constantes de la pantalla de prueba (restricciones de Colorado, 25/10). */
+export const SCREEN = {
+  /** Borde suave del parche: ventana coseno de 0.25°. */
+  edgeDeg: 0.25,
+  /** Hueco circular central de 0.5° con la luminancia media. */
+  gapDeg: 0.5,
+  /** Punto de fijación de 0.15°. */
+  dotDeg: 0.15,
+  /** Contraste de Weber del punto de fijación (acromático). */
+  dotWeber: -0.15,
+  /** Margen mínimo parche–decoración: máx(1°, un periodo). */
+  marginDeg: Math.max(1, 1 / CYCLES_PER_DEG),
+  /** Weber máximo de las líneas de la retícula y del texto. */
+  lineWeber: 0.15,
+  textWeber: 0.3,
+  /** Gris neutro entre ensayos. */
+  isiMs: 500,
+} as const;
+
+/** Rampa coseno 0→1 en [0, edge]. */
+function ramp(d: number, edge: number): number {
+  if (d <= 0) return 0;
+  if (d >= edge) return 1;
+  return 0.5 - 0.5 * Math.cos((Math.PI * d) / edge);
+}
+
+/**
+ * Peso por píxel (0..1) del parche: ventana coseno en los bordes y hueco circular central
+ * con borde coseno. Fuera del peso la imagen tiende al gris de luminancia media (en lineal).
+ */
+export function patchMask(width: number, height: number, edgePx: number, gapRadiusPx: number): Float32Array {
+  const m = new Float32Array(width * height);
+  const cx = (width - 1) / 2;
+  const cy = (height - 1) / 2;
+  for (let y = 0; y < height; y++) {
+    const wy = ramp(Math.min(y + 0.5, height - y - 0.5), edgePx);
+    for (let x = 0; x < width; x++) {
+      const wx = ramp(Math.min(x + 0.5, width - x - 0.5), edgePx);
+      const r = Math.hypot(x - cx, y - cy);
+      m[y * width + x] = wx * wy * ramp(r - gapRadiusPx, edgePx / 2);
+    }
+  }
+  return m;
+}
+
+const ENCODE_N = 4096;
+const ENCODE_LUT = (() => {
+  const t = new Float32Array(ENCODE_N + 1);
+  for (let i = 0; i <= ENCODE_N; i++) t[i] = encode(i / ENCODE_N) * 255;
+  return t;
+})();
+function enc255(v: number): number {
+  const c = v <= 0 ? 0 : v >= 1 ? 1 : v;
+  return ENCODE_LUT[Math.round(c * ENCODE_N)];
+}
+
+function paintMasked(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  phase: number,
+  tick: number,
+  stim: { test: Vec3; ref: Vec3; sign: 1 | -1 },
+  period: number,
+  mask: Float32Array,
+): void {
+  const yT = luminance(stim.test);
+  const yR = luminance(stim.ref);
+  const mean = (yT + yR) / 2;
+  const ox = tick & 3;
+  const oy = (tick >> 2) & 3;
+  const cols = new Array<Vec3>(width);
+  for (let x = 0; x < width; x++) {
+    const phi = (stim.sign * 2 * Math.PI * x) / period;
+    if (phase === 0 || phase === 2) {
+      const m = 0.5 + (phase === 0 ? 0.5 : -0.5) * Math.sin(phi);
+      cols[x] = [
+        stim.ref[0] + (stim.test[0] - stim.ref[0]) * m,
+        stim.ref[1] + (stim.test[1] - stim.ref[1]) * m,
+        stim.ref[2] + (stim.test[2] - stim.ref[2]) * m,
+      ];
+    } else {
+      const y = mean * (1 + (phase === 1 ? 1 : -1) * LUMA_CONTRAST * Math.sin(phi - Math.PI / 2));
+      cols[x] = [y, y, y];
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    const by = ((y + oy) & 3) * 4;
+    for (let x = 0; x < width; x++) {
+      const w = mask[y * width + x];
+      const c = cols[x];
+      const d = (BAYER[by + ((x + ox) & 3)] + 0.5) / 16;
+      const i = (y * width + x) * 4;
+      // Mezcla en lineal hacia el gris medio: la ventana nunca sube el contraste.
+      data[i] = Math.floor(enc255(mean + w * (c[0] - mean)) + d);
+      data[i + 1] = Math.floor(enc255(mean + w * (c[1] - mean)) + d);
+      data[i + 2] = Math.floor(enc255(mean + w * (c[2] - mean)) + d);
+      data[i + 3] = 255;
+    }
+  }
+}
+
+/** Gris sRGB (0..255) con luminancia `y` (lineal). */
+export function gray255(y: number): number {
+  return Math.round(encode(y) * 255);
 }

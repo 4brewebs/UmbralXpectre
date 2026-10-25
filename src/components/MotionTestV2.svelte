@@ -10,7 +10,12 @@
     viewingSetup,
     MAX_MICHELSON,
     createMotionV2,
-    gratingSize,
+    patchSize,
+    pxOfDegrees,
+    meanGray,
+    patchMask,
+    gray255,
+    SCREEN,
     degreesOf,
     type MotionV2Meta,
     paintMotionV2,
@@ -46,6 +51,17 @@
   let viewing = $state<ReturnType<typeof viewingSetup>>({ device: "pc", cm: 60, cssPxPerMm: 1 / 0.26, hint: "un brazo extendido", heuristic: "pc-0.26mm-per-css-px" });
   let block = $state(1);
   let finished = false;
+  let isi = $state(false);
+  // Pantalla de prueba: fondo uniforme a la luminancia media de la red, todo acromático.
+  const bgY = $derived.by(() => {
+    const st = stimulusOf(motion);
+    return st ? meanGray(st) : 0.18;
+  });
+  const shade = (weber: number) => {
+    const g = gray255(bgY * (1 + weber));
+    return `rgb(${g},${g},${g})`;
+  };
+  const marginPx = $derived(pxOfDegrees(SCREEN.marginDeg, viewing.cm, viewing.cssPxPerMm));
 
   const temporal = $derived(pickTemporal(refreshHz ?? 60));
   const totalTargets = $derived(motion.stairs.length);
@@ -85,7 +101,7 @@
 
   $effect(() => {
     if (step !== "run" || !host) return;
-    size = gratingSize(host.clientWidth, window.screen.width || window.innerWidth, window.screen.height || window.innerHeight);
+    size = patchSize(viewing.cm, viewing.cssPxPerMm, host.clientWidth, window.screen.width || window.innerWidth, window.screen.height || window.innerHeight);
   });
 
   $effect(() => {
@@ -101,14 +117,23 @@
     const image = ctx.createImageData(w, h);
     const period = periodPx(CYCLES_PER_DEG, viewing.cm, viewing.cssPxPerMm) * dpr;
     const k = temporal.framesPerPhase;
+    const pxDeg = (deg: number) => pxOfDegrees(deg, viewing.cm, viewing.cssPxPerMm) * dpr;
+    const mask = patchMask(w, h, pxDeg(SCREEN.edgeDeg), pxDeg(SCREEN.gapDeg / 2));
+    const dot = Math.max(1.5 * dpr, pxDeg(SCREEN.dotDeg) / 2);
     let frame = 0;
     let id = 0;
     const draw = () => {
       id = window.requestAnimationFrame(draw);
       const stim = stimulusOf(motion);
-      if (!stim) return;
-      paintMotionV2(image.data, w, h, Math.floor(frame / k) % 4, frame, stim, period);
+      if (!stim || isi) return;
+      paintMotionV2(image.data, w, h, Math.floor(frame / k) % 4, frame, stim, period, mask);
       ctx.putImageData(image, 0, 0);
+      // Fijación: punto acromático de 0.15° en el hueco de 0.5° (gris medio).
+      const g = gray255(meanGray(stim) * (1 + SCREEN.dotWeber));
+      ctx.fillStyle = `rgb(${g},${g},${g})`;
+      ctx.beginPath();
+      ctx.arc(w / 2, h / 2, dot, 0, 2 * Math.PI);
+      ctx.fill();
       frame++;
     };
     id = window.requestAnimationFrame(draw);
@@ -135,7 +160,11 @@
   }
 
   function choose(answer: "left" | "right" | "still") {
+    if (isi) return;
     motion = answerMotionV2(motion, answer, Date.now());
+    // Intervalo entre ensayos: 0.5 s de gris neutro uniforme.
+    isi = true;
+    window.setTimeout(() => (isi = false), SCREEN.isiMs);
     if (motion.complete) return;
     if (performance.now() - blockStart > BLOCK_MS) {
       // Antes de la pausa, el bloque completa sus catch trials mínimos.
@@ -173,15 +202,34 @@
       <button type="button" disabled={!canStart} onclick={begin} class="h-14 rounded-2xl bg-accent text-base font-semibold text-accent-fg disabled:opacity-40">Empezar</button>
     </div>
   {:else if step === "run"}
-    <p class="text-sm text-muted">Bloque {block} · {doneTargets} de {totalTargets} colores</p>
-    <p class="text-lg leading-snug text-fg">¿Hacia dónde se mueven las rayas? Si no se mueven hacia ningún lado, «Quieto».</p>
-    <div bind:this={host} class="flex justify-center">
-      <canvas bind:this={canvas} style={`width:${size.width}px;height:${size.height}px`} class="rounded-xl" aria-label="Rayas en movimiento"></canvas>
-    </div>
-    <div class="grid grid-cols-3 gap-3">
-      <button type="button" onclick={() => choose("left")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Izquierda</button>
-      <button type="button" onclick={() => choose("still")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Quieto</button>
-      <button type="button" onclick={() => choose("right")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Derecha</button>
+    <div
+      class="fixed inset-0 z-50 flex flex-col items-center justify-between p-4 font-mono"
+      style={`background:${shade(0)};color:${shade(-SCREEN.textWeber)}`}
+      data-testid="test-screen"
+    >
+      <div class="flex w-full items-center justify-between text-xs">
+        <span>B{block} · {doneTargets}/{totalTargets}</span>
+        <button type="button" onclick={onStop} class="rounded-full border px-4 py-2 text-sm" style={`border-color:${shade(-SCREEN.lineWeber)}`}>Parar</button>
+      </div>
+      <p class="text-center text-sm">Mira el punto central. ¿Hacia dónde se mueven las rayas?</p>
+      <div bind:this={host} class="flex w-full justify-center" style={`padding:${Math.round(marginPx)}px 0`}>
+        <canvas
+          bind:this={canvas}
+          style={`width:${size.width}px;height:${size.height}px;visibility:${isi ? "hidden" : "visible"}`}
+          aria-label="Rayas en movimiento"
+        ></canvas>
+      </div>
+      <div class="grid w-full max-w-md grid-cols-3 gap-3">
+        {#each [["left", "Izquierda"], ["still", "Quieto"], ["right", "Derecha"]] as [v, label] (v)}
+          <button
+            type="button"
+            disabled={isi}
+            onclick={() => choose(v as "left" | "right" | "still")}
+            class="h-14 rounded-2xl border text-base"
+            style={`border-color:${shade(-SCREEN.lineWeber)}`}>{label}</button
+          >
+        {/each}
+      </div>
     </div>
   {:else if step === "pause"}
     <p class="text-lg text-fg">Pausa. Descansa la vista unos segundos.</p>
