@@ -134,3 +134,6 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 
 
 - [x] Movimiento v2: campo central de 4° × 2° con cruz de fijación acromática (aprobado por Lucas, 25/10).
+
+## Háptica
+- [ ] Extender la háptica suave (`navigator.vibrate` corto, con detección de soporte, respetando `prefers-reduced-motion` y un interruptor del usuario) a otras partes de la app: respuestas del calibrador, respuestas de la prueba de bordes, interacciones de las láminas, fin de bloque/prueba, y conmutadores de cámara/filtro. Lucas lo quiere; se implementa más adelante y necesita su OK en cada zona. (En movimiento v2 va con la retícula.)
