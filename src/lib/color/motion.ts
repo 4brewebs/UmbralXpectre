@@ -1,4 +1,4 @@
-import type { UmbralProfile } from "./profile";
+import { defaultLuminanceV3, type UmbralProfile } from "./profile";
 import { ANCHOR, addScaled, angDist, dirFromTheta, luminance, maxScale, toSrgb8, type Vec3 } from "./space";
 
 /** Fast enough that the drift reads as motion, slow enough to follow. */
@@ -678,7 +678,25 @@ export function luminanceResult(state: MotionState): LuminanceResult {
 }
 
 export function attachLuminance(profile: UmbralProfile, result: LuminanceResult): UmbralProfile {
-  return { ...profile, luminance: orderLuminance(result) };
+  const v3 = profile.luminance ?? defaultLuminanceV3(profile);
+  const { weights, weightsSource, predicted, type, refreshHz, temporalHzV2, cyclesPerDeg, checks, calibratedWith, measuredMatches } = v3;
+  return {
+    ...profile,
+    luminance: {
+      ...orderLuminance(result),
+      weights,
+      weightsSource,
+      predicted,
+      type,
+      refreshHz,
+      temporalHzV2,
+      cyclesPerDeg,
+      checks,
+      calibratedWith,
+      measuredMatches,
+      legacyMatches: result.matches.length > 0,
+    },
+  };
 }
 
 export function paintMotion(

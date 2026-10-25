@@ -5,7 +5,7 @@
   import { attachLuminance, type LuminanceResult } from "@/lib/color/motion";
   import {
     PROFILE_STORAGE_KEY,
-    RETIRED_PROFILE_KEY,
+    RETIRED_PROFILE_KEYS,
     buildProfile,
     parseProfile,
     readHardware,
@@ -25,13 +25,16 @@
       if (current) {
         const parsed = parseProfile(current);
         if (parsed) {
-          window.localStorage.removeItem(RETIRED_PROFILE_KEY);
+          RETIRED_PROFILE_KEYS.forEach((key) => window.localStorage.removeItem(key));
           return parsed;
         }
       }
-      const previous = window.localStorage.getItem(RETIRED_PROFILE_KEY);
-      if (!previous) return null;
-      return parseProfile(previous);
+      for (const key of RETIRED_PROFILE_KEYS) {
+        const previous = window.localStorage.getItem(key);
+        const parsed = previous ? parseProfile(previous) : null;
+        if (parsed) return parsed;
+      }
+      return null;
     } catch {
       return null;
     }
@@ -39,7 +42,7 @@
 
   function persistProfile(profile: UmbralProfile) {
     window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
-    window.localStorage.removeItem(RETIRED_PROFILE_KEY);
+    RETIRED_PROFILE_KEYS.forEach((key) => window.localStorage.removeItem(key));
   }
 
   // $state.raw: los objetos se reemplazan enteros, como con useState.

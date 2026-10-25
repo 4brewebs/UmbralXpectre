@@ -527,3 +527,20 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
 export function edgeFilename(cone: ConeId): string {
   return `umbral-${EDGE_NAME[cone]}.json`;
 }
+
+/** Lee un umbral.edges.v1. Los basados en perfil v2 siguen valiendo con un perfil v3. */
+export function parseEdgeFile(raw: string): EdgeFile | null {
+  try {
+    const parsed = JSON.parse(raw) as EdgeFile;
+    if (parsed?.schema !== "umbral.edges.v1" || !parsed.basedOn || !parsed.cone) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Mismo perfil: se compara por `createdAt`; el esquema puede ser v2 o v3 (la migración no cambia la fecha). */
+export function edgeFitsProfile(file: EdgeFile, profile: { schema: string; createdAt: string }): boolean {
+  const okSchema = /^umbral\.profile\.v[23]$/.test(file.basedOn.schema) && /^umbral\.profile\.v[23]$/.test(profile.schema);
+  return okSchema && file.basedOn.createdAt === profile.createdAt;
+}

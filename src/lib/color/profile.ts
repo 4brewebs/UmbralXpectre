@@ -14,6 +14,8 @@ import {
 } from "./space";
 import { axisNorm, isClosed, ABS_CLOSE, type Axis, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
+import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
+import type { WeightsSource } from "./lumweights";
 
 export interface HardwareSnapshot {
   userAgent: string;
@@ -34,7 +36,7 @@ export interface HardwareSnapshot {
 }
 
 export interface UmbralProfile {
-  schema: "umbral.profile.v2";
+  schema: "umbral.profile.v3";
   disclaimer: string;
   createdAt: string;
   hardware: HardwareSnapshot;
@@ -94,8 +96,92 @@ export interface UmbralProfile {
   trials: Array<TrialRecord & { order: number }>;
   /** Identical pairs, kept out of the color sequence. A miss is "different" on two cards of the same color. */
   catches: { same: number; missed: number; trials: Array<TrialRecord & { order: number }> };
-  /** Heterochromatic motion nulls. Absent until that step is done. Probe count is not fixed. */
-  luminance?: LuminanceResult;
+  /**
+   * Luminancia. `matches` son las igualaciones de la prueba antigua a 1 Hz (legado: los filtros
+   * de fase 1 las siguen leyendo igual). Los campos v3 son los pesos personales.
+   */
+  luminance?: LuminanceResult & LuminanceV3;
+}
+
+/** Igualación de la prueba de movimiento v2 (Anstis-Cavanagh), en el formato que lee lumweights. */
+export interface MeasuredMatch {
+  id: string;
+  hue: string;
+  kind: "test" | "control";
+  test: Vec3;
+  ref: Vec3;
+  /** Ganancia sobre `test` (Y estándar igualada) que lo iguala a `ref`. */
+  gain: number;
+  /** Brillo relativo = 1 / gain. */
+  efficiency: number;
+  width: number;
+  reversals: number;
+  trials: number;
+  bound: "converged" | "cap" | "edge";
+}
+
+export interface LuminanceV3 {
+  /** Pesos {wR, wG, wB} de este observador en esta pantalla, suma 1. */
+  weights: Vec3;
+  weightsSource: WeightsSource;
+  /** Predicción del modelo de conos (severity de Machado 1), o null si el tipo es normal/desconocido. */
+  predicted: Vec3 | null;
+  type: ObserverType;
+  refreshHz: number | null;
+  temporalHzV2?: number | null;
+  cyclesPerDeg: number | null;
+  checks: {
+    controlError: number | null;
+    catches: { shown: number; missed: number };
+    residuals: number[];
+    cond: number | null;
+    withinNoise: boolean;
+    confidence: "high" | "low";
+  } | null;
+  /** Contra qué se igualó: siempre Y estándar de sRGB nominal en esta fase. */
+  calibratedWith: "standard-Y" ;
+  /** Igualaciones de la prueba v2. Las `matches` antiguas quedan como legado. */
+  measuredMatches: MeasuredMatch[];
+  /** true si `matches` vienen de la prueba a 1 Hz (rojo contra rojo) y no se usaron para los pesos. */
+  legacyMatches: boolean;
+}
+
+export const PREDICTION_SEVERITY = 1;
+
+/** Campos v3 por defecto: pesos = predicción del tipo, o Y estándar. Nunca derivados de igualaciones antiguas. */
+export function defaultLuminanceV3(profile: Pick<UmbralProfile, "fit">, legacyMatches = false): LuminanceV3 {
+  const type = typeFromProfile(profile);
+  const predicted = type === "protan" || type === "deutan" || type === "tritan" ? predictedLumWeights(type, PREDICTION_SEVERITY) : null;
+  const std = predictedLumWeights("normal");
+  const round = (v: Vec3) => v.map((x) => Math.round(x * 1e5) / 1e5) as Vec3;
+  return {
+    weights: round(predicted ?? std),
+    weightsSource: predicted ? "predicted" : "standard",
+    predicted: predicted ? round(predicted) : null,
+    type,
+    refreshHz: null,
+    cyclesPerDeg: null,
+    checks: null,
+    calibratedWith: "standard-Y",
+    measuredMatches: [],
+    legacyMatches,
+  };
+}
+
+function emptyLuminance(profile: Pick<UmbralProfile, "fit">): LuminanceResult & LuminanceV3 {
+  return { ...orderLuminance({ method: "", matches: [], log: [] }), ...defaultLuminanceV3(profile) };
+}
+
+function keepV3(raw: Partial<LuminanceV3> | undefined, fallback: LuminanceV3): LuminanceV3 {
+  if (!raw || !Array.isArray(raw.weights) || raw.weights.length !== 3) return fallback;
+  return {
+    ...fallback,
+    ...raw,
+    weights: [Number(raw.weights[0]), Number(raw.weights[1]), Number(raw.weights[2])],
+    measuredMatches: Array.isArray(raw.measuredMatches) ? raw.measuredMatches : [],
+    legacyMatches: Boolean(raw.legacyMatches),
+    calibratedWith: "standard-Y",
+  };
 }
 
 function deg(rad: number): number {
@@ -153,8 +239,8 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
   const closedAxes = done.filter(isClosed).map((a) => labels.get(a.id) ?? a.hue);
   const measuredAxes = done.filter((a) => !isClosed(a)).map((a) => labels.get(a.id) ?? a.hue);
 
-  return {
-    schema: "umbral.profile.v2",
+  const built: UmbralProfile = {
+    schema: "umbral.profile.v3",
     disclaimer:
       "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
     createdAt: now.toISOString(),
@@ -237,6 +323,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       trials: orderCatchTrials(session.log),
     },
   };
+  return { ...built, luminance: emptyLuminance(built) };
 }
 
 const ROLE_RANK: Record<string, number> = {
@@ -479,8 +566,10 @@ function summarize(input: {
   return `${lead}${tail}${also}${ends}${catches}`;
 }
 
-export const PROFILE_STORAGE_KEY = "umbral-profile-v2";
-export const RETIRED_PROFILE_KEY = "umbral-profile-v1";
+export const PROFILE_STORAGE_KEY = "umbral-profile-v3";
+/** Claves antiguas, de la más reciente a la más vieja. Se leen si no hay v3. */
+export const RETIRED_PROFILE_KEYS = ["umbral-profile-v2", "umbral-profile-v1"] as const;
+export const RETIRED_PROFILE_KEY = RETIRED_PROFILE_KEYS[0];
 
 export function profileRejectReason(raw: string): string {
   try {
@@ -558,7 +647,8 @@ function syncImportedReading(profile: UmbralProfile): { summary: string; confide
 export function parseProfile(raw: string): UmbralProfile | null {
   try {
     const parsed = JSON.parse(raw) as UmbralProfile;
-    if (parsed?.schema !== "umbral.profile.v2" && parsed?.schema !== "umbral.profile.v1") return null;
+    const schema = (parsed as { schema?: string })?.schema;
+    if (schema !== "umbral.profile.v3" && schema !== "umbral.profile.v2" && schema !== "umbral.profile.v1") return null;
     if (!parsed.fit || !Array.isArray(parsed.axes) || parsed.axes.length === 0) return null;
     const axes = orderAxes(parsed.axes).map((axis, index) => ({ ...axis, order: index + 1 }));
     const rank = new Map(axes.map((axis) => [axis.id, axis.order]));
@@ -578,7 +668,7 @@ export function parseProfile(raw: string): UmbralProfile | null {
     const folded = syncImportedReading({ ...parsed, axes });
     return {
       ...parsed,
-      schema: "umbral.profile.v2",
+      schema: "umbral.profile.v3",
       summary: folded.summary,
       confidence: folded.confidence,
       fit: folded.fit,
@@ -590,16 +680,21 @@ export function parseProfile(raw: string): UmbralProfile | null {
         trials: catchTrials,
       },
       luminance: parsed.luminance
-        ? orderLuminance({
-            method: parsed.luminance.method,
-            temporalHz: parsed.luminance.temporalHz,
-            matches: parsed.luminance.matches,
-            log:
-              "log" in parsed.luminance && Array.isArray(parsed.luminance.log)
-                ? parsed.luminance.log
-                : parsed.luminance.matches.flatMap((match) => match.samples ?? []),
-          })
-        : undefined,
+        ? {
+            ...orderLuminance({
+              method: parsed.luminance.method,
+              temporalHz: parsed.luminance.temporalHz,
+              matches: parsed.luminance.matches ?? [],
+              log:
+                "log" in parsed.luminance && Array.isArray(parsed.luminance.log)
+                  ? parsed.luminance.log
+                  : (parsed.luminance.matches ?? []).flatMap((match) => match.samples ?? []),
+            }),
+            ...(schema === "umbral.profile.v3"
+              ? keepV3(parsed.luminance, defaultLuminanceV3({ fit: folded.fit }))
+              : defaultLuminanceV3({ fit: folded.fit }, (parsed.luminance.matches ?? []).length > 0)),
+          }
+        : emptyLuminance({ fit: folded.fit }),
     };
   } catch {
     return null;
