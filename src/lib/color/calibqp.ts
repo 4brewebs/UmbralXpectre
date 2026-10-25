@@ -26,8 +26,11 @@ export const QP_CALIB = {
   minCatches: 5,
   /** γ antes de tener 5 catch. PROVISIONAL. */
   gammaDefault: 0.05,
-  /** Parada: IC 95 % de α con anchura < 1 ΔE00, o 36 ensayos por eje (Colorado, 4.ª ronda: el normal seguía con > 5/36 ejes fuera de ×1,35 tras bajar el prior a 0,1). */
-  stopDeltaE: 1,
+  /**
+   * Parada relativa en escala log (Colorado, 5.ª ronda): IC 95 % de ln(α) con anchura ln(hi/lo) < ln 1,5, o 36 ensayos
+   * por eje. Sustituye al criterio absoluto de 1 ΔE00 (que con umbrales ~1,5 ΔE00 paraba demasiado pronto). Bordes no cambia.
+   */
+  stopLogWidth: Math.log(1.5),
   maxTrials: 36,
   /** Tope de ensayos por sesión con QUEST+ (Colorado); lo que falte sigue en otra sesión. */
   sessionCap: 80,
@@ -92,10 +95,15 @@ export interface AxisQpResult {
   estimate: { mean: number; lo: number; hi: number; width: number };
 }
 
+/** Anchura del IC 95 % en ln ΔE00: ln(hi/lo). */
+export function logWidth(e: { lo: number; hi: number }): number {
+  return e.lo > 0 ? Math.log(e.hi / e.lo) : Infinity;
+}
+
 export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog): AxisQpResult {
   const qp = rebuild(Q, deReach, gamma, log);
   const estimate = qp.estimate(0);
-  const done = log.length > 0 && (estimate.width < QP_CALIB.stopDeltaE || log.length >= QP_CALIB.maxTrials);
+  const done = log.length > 0 && (logWidth(estimate) < QP_CALIB.stopLogWidth || log.length >= QP_CALIB.maxTrials);
   return { done, nextDe: qp.next(), estimate };
 }
 
