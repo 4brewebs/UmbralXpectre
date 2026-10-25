@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
+  import { questPlusEnabled } from "@/lib/color/motion2";
   import { applyAnswer, armConfirm, discEnds, edgeFile, sectorOf, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
@@ -56,6 +57,15 @@
       });
     }),
   );
+
+  // QUEST+ tras flag (`?qp=1`): se carga perezosamente y entra tras el bracketing.
+  $effect(() => {
+    if (!questPlusEnabled(window.location.search) || run.questPlus) return;
+    void import("@/lib/color/questplus").then(async ({ loadQuestPlus }) => {
+      const Q = await loadQuestPlus();
+      run = { ...run, questPlus: Q };
+    });
+  });
 
   let ready = $state(false);
   let picked = $state.raw<number[]>([]);

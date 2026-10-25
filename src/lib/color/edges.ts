@@ -1,4 +1,14 @@
 import { ANCHOR, addScaled, dirFromTheta, maxScale, toSrgb8, type Vec3 } from "./space";
+import { createQuestPlus, grid, weibull2afc, type JsQuest, type QuestPlus } from "./questplus";
+
+/**
+ * QUEST+ en el refinamiento tras el bracketing (PLAN-questplus §3.2, tras flag `?qp=1`).
+ * Weibull de Watson (2017) en d = |ángulo − pico|: P(ver el disco distinto) = γ + (1−γ−λ)(1 − e^−(d/α)^β),
+ * γ = 1/N (N = 4 discos), α = distancia del borde (°), β y λ marginalizados (decisión 2).
+ * «Nada destaca» y disco equivocado cuentan como no visto (como la escalera); ver preguntas abiertas.
+ * Parada: IC 95 % de α < 1° (la conversión a ΔE00 queda abierta) o 40 ensayos (decisión 5).
+ */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeg: 1, maxTrials: 40 } as const;
 
 export type ConeId = "l" | "m" | "s";
 export type EdgeName = "rojos" | "verdes" | "azules";
@@ -81,6 +91,9 @@ interface Side {
   /** True when the miss reached the last hue of this color and never recovered. */
   toEnd: boolean;
   edge: number | null;
+  /** QUEST+ del refinamiento (solo con flag). */
+  qp?: QuestPlus;
+  qpTrials?: number;
 }
 
 export interface EdgeRun {
@@ -115,6 +128,8 @@ export interface EdgeRun {
   depthSaw: boolean;
   trials: EdgeTrial[];
   band: EdgeFile["band"] | null;
+  /** jsQuestPlus cargado: activa QUEST+ en el refinamiento. */
+  questPlus?: JsQuest;
 }
 
 export interface EdgeAnswer {
@@ -250,6 +265,7 @@ export function startRun(input: {
   profileSchema: string;
   profileCreatedAt: string;
   seed?: number;
+  questPlus?: JsQuest;
 }): EdgeRun {
   const floor = input.floor > 0 ? input.floor : 0.02;
   const edgeScale = scaleAt(floor, input.peakDeg);
@@ -285,6 +301,7 @@ export function startRun(input: {
     depthSaw: false,
     trials: [],
     band: null,
+    ...(input.questPlus ? { questPlus: input.questPlus } : {}),
   };
 }
 
@@ -347,8 +364,32 @@ function finishAtEnd(side: Side, limit: number): Side {
   };
 }
 
+/** Arranca QUEST+ dentro del intervalo del bracketing, prior uniforme (§3.2). */
+function startQuest(side: Side, peak: number, Q: JsQuest): Side {
+  const a = Math.abs((side.inside ?? peak) - peak);
+  const b = Math.abs((side.outside ?? peak) - peak);
+  const lo = Math.max(QP_EDGES.stepDeg, Math.min(a, b));
+  const hi = Math.max(lo + QP_EDGES.stepDeg, Math.max(a, b));
+  const n = Math.round((hi - lo) / QP_EDGES.stepDeg) + 1;
+  const ds = grid(lo, hi, n);
+  const qp = createQuestPlus(Q, { stim: ds, params: [ds, [...QP_EDGES.betas], [...QP_EDGES.lapses]], responses: weibull2afc(QP_EDGES.gamma) });
+  return questStep({ ...side, qp, qpTrials: 0 }, peak);
+}
+
+function questStep(side: Side, peak: number): Side {
+  const qp = side.qp!;
+  const sign = side.side === "minus" ? -1 : 1;
+  const est = qp.estimate();
+  if ((side.qpTrials ?? 0) > 0 && (est.width < QP_EDGES.stopDeg || (side.qpTrials ?? 0) >= QP_EDGES.maxTrials)) {
+    const edge = snap(peak + sign * est.mean);
+    return { ...side, inside: snap(peak + sign * est.lo), outside: snap(peak + sign * est.hi), status: "done", confirm: null, found: true, edge, cursor: edge };
+  }
+  return withCursor(side, peak + sign * qp.next(), "bisect", null);
+}
+
 /** Ask the midpoint while the bracket is wider than 2°. Then repeat the last miss and the last hit. */
-function tighten(side: Side): Side {
+function tighten(side: Side, peak?: number, Q?: JsQuest): Side {
+  if (Q && peak != null && side.inside != null && side.outside != null && !side.qp && gapOf(side) > EDGE_GAP) return startQuest(side, peak, Q);
   if (side.inside == null || side.outside == null) return side;
   if (gapOf(side) > EDGE_GAP) {
     return withCursor(side, (side.inside + side.outside) / 2, "bisect", null);
@@ -358,20 +399,24 @@ function tighten(side: Side): Side {
   return { ...side, status: "done", confirm: null, found: true, edge: side.inside, cursor: side.inside };
 }
 
-function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number): Side {
+function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: number, Q?: JsQuest): Side {
   const sign = side.side === "minus" ? -1 : 1;
+  if (side.qp && side.status === "bisect") {
+    side.qp.update(Math.abs(side.cursor - peak), kind === "seen" ? 0 : 1);
+    return questStep({ ...side, qpTrials: (side.qpTrials ?? 0) + 1 }, peak);
+  }
   if (side.status === "confirm") {
     if (side.confirm === "inside") {
       if (kind === "none") {
         if (atEnd(side.cursor, limit)) return finishAtEnd(side, limit);
-        return tighten({ ...side, insideHits: side.insideHits + 1, confirm: null });
+        return tighten({ ...side, insideHits: side.insideHits + 1, confirm: null }, peak, Q);
       }
       if (Math.abs(side.cursor - peak) < 0.05) {
         return { ...side, outside: snap(side.cursor), outsideHits: 1, status: "done", confirm: null, found: false, toEnd: false, edge: null };
       }
-      return tighten({ ...side, outside: snap(side.cursor), outsideHits: 1, inside: snap(peak), insideHits: 1, confirm: null, toEnd: false });
+      return tighten({ ...side, outside: snap(side.cursor), outsideHits: 1, inside: snap(peak), insideHits: 1, confirm: null, toEnd: false }, peak, Q);
     }
-    if (kind === "seen") return tighten({ ...side, outsideHits: side.outsideHits + 1, confirm: null, toEnd: false });
+    if (kind === "seen") return tighten({ ...side, outsideHits: side.outsideHits + 1, confirm: null, toEnd: false }, peak, Q);
     const next = reach(side.cursor, limit, sign);
     if (atEnd(side.cursor, limit) || next === snap(side.cursor)) return finishAtEnd(side, limit);
     return {
@@ -395,13 +440,13 @@ function advanceSide(side: Side, kind: "seen" | "none", peak: number, limit: num
       }
       return { ...side, inside: snap(side.cursor), insideHits: 1, cursor: next, walked: Math.abs(next - peak), status: "walk", confirm: null };
     }
-    return tighten({ ...side, outside: snap(side.cursor), outsideHits: 1, confirm: null, toEnd: false });
+    return tighten({ ...side, outside: snap(side.cursor), outsideHits: 1, confirm: null, toEnd: false }, peak, Q);
   }
   const patched =
     kind === "none"
       ? { ...side, inside: snap(side.cursor), insideHits: 1, confirm: null as Side["confirm"] }
       : { ...side, outside: snap(side.cursor), outsideHits: 1, confirm: null as Side["confirm"], toEnd: false };
-  return tighten(patched);
+  return tighten(patched, peak, Q);
 }
 
 function beginDepth(run: EdgeRun): EdgeRun {
@@ -432,7 +477,7 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none"): EdgeRun {
   if (run.phase === "minus" || run.phase === "plus") {
     const current = run.phase === "minus" ? run.minus : run.plus;
     const limit = run.phase === "minus" ? sectorOf(run.cone).lo : sectorOf(run.cone).hi;
-    const stepped = advanceSide(current, kind, run.peak, limit);
+    const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus);
     const patched = run.phase === "minus" ? { ...run, minus: stepped } : { ...run, plus: stepped };
     if (stepped.status !== "done") return place(patched, run.phase, stepped.cursor, run.edgeScale);
     if (run.phase === "minus") {
