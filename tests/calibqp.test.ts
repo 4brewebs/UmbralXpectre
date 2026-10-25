@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadQuestPlus, weibull } from "../src/lib/color/questplus";
 import { gammaOf, pairDeltaE, stepForDeltaE, QP_CALIB } from "../src/lib/color/calibqp";
+import { searchPriors } from "../src/lib/color/space";
 import { answer, createSession, parseQpResume, qpResumeOf, stimulusOf, type Session } from "../src/lib/color/session";
 
 function rng(seed: number) {
@@ -14,12 +15,23 @@ function rng(seed: number) {
   };
 }
 
-/** Umbral simulado en ΔE00 por ángulo: elipse alargada en la dirección de confusión θc. */
+/**
+ * MODELO DE SIMULACIÓN PARA TESTS, NO DATOS FISIOLÓGICOS (Colorado, 4.ª ronda).
+ * Umbral en ΔE00 por ángulo θ del plano isoluminante de `space.ts` como elipse:
+ * - normal: casi circular, ejes 1 : 1,5 (el mayor, por convención nuestra, en la dirección de aislamiento S);
+ * - daltónico de severidad s: semieje mayor sobre su línea de confusión (dirección de aislamiento del cono
+ *   afectado: L protan, M deutan, S tritan) = base × (1 + 4s/(1 − s)), con tope ×10; menor = base.
+ * Las direcciones salen de `searchPriors()` (aislamiento de cono proyectado al plano), así que el plano es el
+ * de la app y no un plano de contraste de cono estricto; basta para probar el motor.
+ */
+const BASE_DE = 1.5;
+const coneTheta = (k: "l" | "m" | "s") => searchPriors().find((p) => p.key === k)!.theta;
+const majorFactor = (s: number) => Math.min(10, 1 + (4 * s) / (1 - s));
 const observers: Record<string, { a: number; b: number; tc: number }> = {
-  normal: { a: 1.5, b: 1.5, tc: 0 },
-  protan: { a: 7, b: 1.5, tc: 0.2 },
-  deutan: { a: 6, b: 1.5, tc: -0.3 },
-  tritan: { a: 5, b: 1.5, tc: 1.6 },
+  normal: { a: BASE_DE * 1.5, b: BASE_DE, tc: coneTheta("s") },
+  protan: { a: BASE_DE * majorFactor(0.6), b: BASE_DE, tc: coneTheta("l") },
+  deutan: { a: BASE_DE * majorFactor(0.6), b: BASE_DE, tc: coneTheta("m") },
+  tritan: { a: BASE_DE * majorFactor(0.5), b: BASE_DE, tc: coneTheta("s") },
 };
 const alphaAt = (o: { a: number; b: number; tc: number }, th: number) => 1 / Math.hypot(Math.cos(th - o.tc) / o.a, Math.sin(th - o.tc) / o.b);
 
@@ -75,6 +87,14 @@ async function chain(o: { a: number; b: number; tc: number }, seed: number, Q: A
   } while (resume && sessions < 6);
   return { last: last!, total, sessions };
 }
+
+test("observador simulado: factor del semieje mayor 1 + 4s/(1 − s) con tope ×10", () => {
+  assert.equal(majorFactor(0), 1);
+  assert.ok(Math.abs(majorFactor(0.5) - 5) < 1e-9);
+  assert.ok(Math.abs(majorFactor(0.6) - 7) < 1e-9);
+  assert.equal(majorFactor(0.9), 10);
+  assert.ok(Math.abs(alphaAt(observers.normal, observers.normal.tc) / alphaAt(observers.normal, observers.normal.tc + Math.PI / 2) - 1.5) < 1e-9);
+});
 
 test("calibración QUEST+: tope de 80 y reanudación con el posterior guardado", async () => {
   const Q = await loadQuestPlus();
