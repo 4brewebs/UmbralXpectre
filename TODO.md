@@ -131,3 +131,5 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [MEDIA] Usar 2-3 tonos por región en lugar de 2.
 - [MEDIA] Fijar colorSpace:"srgb" en el canvas y rellenar con un gris de la misma Y que el ANCHOR (sRGB ≈ 130) para evitar halos.
 - [BAJA] El control es demasiado fácil.
+
+- [ ] Calibración opcional px/mm con una tarjeta de crédito (85.6 mm, ISO/IEC 7810 ID-1): el usuario ajusta un rectángulo en pantalla al tamaño de la tarjeta y se sustituye `cssPxPerMm` supuesto en movimiento v2.

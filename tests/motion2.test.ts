@@ -4,7 +4,7 @@ import fs from "node:fs";
 import {
   answerMotionV2, attachMotionV2, createMotionV2, measuredMatches, motionV2Enabled, paintMotionV2,
   periodPx, pickTemporal, stimulusOf, targetsFor, LUMA_CONTRAST, type MotionV2State,
-  E_MAX, E_MIN, MAX_MICHELSON, MIN_CATCHES_PER_BLOCK, requireBlockCatches, startBlock, towardEdge, viewingDistanceCm,
+  E_MAX, E_MIN, MAX_MICHELSON, MIN_CATCHES_PER_BLOCK, requireBlockCatches, startBlock, towardEdge, viewingSetup, STILL_UNRELIABLE,
 } from "../src/lib/color/motion2";
 import { parseProfile } from "../src/lib/color/profile";
 import { predictedLumWeights, predictedMatch } from "../src/lib/color/cones";
@@ -145,9 +145,42 @@ test("al menos 5 catch trials por bloque", () => {
   assert.ok(done.blockCatches >= MIN_CATCHES_PER_BLOCK);
 });
 
-test("distancia de visión: 40 cm móvil, 60 cm > 10 pulgadas", () => {
-  assert.equal(viewingDistanceCm(390, 844, 3, true).cm, 40);
-  assert.equal(viewingDistanceCm(1440, 900, 2, false).cm, 60);
-  assert.equal(viewingDistanceCm(1024, 1366, 2, true).cm, 60);
-  assert.ok(periodPx(0.75, 60) > periodPx(0.75, 40));
+test("montaje: móvil 40 cm, PC 60 cm, ~0.75 ciclos/grado", () => {
+  const phone = viewingSetup(390, 844, 3, true);
+  assert.equal(phone.device, "phone");
+  assert.equal(phone.cm, 40);
+  const pc = viewingSetup(1440, 900, 1, false);
+  assert.deepEqual([pc.device, pc.cm], ["pc", 60]);
+  assert.equal(viewingSetup(1024, 1366, 2, true).device, "pc");
+  for (const v of [phone, pc]) {
+    // Periodo en mm a esa distancia ⇒ 1/0.75 grados.
+    const mm = periodPx(0.75, v.cm, v.cssPxPerMm) / v.cssPxPerMm;
+    const deg = (2 * Math.atan(mm / 2 / (v.cm * 10)) * 180) / Math.PI;
+    assert.ok(Math.abs(deg - 1 / 0.75) < 0.01, `${deg}`);
+  }
+});
+
+test("«quieto»: informativo fuera de catch, fallo en catch; bloque poco fiable si > 60 %", () => {
+  let s = createMotionV2(profile(), 21);
+  let n = 0;
+  while (!s.current!.catch && n < 50) {
+    const before = s.stairs[s.current!.index].reversals.length;
+    const idx = s.current!.index;
+    s = answerMotionV2(s, "still", n++);
+    assert.equal(s.stairs[idx].reversals.length, before + 1);
+  }
+  const missed = s.catches.missed;
+  s = answerMotionV2(s, "still", n++);
+  assert.equal(s.catches.missed, missed + 1);
+  s = startBlock(s);
+  assert.equal(s.blocks.length, 1);
+  assert.equal(s.blocks[0].unreliable, true);
+  assert.ok(s.blocks[0].still / s.blocks[0].trials > STILL_UNRELIABLE);
+  const done = run(createMotionV2(profile(), 22), predictedLumWeights("protan", 0.5), 0.01);
+  assert.ok(done.blocks.length >= 1 && done.blocks.every((b) => !b.unreliable));
+  const p = attachMotionV2(profile(), s.complete ? s : { ...s, blocks: s.blocks }, { refreshHz: 60, temporalHz: 7.5, cyclesPerDeg: 0.75, viewingCm: 40, deviceType: "phone", cssPxPerMm: 5.9 });
+  assert.equal(p.luminance!.deviceType, "phone");
+  assert.equal(p.luminance!.viewingCm, 40);
+  assert.equal(p.luminance!.checks!.unreliableBlocks, 1);
+  assert.equal(p.luminance!.checks!.confidence, "low");
 });

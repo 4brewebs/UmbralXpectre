@@ -117,7 +117,9 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 3. ¿Mantener la escalera actual como alternativa (flag) durante la transición?
 
 ## 10. Estado actual del código (25/10, sin cambios)
-- `MotionTestV2.svelte` ofrece «Izquierda / **No sé** / Derecha», no «Quieto». En el motor (`motion2.ts`) esa respuesta es `"unsure"`.
-- En la escalera, `"unsure"` sí se usa como informativo: se registra como inversión en el valor actual (cerca del nulo) y se reduce el paso. No se trata como azar.
-- En los catch (movimiento evidente), cualquier respuesta que no sea la dirección correcta, incluido «No sé», cuenta como fallo. No existe la regla del 60 % de «quieto».
-- Pendiente al implementar QUEST+: renombrar el botón a «Quieto» (`"still"`, como en la prueba antigua), aplicar el modelo de 3 respuestas y añadir la regla del 60 %.
+- `MotionTestV2.svelte` ofrece «Izquierda / **Quieto** / Derecha»; en el motor (`motion2.ts`) la respuesta es `"still"`.
+- En la escalera, `"still"` es informativo: inversión en el valor actual (cerca del nulo) y paso reducido. No se trata como azar.
+- En los catch (movimiento evidente), «Quieto» cuenta como fallo (atención).
+- Regla del 60 % implementada: cada bloque guarda `{trials, still, unreliable}` en `luminance.checks.blocks`; con algún bloque poco fiable la confianza pasa a `"low"`.
+- Aviso de distancia visible en la preparación y en las pausas: móvil (`pointer: coarse` y lado corto < 600 px CSS) 40 cm «un antebrazo», PC 60 cm «un brazo extendido». Periodo de la red calculado para ~0.75 ciclos/grado con px/mm supuestos (PC 96 px/in; móvil 150 px/in si dpr ≥ 3, si no 132). Se guardan `viewingCm`, `deviceType` y `cssPxPerMm` en el perfil v3.
+- Pendiente: modelo de 3 respuestas en QUEST+.

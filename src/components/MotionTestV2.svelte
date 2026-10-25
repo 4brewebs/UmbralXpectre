@@ -7,7 +7,7 @@
     blockReady,
     requireBlockCatches,
     startBlock,
-    viewingDistanceCm,
+    viewingSetup,
     MAX_MICHELSON,
     createMotionV2,
     gratingSize,
@@ -25,7 +25,7 @@
     onStop,
   }: {
     profile: UmbralProfile;
-    onDone: (state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number }) => void;
+    onDone: (state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number; deviceType: "phone" | "pc"; cssPxPerMm: number }) => void;
     onStop: () => void;
   } = $props();
 
@@ -41,7 +41,7 @@
   let host: HTMLDivElement | undefined = $state();
   let size = $state({ width: 480, height: 160 });
   let blockStart = 0;
-  let viewing = $state({ cm: 40, diagonalIn: 0 });
+  let viewing = $state<ReturnType<typeof viewingSetup>>({ device: "pc", cm: 60, cssPxPerMm: 96 / 25.4, hint: "un brazo extendido" });
   let block = $state(1);
   let finished = false;
 
@@ -51,11 +51,11 @@
   const canStart = $derived(agreed && refreshHz != null && (!reduced || reducedOk));
 
   onMount(() => {
-    viewing = viewingDistanceCm(
+    viewing = viewingSetup(
       window.screen.width || window.innerWidth,
       window.screen.height || window.innerHeight,
       window.devicePixelRatio || 1,
-      (navigator.maxTouchPoints ?? 0) > 0,
+      window.matchMedia?.("(pointer: coarse)").matches ?? false,
     );
     reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     // Refresco medido con rAF: mediana de los intervalos de 60 fotogramas.
@@ -97,7 +97,7 @@
     el.width = w;
     el.height = h;
     const image = ctx.createImageData(w, h);
-    const period = periodPx(CYCLES_PER_DEG, viewing.cm) * dpr;
+    const period = periodPx(CYCLES_PER_DEG, viewing.cm, viewing.cssPxPerMm) * dpr;
     const k = temporal.framesPerPhase;
     let frame = 0;
     let id = 0;
@@ -117,7 +117,7 @@
     if (!motion.complete || finished) return;
     finished = true;
     step = "done";
-    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG, viewingCm: viewing.cm });
+    onDone(motion, { refreshHz, temporalHz: temporal.hz, cyclesPerDeg: CYCLES_PER_DEG, viewingCm: viewing.cm, deviceType: viewing.device, cssPxPerMm: viewing.cssPxPerMm });
   });
 
   function begin() {
@@ -126,7 +126,7 @@
     step = "run";
   }
 
-  function choose(answer: "left" | "right" | "unsure") {
+  function choose(answer: "left" | "right" | "still") {
     motion = answerMotionV2(motion, answer, Date.now());
     if (motion.complete) return;
     if (performance.now() - blockStart > BLOCK_MS) {
@@ -146,12 +146,18 @@
     <button type="button" onclick={onStop} class="rounded-full border border-border px-4 py-2 text-sm font-semibold text-fg">Parar</button>
   </div>
 
+  {#if step === "consent" || step === "pause"}
+    <p class="rounded-2xl border border-accent p-4 text-base text-fg" data-testid="distance">
+      <strong>Distancia:</strong> {viewing.device === "phone" ? "móvil" : "ordenador"} — ponte a unos {viewing.cm} cm de la pantalla ({viewing.hint}) y mantenla durante la prueba.
+    </p>
+  {/if}
+
   {#if step === "consent"}
     <div class="flex flex-col gap-4 text-base leading-relaxed text-fg">
       <p>Verás una franja de rayas que parpadea a unos {temporal.hz} Hz y parece moverse. Dinos hacia dónde va. Sirve para medir cómo de brillante ves cada color en esta pantalla.</p>
       <p class="rounded-2xl border border-border p-4 text-sm"><strong>Aviso de fotosensibilidad.</strong> Esta prueba contiene parpadeo y colores saturados. Ocupa como mucho una cuarta parte de la pantalla y su contraste de luminancia es bajo, pero no afirmamos que cumpla WCAG 2.3.1. Si tienes epilepsia fotosensible, migrañas con la luz o te mareas, no la hagas. Es opcional: tu perfil de color ya está guardado.</p>
       <p class="text-sm text-muted">Antes de empezar: desactiva True Tone, el modo noche (Night Shift / luz nocturna) y el brillo automático, y no cambies el brillo durante la prueba. Bloques de unos 25 s con pausas. Puedes parar cuando quieras.</p>
-      <p class="text-sm text-muted">Refresco medido: {refreshHz == null ? "midiendo…" : `${refreshHz} Hz`}. Distancia supuesta: {viewing.cm} cm (ponte a unos {viewing.cm} cm de la pantalla). Contraste de brillo limitado al {Math.round(MAX_MICHELSON * 100)} %.</p>
+      <p class="text-sm text-muted">Refresco medido: {refreshHz == null ? "midiendo…" : `${refreshHz} Hz`}. Contraste de brillo limitado al {Math.round(MAX_MICHELSON * 100)} %.</p>
       {#if reduced}
         <label class="flex items-start gap-3 text-sm"><input type="checkbox" bind:checked={reducedOk} class="mt-1" /> Tu sistema pide reducir el movimiento. Marca esto solo si aun así quieres ver la prueba.</label>
       {/if}
@@ -160,13 +166,13 @@
     </div>
   {:else if step === "run"}
     <p class="text-sm text-muted">Bloque {block} · {doneTargets} de {totalTargets} colores</p>
-    <p class="text-lg leading-snug text-fg">¿Hacia dónde se mueven las rayas? Si no lo tienes claro, «No sé».</p>
+    <p class="text-lg leading-snug text-fg">¿Hacia dónde se mueven las rayas? Si no se mueven hacia ningún lado, «Quieto».</p>
     <div bind:this={host} class="flex justify-center">
       <canvas bind:this={canvas} style={`width:${size.width}px;height:${size.height}px`} class="rounded-xl" aria-label="Rayas en movimiento"></canvas>
     </div>
     <div class="grid grid-cols-3 gap-3">
       <button type="button" onclick={() => choose("left")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Izquierda</button>
-      <button type="button" onclick={() => choose("unsure")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">No sé</button>
+      <button type="button" onclick={() => choose("still")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Quieto</button>
       <button type="button" onclick={() => choose("right")} class="h-16 rounded-2xl border border-border text-base font-semibold text-fg">Derecha</button>
     </div>
   {:else if step === "pause"}

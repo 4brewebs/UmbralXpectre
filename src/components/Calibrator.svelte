@@ -96,7 +96,7 @@
     phase = "done";
   }
 
-  function takeMotionV2(state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number }) {
+  function takeMotionV2(state: MotionV2State, meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm: number; deviceType: "phone" | "pc"; cssPxPerMm: number }) {
     if (!profile) return;
     const enriched = attachMotionV2(profile, state, meta);
     persistProfile(enriched);

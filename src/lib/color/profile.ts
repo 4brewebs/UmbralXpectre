@@ -135,6 +135,10 @@ export interface LuminanceV3 {
   temporalHzV2?: number | null;
   cyclesPerDeg: number | null;
   viewingCm?: number | null;
+  /** Montaje detectado: móvil (40 cm) o PC (60 cm). */
+  deviceType?: "phone" | "pc" | null;
+  /** px CSS por mm supuestos para el periodo de la red. */
+  cssPxPerMm?: number | null;
   checks: {
     controlError: number | null;
     catches: { shown: number; missed: number };
@@ -142,6 +146,9 @@ export interface LuminanceV3 {
     cond: number | null;
     withinNoise: boolean;
     confidence: "high" | "low";
+    /** Bloques de la prueba; `unreliable` si «quieto» > 60 % (catch incluidos). */
+    blocks?: Array<{ trials: number; still: number; unreliable: boolean }>;
+    unreliableBlocks?: number;
   } | null;
   /** Contra qué se igualó: siempre Y estándar de sRGB nominal en esta fase. */
   calibratedWith: "standard-Y" ;

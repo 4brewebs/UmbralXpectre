@@ -39,7 +39,6 @@ export const E_MAX = (1 + MAX_MICHELSON) / (1 - MAX_MICHELSON);
 export const SATURATION = 0.65;
 /** Catch trials mínimos por bloque. */
 export const MIN_CATCHES_PER_BLOCK = 5;
-const CSS_PX_PER_CM = 96 / 2.54;
 const MAX_REF_Y = 0.18;
 const FINE_STEP = Math.log(1.015);
 const START_STEP = Math.log(1.1);
@@ -69,21 +68,35 @@ export function pickTemporal(refreshHz: number): { framesPerPhase: number; hz: n
   return { framesPerPhase: k, hz: round(r / (4 * k), 100) };
 }
 
+export type DeviceType = "phone" | "pc";
+
 /**
- * Distancia de visión estimada. Heurística: los px CSS no son físicos, así que se supone
- * una densidad por tipo de dispositivo (96 px CSS/pulgada sin pantalla táctil; táctil:
- * 150 si devicePixelRatio ≥ 3, típico de móvil, y 132 si no, típico de tablet) y se estima
- * la diagonal. > 10 pulgadas ⇒ 60 cm; si no, 40 cm.
+ * Montaje de la prueba: móvil o PC, distancia y densidad supuesta de px CSS.
+ *
+ * Detección: móvil si `matchMedia('(pointer: coarse)')` y el lado corto de la pantalla
+ * es < 600 px CSS; si no, PC (tablets incluidas, se usan apoyadas como un portátil).
+ * Distancia: móvil 40 cm («un antebrazo»), PC 60 cm («un brazo extendido»).
+ *
+ * SUPUESTO px/mm: los px CSS no son físicos. En PC se toma el px de referencia CSS
+ * (96 px/pulgada ≈ 3.78 px/mm). En móvil, ~150 px CSS/pulgada (≈ 5.9 px/mm) si
+ * devicePixelRatio ≥ 3 y ~132 (≈ 5.2 px/mm) si no. Error típico ±15 %, que mueve los
+ * ciclos/grado en la misma proporción (0.75 → 0.64–0.86, dentro de 0.5–1). Calibración
+ * opcional con una tarjeta: ver TODO.
  */
-export function viewingDistanceCm(screenCssW: number, screenCssH: number, dpr: number, touch: boolean): { cm: number; diagonalIn: number } {
-  const ppi = !touch ? 96 : dpr >= 3 ? 150 : 132;
-  const diagonalIn = Math.hypot(screenCssW, screenCssH) / ppi;
-  return { cm: diagonalIn > 10 ? VIEWING_CM_LARGE : VIEWING_CM, diagonalIn: round(diagonalIn, 10) };
+export function viewingSetup(
+  screenCssW: number,
+  screenCssH: number,
+  dpr: number,
+  coarsePointer: boolean,
+): { device: DeviceType; cm: number; cssPxPerMm: number; hint: string } {
+  const phone = coarsePointer && Math.min(screenCssW, screenCssH) < 600;
+  if (phone) return { device: "phone", cm: VIEWING_CM, cssPxPerMm: round((dpr >= 3 ? 150 : 132) / 25.4, 1000), hint: "un antebrazo" };
+  return { device: "pc", cm: VIEWING_CM_LARGE, cssPxPerMm: round(96 / 25.4, 1000), hint: "un brazo extendido" };
 }
 
-/** Periodo de la red en px CSS para `cpd` ciclos/grado a VIEWING_CM. */
-export function periodPx(cpd = CYCLES_PER_DEG, viewingCm = VIEWING_CM): number {
-  const pxPerDeg = 2 * viewingCm * Math.tan(Math.PI / 360) * CSS_PX_PER_CM;
+/** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
+export function periodPx(cpd = CYCLES_PER_DEG, viewingCm = VIEWING_CM, cssPxPerMm = 96 / 25.4): number {
+  const pxPerDeg = 2 * viewingCm * 10 * Math.tan(Math.PI / 360) * cssPxPerMm;
   return pxPerDeg / cpd;
 }
 
@@ -129,9 +142,23 @@ export interface MotionV2Trial {
   test: Vec3;
   ref: Vec3;
   sign: 1 | -1;
-  answer: "left" | "right" | "unsure";
+  answer: "left" | "right" | "still";
   correct?: boolean;
   at: number;
+}
+
+export const STILL_UNRELIABLE = 0.6;
+
+export interface BlockRecord {
+  trials: number;
+  still: number;
+  unreliable: boolean;
+}
+
+function closeBlock(state: MotionV2State): MotionV2State {
+  if (state.block.trials === 0) return state;
+  const rec = { ...state.block, unreliable: state.block.still / state.block.trials > STILL_UNRELIABLE };
+  return { ...state, blocks: [...state.blocks, rec], block: { trials: 0, still: 0 } };
 }
 
 export interface MotionV2State {
@@ -142,6 +169,10 @@ export interface MotionV2State {
   /** Catch trials obligados antes de cerrar el bloque o la prueba. */
   pendingCatches: number;
   blockCatches: number;
+  /** Ensayos y «quieto» del bloque en curso (catch incluidos). */
+  block: { trials: number; still: number };
+  /** Bloques cerrados. `unreliable`: «quieto» > 60 % de sus ensayos. */
+  blocks: BlockRecord[];
   /** Último escalón usado (para el nivel de gris de los catch del final). */
   lastIndex: number;
   current: { index: number; catch: boolean; sign: 1 | -1 } | null;
@@ -260,7 +291,7 @@ export function createMotionV2(profile: Pick<UmbralProfile, "fit" | "luminance">
     done: false,
     bound: "converged",
   }));
-  return pick({ type, weights, stairs, rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
+  return pick({ type, weights, stairs, rng: seed >>> 0, pendingCatches: 0, blockCatches: 0, block: { trials: 0, still: 0 }, blocks: [], lastIndex: 0, current: null, log: [], sinceCatch: 0, catches: { shown: 0, missed: 0 }, complete: false });
 }
 
 /** Cierra el bloque: si faltan catch trials hasta MIN_CATCHES_PER_BLOCK, se piden antes de la pausa. */
@@ -271,7 +302,7 @@ export function requireBlockCatches(state: MotionV2State): MotionV2State {
 
 /** Empieza un bloque nuevo tras la pausa. */
 export function startBlock(state: MotionV2State): MotionV2State {
-  return { ...state, blockCatches: 0, pendingCatches: 0 };
+  return { ...closeBlock(state), blockCatches: 0, pendingCatches: 0 };
 }
 
 /** El bloque ya tiene sus catch trials obligados. */
@@ -286,7 +317,7 @@ function pick(state: MotionV2State): MotionV2State {
     pending = MIN_CATCHES_PER_BLOCK - state.blockCatches;
     state = { ...state, endCatchesAsked: true };
   }
-  if (!open.length && pending === 0) return { ...state, pendingCatches: 0, current: null, complete: true };
+  if (!open.length && pending === 0) return { ...closeBlock(state), pendingCatches: 0, current: null, complete: true };
   let r = nextRand(state.rng);
   const index = open.length ? open[Math.floor(r.value * open.length)] : state.lastIndex;
   r = nextRand(r.state);
@@ -322,10 +353,11 @@ function spread(values: number[]): { mean: number; ci: number } {
   return { mean, ci: (1.96 * sd) / Math.sqrt(n) };
 }
 
-export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | "unsure", at: number): MotionV2State {
+export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | "still", at: number): MotionV2State {
   const stim = stimulusOf(state);
   if (!stim || !state.current) return state;
   const cur = state.current;
+  state = { ...state, block: { trials: state.block.trials + 1, still: state.block.still + (answer === "still" ? 1 : 0) } };
   const stair = state.stairs[cur.index];
   const record: MotionV2Trial = {
     targetId: cur.catch ? "catch" : stair.target.id,
@@ -338,6 +370,7 @@ export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | 
     at,
   };
   if (cur.catch) {
+    // Movimiento evidente: «quieto» también es fallo (atención).
     const correct = answer === (cur.sign === 1 ? "right" : "left");
     return pick({
       ...state,
@@ -349,7 +382,8 @@ export function answerMotionV2(state: MotionV2State, answer: "left" | "right" | 
     });
   }
   const next: Stair = { ...stair, reversals: [...stair.reversals], trials: stair.trials + 1 };
-  if (answer === "unsure") {
+  if (answer === "still") {
+    // Fuera de los catch, «quieto» es informativo: casi equiluminancia, cerca del nulo.
     next.reversals.push(next.logE);
     next.step = Math.max(FINE_STEP, next.step / 2);
   } else {
@@ -429,7 +463,14 @@ export function measuredMatches(state: MotionV2State): MeasuredMatch[] {
 export function attachMotionV2(
   profile: UmbralProfile,
   state: MotionV2State,
-  meta: { refreshHz: number | null; temporalHz: number | null; cyclesPerDeg: number; viewingCm?: number },
+  meta: {
+    refreshHz: number | null;
+    temporalHz: number | null;
+    cyclesPerDeg: number;
+    viewingCm?: number;
+    deviceType?: DeviceType;
+    cssPxPerMm?: number;
+  },
 ): UmbralProfile {
   const base = profile.luminance ?? { ...defaultLuminanceV3(profile), method: "", temporalHz: 1, count: 0, sampleCount: 0, reading: "", matches: [] };
   const matches = measuredMatches(state);
@@ -440,6 +481,7 @@ export function attachMotionV2(
     base.predicted ?? null,
     { missedCatches: state.catches.missed > state.catches.shown / 4 ? state.catches.missed : 0 },
   );
+  const unreliable = state.blocks.filter((b) => b.unreliable).length;
   return {
     ...profile,
     luminance: {
@@ -450,13 +492,17 @@ export function attachMotionV2(
       temporalHzV2: meta.temporalHz,
       cyclesPerDeg: meta.cyclesPerDeg,
       viewingCm: meta.viewingCm ?? null,
+      deviceType: meta.deviceType ?? null,
+      cssPxPerMm: meta.cssPxPerMm ?? null,
       checks: {
         controlError: solved.controlError,
         catches: state.catches,
         residuals: solved.residuals,
         cond: Number.isFinite(solved.cond) ? solved.cond : null,
         withinNoise: solved.withinNoise,
-        confidence: solved.confidence,
+        confidence: unreliable > 0 ? "low" : solved.confidence,
+        blocks: state.blocks,
+        unreliableBlocks: unreliable,
       },
       calibratedWith: "standard-Y",
       measuredMatches: matches,
