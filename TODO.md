@@ -7,7 +7,7 @@ cada push a `main` despliega en Pages.
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
 - [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).
 - [x] Lint: `prefer-const` en `nextRand` (`session.ts`, 7a243ae). Ahora lint da 0 problemas.
-- [x] `npm test` = `runSelfCheck` + `tests/*.test.ts` (node:test, 68 tests en 13 archivos).
+- [x] `npm test` = `runSelfCheck` + `tests/*.test.ts` (node:test, 84 tests en 18 archivos).
 - [x] **Luminancia, fase 1** tras `?motion=v2`:
   - `cones.ts` (Smith-Pokorny + Machado), `lumweights.ts`, perfil `umbral.profile.v3` (lee v2/v1);
   - `motion2.ts` + `MotionTestV2.svelte`.
@@ -31,6 +31,12 @@ cada push a `main` despliega en Pages.
 - [x] Bordes con QUEST+: catch obvios (tono +90° y +25 % de Y), 1 cada 6 y ≥ 2 por ronda. La fiabilidad se agrega en la sesión: «indeterminada» con < 5 catch, no fiable con > 25 % de «ninguno».
 - [x] Calibración QUEST+: reanudación en otra sesión con el posterior por eje (localStorage `umbral.calib.qp.resume` y `calibrationResume` en el perfil).
 - [x] **Historial completo de sesiones** en el perfil (`history`, `umbral.history.v1`, columnas si es grande).
+- [x] **Ronda del 25/10 noche (aprobada por Lucas y Colorado; local, sin push):**
+  - arcoíris en Bordes: la asistencia nunca va a un lado abierto (`loOpen`/`hiOpen`); con los dos abiertos usa la del perfil; profundidad en el pico con un solo borde; `tInner = max(depth, umbral de origen, edgeScale)`;
+  - bordes: la búsqueda pasa del sector hasta el límite del gamut a Y constante (tope 84° por lado), con pasos geométricos fuera del sector; resultado `found` / `noEdgeToGamut` / `unexplored` (los dos últimos cuentan como abiertos); nota `peak-seen-below-source` en el archivo (registro, no bug);
+  - láminas y cámara: selector Perfil/Bordes, Bordes por defecto cuando hay bordes medidos; láminas con `colorFor`;
+  - huella del dispositivo (`device.ts`: UA + pantalla + dpr + gamut + refresco) en `luminance.device` y en cada sesión del historial; aviso «Usar igualmente / Repetir la prueba» al cargar el perfil en otra pantalla (perfiles anteriores: huella deducida de `hardware` + `refreshHz`);
+  - calibración (escalera): rejilla hasta ≈0,006 lineal (`DESCEND` 0,85…0,0225), arranque ±1 peldaño al azar por eje, bisección con parada relativa (25 %); `fit.controlBounded` y razones «al menos» por vía mientras el control esté acotado; bordes con control acotado usan el umbral de la banda como suelo (`floorFrom: "band"`, disco a 0,8× ese umbral). El prior de QUEST+ ya bajaba a 0,1 ΔE00.
 
 ## 0a. Pendiente de decisión de Lucas
 - [ ] **Calibración de 12 ejes con ajuste de elipse** (~70 ensayos, 1 sesión). Propuesta de Colorado; no implementar sin OK.
@@ -45,7 +51,7 @@ cada push a `main` despliega en Pages.
 - [ ] Reproyección de los ejes con la Y personal y recalibración de los umbrales del calibrador.
 
 ## 0c. Bugs documentados, sin arreglar
-- [ ] **Bordes: sector de tono fijo como tope** (`sectorOf`, `edges.ts`). Detalle en §3.
+- [x] ~~**Bordes: sector de tono fijo como tope**~~: resuelto (límite analítico del gamut; `sectorOf` solo marca dónde empiezan los pasos geométricos).
 - [ ] **Dos vías con un solo cono débil** (`filterModel`, `spectrum.ts`). Detalle en §4.
 - [ ] Reanudación de la calibración: el perfil de la sesión reanudada solo trae el registro de esa sesión. Los umbrales sí son acumulados y el historial guarda todas las sesiones.
 
@@ -57,7 +63,8 @@ cada push a `main` despliega en Pages.
 - [ ] LUT (3×33³) en el hilo principal: moverlas a un Web Worker.
 - [ ] Simulación de referencia Machado/Viénot y aviso de calibración del monitor.
 - [ ] Tests más finos de `src/lib/color` (`spectrum.ts`, `lut.ts`).
-- Láminas: **descartado**; se quedan como están (§7).
+- Láminas: el contenido sigue como estaba (§7); solo se añadió el selector Perfil/Bordes.
+- [ ] Probar en el móvil de Lucas: bordes más allá del sector, aviso de dispositivo y la rejilla nueva (más ensayos por eje en ojos sanos: ~5–8).
 
 ## Notas
 - `tests/fixtures/` contiene los JSON del perfil de Lucas y son públicos en el repo; Lucas lo aceptó.
