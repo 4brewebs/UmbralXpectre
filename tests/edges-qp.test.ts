@@ -117,3 +117,18 @@ test("bordes: catch obvios; > 25 % «ninguno» marca la ronda como no fiable", a
   assert.ok(badRuns > 0 && badFlag / badRuns >= 0.5, `${badFlag}/${badRuns}`);
   assert.equal(edgeFile(simulate(startRun({ ...base, seed: 3 }), 9, 3)).reliability, undefined);
 });
+
+test("bordes: el catch obvio añade ≥ 20 % de Y al disco distinto; fuera de catch, igual que discEnds", async () => {
+  const { discsOf, discEnds } = await import("../src/lib/color/edges");
+  const lin = (c: number) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const Y = (rgb: number[]) => 0.2126729 * lin(rgb[0]) + 0.7151522 * lin(rgb[1]) + 0.072175 * lin(rgb[2]);
+  for (const angle of [0, 90, -120, 150]) for (const oddSign of [1, -1] as const) {
+    const run = { angle, scale: 0.04, oddIndex: 2, oddSign, catchTrial: false };
+    const plain = discsOf(run);
+    const e = discEnds(angle, 0.04);
+    assert.deepEqual(plain[2], oddSign > 0 ? e.positive : e.negative);
+    assert.deepEqual(plain[0], oddSign > 0 ? e.negative : e.positive);
+    const c = discsOf({ ...run, catchTrial: true });
+    assert.ok(Y(c[2]) / Y(c[0]) >= 1.2, `${angle} ${oddSign}: ${(Y(c[2]) / Y(c[0])).toFixed(3)}`);
+  }
+});

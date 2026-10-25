@@ -3,7 +3,7 @@
   import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
   import { questPlusEnabled } from "@/lib/color/motion2";
-  import { applyAnswer, armConfirm, discEnds, edgeFile, sectorOf, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
+  import { applyAnswer, armConfirm, discsOf, edgeFile, sectorOf, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
 
@@ -18,13 +18,6 @@
     onCancel: () => void;
     onDone: (file: EdgeFile) => void;
   } = $props();
-
-  function discsOf(run: EdgeRun): Array<[number, number, number]> {
-    const ends = discEnds(run.angle, run.scale);
-    return [0, 1, 2, 3].map((index) =>
-      index === run.oddIndex ? (run.oddSign > 0 ? ends.positive : ends.negative) : run.oddSign > 0 ? ends.negative : ends.positive,
-    );
-  }
 
   function phaseLabel(run: EdgeRun): string {
     if (run.repeat) return "Este tono no ha quedado claro. Lo repito.";

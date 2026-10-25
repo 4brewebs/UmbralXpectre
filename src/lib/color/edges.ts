@@ -13,7 +13,7 @@ import { deltaE00Linear } from "./deltaE";
  * Fiabilidad: catch de diferencia obvia (tono +90° del pico); si > 25 % son «ninguno», la ronda no es fiable.
  */
 /** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25 };
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -198,6 +198,20 @@ export function discEnds(angleDeg: number, scale: number): { positive: [number, 
     positive: toSrgb8(addScaled(gray, dir, scale)),
     negative: toSrgb8(addScaled(gray, dir, -scale)),
   };
+}
+
+/**
+ * Los cuatro discos del ensayo (sRGB 8 bits). En un catch obvio el disco distinto, además del tono,
+ * lleva un 25 % más de luminancia Y (≥ 20 %, Colorado): obvio para cualquier daltónico.
+ */
+export function discsOf(run: Pick<EdgeRun, "angle" | "scale" | "oddIndex" | "oddSign" | "catchTrial">): Array<[number, number, number]> {
+  const dir = dirFromTheta(rad(run.angle));
+  const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const odd = addScaled(gray, dir, run.oddSign * run.scale);
+  const other = toSrgb8(addScaled(gray, dir, -run.oddSign * run.scale));
+  const k = run.catchTrial ? QP_EDGES.catchLum : 1;
+  const oddRgb = toSrgb8(odd.map((v) => Math.min(1, v * k)) as Vec3);
+  return [0, 1, 2, 3].map((i) => (i === run.oddIndex ? oddRgb : other));
 }
 
 /** `seen`: the single odd disc. `none`: nothing stood out. `miss`: one disc, and it was one of the three equals. */
@@ -578,7 +592,8 @@ export function applyAnswer(run: EdgeRun, input: EdgeAnswer): EdgeRun {
   if (run.catchTrial) {
     // Catch obvio: no toca el QUEST+; solo cuenta para la fiabilidad. Vuelve al cursor del lado.
     const last = recorded.trials.length - 1;
-    const trials = recorded.trials.map((t, i) => (i === last ? { ...t, catch: true as const } : t));
+    const odd = discsOf(run)[run.oddIndex];
+    const trials = recorded.trials.map((t, i) => (i === last ? { ...t, catch: true as const, ...(run.oddSign > 0 ? { positive: odd } : { negative: odd }) } : t));
     const c = run.catches ?? { shown: 0, none: 0 };
     const catches = { shown: c.shown + 1, none: c.none + (kind === "none" ? 1 : 0) };
     const side = run.phase === "minus" ? run.minus : run.plus;
