@@ -112,9 +112,10 @@ Prevalecen sobre lo dicho en §2–§6 donde haya diferencia.
 
 ## 9. Preguntas abiertas
 **Lucas**
-1. ¿Vendorizar (propuesta) o instalar desde npm con la dependencia de GitHub?
-2. ¿Orden de implantación: movimiento v2 → bordes → calibración?
-3. ¿Mantener la escalera actual como alternativa (flag) durante la transición?
+1. ~~¿Vendorizar o instalar desde npm?~~ Vendorizado (`src/jsQuestPlus.js`).
+2. ~~¿Orden de implantación?~~ Hecho: movimiento v2 → bordes → calibración.
+3. ~~¿Escalera como alternativa?~~ Sí: la escalera sigue por defecto y QUEST+ va tras `?qp=1`.
+4. Pendientes de Lucas (ver TODO §0a): calibración de 12 ejes con elipse, historial en IndexedDB, activar los flags por defecto.
 
 ## 10. Estado actual del código (25/10, sin cambios)
 - `MotionTestV2.svelte` ofrece «Izquierda / **Quieto** / Derecha»; en el motor (`motion2.ts`) la respuesta es `"still"`.

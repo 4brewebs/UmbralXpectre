@@ -1,20 +1,69 @@
 # TODO — UmbralXpectre
 
-## 0. Despliegue
-- **Destino: GitHub Pages** (SPA estática, `.github/workflows/deploy.yml`). Eliminados Vercel, Nitro, better-auth, PGlite y plantilla de servidor.
-- **Interfaz migrada de React a Svelte 5** (runes, sin SvelteKit). `src/lib/color/*` sin cambios. Paridad visual comprobada con Playwright (capturas en `/workspace/parity`).
-- `npm test` ejecuta `runSelfCheck` (`scripts/selfcheck.ts`) y `tests/*.test.ts` (node:test, 22 tests).
-- Pendiente: crear repo público, Settings > Pages > Source: GitHub Actions, y push a `main`.
-- Iconos PWA 192/512 son reescalados del de 180 px: sustituir por iconos nativos.
+Revisado el 25/10/2026 contra el código y `git log` (`main` = `origin/main`). **No hacer push sin el OK de Lucas**:
+cada push a `main` despliega en Pages.
 
-## 0b. Luminancia personal — fase 1 hecha
-- `space.ts` pesos opcionales; `cones.ts` (Smith-Pokorny + Machado); `lumweights.ts` (mínimos cuadrados con prior); perfil `umbral.profile.v3` (clave `umbral-profile-v3`, lee v2/v1); `motion2.ts` + `MotionTestV2.svelte` tras `?motion=v2`.
-- Fase 2 pendiente: pesos en simulador/asistencia, caché LUT/cámara, re-proyección y recalibración.
-- Ajustes de seguridad v2 hechos: colores a 0.65 del borde, Michelson ≤ 22 % (cotas «al menos»), distancia 40/60 cm, prior severity 0.6, ≥ 5 catch por bloque.
-- Siguiente: QUEST+ (ver `PLAN-questplus.md`).
-- Probar la prueba v2 con personas reales (Lucas) antes de activarla por defecto.
+## 0. Hecho (verificado en el código)
+- [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
+- [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).
+- [x] Lint: `prefer-const` en `nextRand` (`session.ts`, 7a243ae). Ahora lint da 0 problemas.
+- [x] `npm test` = `runSelfCheck` + `tests/*.test.ts` (node:test, 68 tests en 13 archivos).
+- [x] **Luminancia, fase 1** tras `?motion=v2`:
+  - `cones.ts` (Smith-Pokorny + Machado), `lumweights.ts`, perfil `umbral.profile.v3` (lee v2/v1);
+  - `motion2.ts` + `MotionTestV2.svelte`.
+- [x] Ajustes de seguridad v2:
+  - colores a 0,65 del borde;
+  - Michelson ≤ 22 % con cotas «al menos»;
+  - prior de severidad 0,6;
+  - ≥ 5 catch por bloque.
+- [x] Botón **Quieto** (respuesta informativa; bloque poco fiable si pasa del 60 %), aviso de distancia 40/60 cm y tamaño en grados:
+  - heurística de dispositivo, 1 c/°;
+  - parche de 4° × 2°, aprobado por Lucas;
+  - sin calibración del usuario.
+- [x] Pantalla de movimiento v2: retícula acromática quitable (`MotionReticle.svelte`) y háptica de 8 ms solo en movimiento v2.
+- [x] Fondo constante en movimiento v2: Y = 0,1475, la más baja alcanzable por todos los ensayos.
+- [x] **jsQuestPlus vendorizado** (`src/jsQuestPlus.js`). No se copia el questplus de Python (GPL).
+- [x] **QUEST+ tras `?qp=1`** en movimiento v2, bordes y calibración. Parámetros de Colorado en `QP_MOTION`, `QP_EDGES` y `QP_CALIB`:
+  - movimiento: δ 0,02/0,04/0,08, β fijo (±10 %), prior log-normal σ 0,25, parada ln 1,10 o 30 ensayos;
+  - bordes: «ninguno» como fallo informativo (`detect3`), parada IC < 1 ΔE00 (respaldo 8°), tope de 45 por lado;
+  - calibración sí/no: γ igual a las falsas alarmas en catch, acotada a [0,02, 0,3] con ≥ 5 catch; prior 0,1–10 ΔE00; parada IC de ln α < ln 1,5 o 36 por eje; tope de 80 por sesión.
+- [x] **CIEDE2000** (`deltaE.ts`), validado con los 34 pares de Sharma et al. (2005).
+- [x] Bordes con QUEST+: catch obvios (tono +90° y +25 % de Y), 1 cada 6 y ≥ 2 por ronda. La fiabilidad se agrega en la sesión: «indeterminada» con < 5 catch, no fiable con > 25 % de «ninguno».
+- [x] Calibración QUEST+: reanudación en otra sesión con el posterior por eje (localStorage `umbral.calib.qp.resume` y `calibrationResume` en el perfil).
+- [x] **Historial completo de sesiones** en el perfil (`history`, `umbral.history.v1`, columnas si es grande).
 
-## 1. Revisión de Colorado
+## 0a. Pendiente de decisión de Lucas
+- [ ] **Calibración de 12 ejes con ajuste de elipse** (~70 ensayos, 1 sesión). Propuesta de Colorado; no implementar sin OK.
+- [ ] **Historial en IndexedDB** (migración desde el perfil en localStorage) y exportar/importar JSON. Mientras tanto, el historial no tiene límite de tamaño: vigilar la cuota de localStorage (≈ 5 MB).
+- [ ] Tamaño del parche: se queda en 4° × 2° salvo que Lucas pida otro.
+- [ ] **Activar los flags por defecto** (`?motion=v2`, `?qp=1`) solo tras probar con personas reales, Lucas primero.
+- [ ] Háptica en el resto de la app, con su OK zona por zona: respuestas del calibrador y de bordes, láminas, fin de bloque/prueba, conmutadores de cámara/filtro. Debe usar `navigator.vibrate` corto con detección de soporte, respetar `prefers-reduced-motion` y tener un interruptor.
+- [ ] Lucas debe **rehacer su perfil con la prueba nueva**. Los JSON actuales (`tests/fixtures/perfil_*.json`) solo valen como fixtures: se hicieron en el móvil al aire libre.
+
+## 0b. Fase 2 (luminancia personal), sin empezar
+- [ ] Usar los pesos `luminance.weights` en el simulador y la asistencia, para que los colores se vean más vivos. Requiere invalidar la caché de LUT y cámara: hoy la clave es `cone:createdAt` (ver §6, causa 9).
+- [ ] Reproyección de los ejes con la Y personal y recalibración de los umbrales del calibrador.
+
+## 0c. Bugs documentados, sin arreglar
+- [ ] **Bordes: sector de tono fijo como tope** (`sectorOf`, `edges.ts`). Detalle en §3.
+- [ ] **Dos vías con un solo cono débil** (`filterModel`, `spectrum.ts`). Detalle en §4.
+- [ ] Reanudación de la calibración: el perfil de la sesión reanudada solo trae el registro de esa sesión. Los umbrales sí son acumulados y el historial guarda todas las sesiones.
+
+## 0d. Futuro
+- [ ] Calibración 2AFC «qué par es distinto» con γ = 0,5 (tarea y UI nuevas).
+- [ ] Refinamiento opcional del tamaño en móvil con `screen.width`/`devicePixelRatio`.
+- [ ] Iconos PWA nativos: los de 192/512 son el de 180 px reescalado.
+- [ ] GitHub Actions: pasar a las versiones con Node 24 (`actions/checkout`, `setup-node`, `configure-pages`, `upload-pages-artifact`, `deploy-pages`; hoy v4/v4/v5/v3/v4). Revisar también la migración de la imagen `ubuntu-latest`.
+- [ ] LUT (3×33³) en el hilo principal: moverlas a un Web Worker.
+- [ ] Simulación de referencia Machado/Viénot y aviso de calibración del monitor.
+- [ ] Tests más finos de `src/lib/color` (`spectrum.ts`, `lut.ts`).
+- Láminas: **descartado**; se quedan como están (§7).
+
+## Notas
+- `tests/fixtures/` contiene los JSON del perfil de Lucas y son públicos en el repo; Lucas lo aceptó.
+- Las líneas citadas en §1–§6 son de la revisión original y pueden haberse movido. Buscar por el nombre de la función.
+
+## 1. Revisión de Colorado (abierta; comprobado el 25/10: nada de esto ha cambiado en el código)
 - **(ALTA)** Ejes L y M no son independientes tras `killLuminance` (`src/lib/color/space.ts:96-100`, `:225-231`; `src/lib/color/profile.ts:618-635`). Para protán/deután colapsan en la misma línea, `elevatedCount=2`, y no se calcula ángulo de confusión. Propuesta: ejes DKL y puntuar L/M como una sola línea de confusión.
 - **(MEDIA)** `ABS_CLOSE=0.02` (`src/lib/color/session.ts:35`) demasiado alto; bajar a ~0.006 con dithering o canvas `display-p3`/`rgba16float`.
 - **(MEDIA)** `--color-border #3a3832` contraste 1,50:1; WCAG 1.4.11 exige 3:1. Propuesta `#6b665c`.
@@ -22,12 +71,10 @@
 
 ## 2. Revisión anterior
 - ~~`npm test` falla~~ → ahora ejecuta `runSelfCheck` (pasa).
-- ~~`runSelfCheck` nunca se llama~~ → `npm test`. Faltan tests más finos de `src/lib/color`.
-- Lint: `client.server.ts` eliminado (auth); queda `prefer-const` `session.ts:144` (único error) ; los 2 warnings de hooks de React desaparecen con la migración a Svelte.
+- ~~`runSelfCheck` nunca se llama~~ → `npm test`. Los tests más finos de `src/lib/color` pasan a §0d.
+- ~~Lint: `prefer-const` en `session.ts`~~ (7a243ae); los warnings de hooks de React desaparecieron con Svelte.
 - ~~Hooks: cleanup de `videoRef` / dependencia faltante en edges~~ → resuelto en la versión Svelte (`AssistCamera.svelte` para la cámara al desmontar, verificado).
-- LUTs (3×33³) en el hilo principal → mover a Web Worker.
-- Añadir simulación de referencia Machado/Viénot.
-- Aviso de calibración del monitor.
+- LUT en un Worker, simulación de referencia y aviso de monitor: ver §0d.
 
 ## 3. Bug bordes (B)
 Causas:
@@ -65,11 +112,11 @@ Estrategia:
 - **Consecuencia (ALTA):** los estímulos “isoluminantes” lo son para V(λ) del observador estándar, no para un protán. Para Lucas los rojos se ven más oscuros → (a) el test de umbrales tiene una pista de brillo que contamina los umbrales (puede separar por brillo, no por color); (b) el simulador/asistencia parten de una Y que no es la suya.
 
 ### Prueba que sí mide su luminancia: movimiento mínimo
-- `motion.ts` + `components/motion.tsx`: movimiento mínimo a 1 Hz (`MOTION_HZ`, `motion.ts:5`), 8 franjas; método en `motion.ts:668`.
+- `motion.ts` + `components/motion.tsx` (hoy `MotionTest.svelte`): movimiento mínimo a 1 Hz (`MOTION_HZ`, `motion.ts:5`), 8 franjas; método en `motion.ts:668`.
 - Pares: `pairOf` (`motion.ts:218-224`): test = color×`gain`; referencia = gris `ANCHOR` para `control`/`extremo`, o el eje abierto vecino.
 - Ganancia limitada: `MIN_GAIN 0.35`, `MAX_GAIN 3.5` (`motion.ts:11-12`); escalera seek/down/up/bisect, `TRIAL_CAP 48`.
 - Solo se prueban ejes “abiertos” (`openAxes`, `motion.ts:118-125`: `threshold >= floor*1.6`, sin `upper-bound`/`closed`). Si L/M colapsaron o el rojo quedó `closed`/`upper-bound`, **el rojo afectado no se mide**.
-- Guardado: `calibrator.tsx:89-91` → `attachLuminance` (`motion.ts:680`) → `profile.luminance`; `orderLuminance` (`motion.ts:589-666`) puede reetiquetar `bound` como `"unconverged"` si no hubo “quieto” ni cruce ≤ 0,12.
+- Guardado: `calibrator.tsx:89-91` (hoy `Calibrator.svelte`, `takeLuminance`) → `attachLuminance` (`motion.ts:680`) → `profile.luminance`; `orderLuminance` (`motion.ts:589-666`) puede reetiquetar `bound` como `"unconverged"` si no hubo “quieto” ni cruce ≤ 0,12.
 
 ### Cómo lo usan los filtros
 - `lumaFromProfile` (`spectrum.ts:35-52`): necesita una regla `control` convergida; **si no la hay devuelve `[]` y se ignora toda la luminancia medida**. Divide por la regla y descarta |gain−1| < 0,015. Las mediciones `unconverged` se recuperan solo si el bracket es ≤ 0,12 (`matchGain`, `:54-64`).
@@ -96,7 +143,7 @@ Estrategia:
 - `luminance.matches[].samples[].{gain, yRatio, sign, answer, tooBright, test, reference}`.
 - Comprobar: ¿hay `control` convergido? ¿hay match del rojo (`l`/`red-end`)? ¿`gain` en 3,5 o `bound` ≠ `estimate`?
 
-### Evidencia en los JSON de Lucas (`/workspace/adan-json/`)
+### Evidencia en los JSON de Lucas (`/workspace/adan-json/`, copiados en `tests/fixtures/`)
 - `perfil_56KB.json`: `umbral.profile.v2`, `createdAt` 2026-10-25T09:54:28Z. Sin `fit.space`. `fit.controlAbs 0.024`, `elevatedCount 1`, `severity 0.737`, `confusionAngleDeg 11.1`, `timesControl 3.8` ('at-least'). Móvil Android, gamut sRGB.
   - Ejes: `l` 11.1° T 0.0608 (estimate); `red-end` 0° T 0.0796 (estimate); `m` −156.7° T 0.0322; `control` −37° («anaranjado») T 0.024; `s` y `blue-end` cerrados (upper-bound).
   - `luminance.matches` (4, 38 muestras, todas `estimate`; ninguna `unconverged`; ninguna en el tope 0,35/3,5):
@@ -133,24 +180,6 @@ Conclusión: se confirma que el brillo de los rojos afectados no se aplica; el s
 - [BAJA] El control es demasiado fácil.
 
 
-- [x] Movimiento v2: campo central de 4° × 2° con cruz de fijación acromática (aprobado por Lucas, 25/10).
-
-## Háptica
-- [ ] Extender la háptica suave (`navigator.vibrate` corto, con detección de soporte, respetando `prefers-reduced-motion` y un interruptor del usuario) a otras partes de la app: respuestas del calibrador, respuestas de la prueba de bordes, interacciones de las láminas, fin de bloque/prueba, y conmutadores de cámara/filtro. Lucas lo quiere; se implementa más adelante y necesita su OK en cada zona. (En movimiento v2 va con la retícula.)
-
-## QUEST+ (tras flag `?qp=1`)
-- [x] Regla de parada de Colorado aplicada (movimiento ln 1,10 / 30; bordes IC < 1 ΔE00, respaldo 8°, / 45).
-- [x] Calibración QUEST+: tope 80 por sesión y reanudación del posterior por eje (localStorage + perfil).
-- [x] Catch de bordes con +25 % de Y.
-- [x] Bordes: fiabilidad agregada en la sesión, ≥ 1 catch por ronda.
-- [x] Bordes: 2 catch por ronda (sesión de 3 rondas ⇒ 6 catch, ya no «indeterminada»).
-- [x] Calibración: parada relativa ln 1,5 (sin 1 ΔE00 absoluto).
-- [ ] Pendiente de Lucas: calibración de 12 ejes con ajuste de elipse.
-- [ ] Pendiente de Lucas: historial en IndexedDB (migración) y exportar/importar.
-- [x] Prior de calibración 0,1–10 ΔE00 y 36 ensayos/eje.
-- [x] Historial completo de sesiones en el perfil (`umbral.history.v1`).
-- [ ] Historial: sin límite de tamaño; vigilar la cuota de localStorage (≈ 5 MB).
-- [ ] Reanudación: el perfil de la sesión reanudada solo trae el registro de esa sesión (los umbrales sí son acumulados).
-- [x] Calibración sí/no con QUEST+ tras `?qp=1` (provisional).
-- [ ] Futuro: calibración 2AFC «qué par es distinto» con γ = 0,5 (tarea y UI nuevas).
-- [x] β, δ y σ del prior fijados por Colorado.
+## 8. QUEST+: notas abiertas
+- Coste en simulación (PLAN-questplus §10): la calibración con parada ln 1,5 necesita ~160–190 ensayos en 2,5–3 sesiones de 80.
+- La 12 ejes (§0a) lo reduciría a ~70 en 1 sesión.

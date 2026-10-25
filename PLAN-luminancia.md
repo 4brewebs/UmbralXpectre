@@ -95,7 +95,7 @@ No se itera más de una vez.
 10. Quitar el flag y el código 1 Hz.
 
 ## 5. Tests
-- Arreglar antes `npm test` (glob inexistente, TODO §2) y llamar a `runSelfCheck`.
+- ~~Arreglar antes `npm test` (glob inexistente, TODO §2) y llamar a `runSelfCheck`.~~ Hecho.
 - Unitarios: `luminance` con w; `predictedMatch`; solver (casos degenerados: un solo match, colinealidad → regularización); QUEST converge con observador simulado (protán/deután/tritán/normal); se amplía el rango al tocar el tope; no hay pares rojo-rojo en los objetivos; siempre hay control y catch.
 - Migración: v1/v2 → v3; `perfil_56KB.json` ⇒ `weights` = predicción, `legacy` conservado; `edges.v1` sigue cargando.
 - Filtro: protán ⇒ `#FF0000` se oscurece en el simulador y se aclara (≤ 2×) en la asistencia; normal ⇒ identidad.
