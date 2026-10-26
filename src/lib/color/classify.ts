@@ -61,11 +61,19 @@ function redEfficiency(profile: UmbralProfile) {
   const red = matches.find((m) => m.id === "rojo" && m.kind === "test" && m.atLeast !== true && m.bound !== "unconverged");
   const eff = red && typeof red.efficiency === "number" ? red.efficiency : null;
   if (eff == null || !(eff > 0)) return null;
-  // `width`: semiancho del IC en log (eficiencia · e^±width).
-  const w = typeof red!.width === "number" && red!.width > 0 ? red!.width : 0;
+  // `width` (motion2.measuredMatches, rama QUEST+) = exp(hi − lo) − 1, con lo/hi los cuantiles 2,5 y 97,5 de la
+  // posterior de ln e (questplus.estimate): anchura COMPLETA del IC 95 % en log. lo/hi no se guardan, así que el IC
+  // se reconstruye centrado en la media: e · exp(±ln(1 + width) / 2). (Rama escalera: 2(exp(ci) − 1), equivalente.)
+  const w = typeof red!.width === "number" && red!.width > 0 ? Math.log(1 + red!.width) / 2 : 0;
   return { efficiency: eff, lo: eff * Math.exp(-w), hi: eff * Math.exp(w) };
 }
 
+/**
+ * Los tricrómatas anómalos (protanómalos/deuteranómalos) no caen exactamente sobre las líneas copuntuales de los
+ * dicrómatas: su banda de confusión queda cerca, pero desplazada. Por eso los bordes solo desempatan (si la
+ * luminancia no decide) o confirman; si contradicen la luminancia, el tipo queda sin determinar. Nunca deciden solos
+ * frente a una luminancia clara.
+ */
 function edgeHint(files: EdgeFile[]) {
   const file = files.find((f) => (f.cone === "l" || f.cone === "m") && f.band === "closed" && f.minus?.found && f.plus?.found && f.minus.angleDeg != null && f.plus.angleDeg != null);
   if (!file) return null;
@@ -123,16 +131,16 @@ export function classify(profile: UmbralProfile, edges: EdgeFile[] = []): Classi
   }
   const compatible: Compatible = rg && by ? "mixed" : by ? "tritan" : rg ? (rgType ?? "red-green-undetermined") : "none";
   const fmt = (g: AxisGroup) => `${g.name.toLowerCase()} (${g.ratio != null ? g.ratio.toFixed(1).replace(".", ",") : "?"}× el control)`;
-  const rgLabel = rgType === "protan" ? "compatible con protán" : rgType === "deutan" ? "compatible con deután" : "tipo sin determinar";
+  const rgLabel = rgType === "protan" ? "compatible con tipo protán" : rgType === "deutan" ? "compatible con tipo deután" : "tipo sin determinar";
   const text =
     compatible === "none"
       ? "Sin alteración medida: los dos ejes aguantan el paso del control."
       : compatible === "tritan"
-        ? `Compatible con tritán: elevado el ${fmt(groups[1])}.`
+        ? `Compatible con tipo tritán (azul–amarillo): elevado el ${fmt(groups[1])}.`
         : compatible === "mixed"
           ? `Mixto: elevados el ${fmt(groups[0])} (${rgLabel}) y el ${fmt(groups[1])}.`
           : rgType
-            ? `Compatible con ${rgType === "protan" ? "protán" : "deután"}: elevado el ${fmt(groups[0])}.`
+            ? `Compatible con tipo ${rgType === "protan" ? "protán" : "deután"} (rojo–verde): elevado el ${fmt(groups[0])}.`
             : `Elevado el ${fmt(groups[0])}; tipo sin determinar.`;
   return { groups, compatible, redGreenType: rgType, luminance: lum, edgeHint: hint, reason, text, disclaimer: DISCLAIMER };
 }

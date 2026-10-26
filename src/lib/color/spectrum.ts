@@ -1009,32 +1009,6 @@ export function filterTexts(axes: AxisMark[], floor: number, region?: Sector[]):
   return { simulate, assist, extreme, pairs };
 }
 
-export function coneBlurb(pathway: Pathway): string {
-  if (pathway.kind === "upper-bound" || !pathway.elevated) {
-    return "En esta pantalla los separas al nivel del control, o mejor. Esta vía no queda afectada.";
-  }
-  const times = pathway.timesControl ?? pathway.threshold;
-  if (times >= 5) {
-    const name = CONE_MARKS.find((m) => m.id === pathway.id)?.name.toLowerCase() ?? pathway.id;
-    const where = `El tono no desaparece: la vía de los ${name} se monta sobre la vecina en un ángulo estrecho.`;
-    return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control, en esa dirección. ${where}`;
-  }
-  return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control. Queda afectada, sin cerrarse del todo.`;
-}
-
-export function coneLead(pathways: Pathway[]): string {
-  const high = pathways.filter((p) => p.elevated);
-  const name = (id: string) => CONE_MARKS.find((m) => m.id === id)?.name.toLowerCase() ?? id;
-  if (high.length === 0) return "Las tres vías aguantan el paso pequeño. El arcoíris de abajo no se apaga.";
-  if (high.length === 1) return `Pierde contraste la vía de los ${name(high[0].id)}. Las otras dos siguen.`;
-  const sorted = [...high].sort((a, b) => b.threshold - a.threshold);
-  const base = `Pierden contraste los ${sorted.map((p) => name(p.id)).join(" y los ")}.`;
-  if (sorted[0].threshold >= sorted[1].threshold * 2) {
-    return `${base} La de los ${name(sorted[0].id)} queda mucho más corta.`;
-  }
-  return `${base} No es una sola vía.`;
-}
-
 export function coneOrder(pathways: Pathway[]): Pathway[] {
   const rank = ["s", "m", "l"];
   return [...pathways].sort((a, b) => rank.indexOf(a.id) - rank.indexOf(b.id));

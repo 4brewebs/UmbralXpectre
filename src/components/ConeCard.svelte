@@ -89,7 +89,7 @@
 
 <section class="flex flex-col gap-6 border-t border-border pt-8">
   <div>
-    <h2 class="font-serif text-2xl text-fg">Tus conos</h2>
+    <h2 class="font-serif text-2xl text-fg">Tu visión del color</h2>
     <p class="mt-2 text-base leading-relaxed text-fg">{kind.text}</p>
     <p class="mt-1 text-xs text-muted">{kind.disclaimer}</p>
   </div>

@@ -92,7 +92,7 @@ test("clasificación: real → compatible con protán (eficiencia 0,666)", () =>
   const c = classify(real);
   assert.equal(c.compatible, "protan");
   assert.ok(Math.abs(c.luminance!.efficiency - 0.6664) < 1e-4);
-  assert.match(c.text, /^Compatible con protán/);
+  assert.match(c.text, /^Compatible con tipo protán \(rojo–verde\)/);
   assert.match(c.disclaimer, /no es un diagnóstico/);
   assert.deepEqual(c.groups.map((g) => g.name), ["Eje rojo–verde", "Eje azul–amarillo"]);
 });
