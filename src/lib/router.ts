@@ -1,5 +1,5 @@
 /**
- * Router por hash (sin dependencias). Rutas de menú y de fase; las antiguas redirigen;
+ * Router por hash (sin dependencias). Rutas de menú y de fase; las desconocidas van a #/inicio;
  * las fases que necesitan un perfil guardado vuelven a #/inicio con aviso si no lo hay.
  */
 export const MENU_ROUTES = ["inicio", "nuevo", "importar", "perfiles", "sesiones"] as const;
@@ -8,26 +8,6 @@ export type Route = (typeof MENU_ROUTES)[number] | (typeof PHASE_ROUTES)[number]
 
 /** Fases que no tienen sentido sin un perfil. `#/perfil` crea uno, así que no lo necesita. */
 export const NEEDS_PROFILE: readonly Route[] = ["movimiento", "repaso", "resultado", "camara"];
-
-/** Rutas antiguas o alias → ruta nueva. */
-export const LEGACY: Readonly<Record<string, Route>> = {
-  "": "inicio",
-  intro: "inicio",
-  home: "inicio",
-  calibrar: "nuevo",
-  calibrador: "nuevo",
-  calibracion: "perfil",
-  test: "perfil",
-  luminancia: "movimiento",
-  motion: "movimiento",
-  review: "repaso",
-  done: "resultado",
-  resultados: "resultado",
-  bordes: "resultado",
-  cam: "camara",
-  "cámara": "camara",
-  importar_json: "importar",
-};
 
 export const NO_PROFILE_NOTICE = "Esa fase necesita un perfil. Empieza de cero, importa uno o elige un perfil guardado.";
 
@@ -44,7 +24,7 @@ export const hashOf = (route: Route) => `#/${route}`;
 
 export function resolveRoute(hash: string, hasProfile: boolean): Resolved {
   const raw = decodeURIComponent(hash.replace(/^#\/?/, "").split("?")[0]).replace(/\/+$/, "").toLowerCase();
-  let route: Route = ALL.includes(raw) ? (raw as Route) : (LEGACY[raw] ?? "inicio");
+  let route: Route = ALL.includes(raw) ? (raw as Route) : "inicio";
   let notice: string | null = null;
   if (NEEDS_PROFILE.includes(route) && !hasProfile) {
     route = "inicio";

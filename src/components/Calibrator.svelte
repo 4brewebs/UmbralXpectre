@@ -22,7 +22,7 @@
   import MotionTestV2 from "./MotionTestV2.svelte";
   import MotionTestV3 from "./MotionTestV3.svelte";
   import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
-  import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
+  import { ANCHOR } from "@/lib/color/space";
   import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
@@ -283,7 +283,7 @@
 </script>
 
 {#if fading}
-  <div class="fundido" style:--gris={cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]))} style:--dur={`${FADE_MS}ms`} data-testid="fundido" aria-hidden="true"></div>
+  <div class="fundido" style:--dur={`${FADE_MS}ms`} data-testid="fundido" aria-hidden="true"></div>
 {/if}
 
 <main class="mx-auto flex min-h-screen w-full max-w-xl flex-col px-5 py-8 sm:py-14">
@@ -380,12 +380,13 @@
 </main>
 
 <style>
-  /* Negro de la portada → gris de anclaje del test, a pantalla completa, antes del primer ensayo. */
+  /* Negro de la portada → color de entorno de la app durante el test (el fondo del body, --color-bg,
+     igual que en 973dd0e), a pantalla completa, antes del primer ensayo. */
   .fundido {
     position: fixed;
     inset: 0;
     z-index: 70;
-    background: var(--gris);
+    background: var(--color-bg);
     animation: fundido var(--dur) linear both;
   }
   @keyframes fundido {
@@ -393,7 +394,7 @@
       background: #000;
     }
     to {
-      background: var(--gris);
+      background: var(--color-bg);
     }
   }
 </style>

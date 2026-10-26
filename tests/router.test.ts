@@ -7,10 +7,8 @@ test("router: la raíz y lo desconocido van a #/inicio", () => {
   assert.equal(resolveRoute("#/inicio", false).redirect, null);
 });
 
-test("router: rutas antiguas redirigen", () => {
-  assert.equal(resolveRoute("#/calibrador", false).redirect, "#/nuevo");
-  assert.equal(resolveRoute("#/resultados", true).redirect, "#/resultado");
-  assert.equal(resolveRoute("#/intro", true).route, "inicio");
+test("router: sin alias de rutas antiguas; lo desconocido va a #/inicio", () => {
+  for (const h of ["#/calibrador", "#/resultados", "#/intro", "#/motion"]) assert.deepEqual(resolveRoute(h, true), { route: "inicio", redirect: "#/inicio", notice: null });
 });
 
 test("router: guardas de perfil", () => {
