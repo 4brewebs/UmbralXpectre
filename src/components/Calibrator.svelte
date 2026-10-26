@@ -22,6 +22,7 @@
   import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
+  import { clearEdges, loadEdges, saveEdges } from "@/lib/color/edgestore";
 
   type Phase = "intro" | "run" | "motion" | "done";
 
@@ -59,6 +60,12 @@
   let stored = $state.raw<UmbralProfile | null>(null);
   let copied = $state(false);
   let edgeFiles = $state.raw<Partial<Record<ConeId, EdgeFile>>>({});
+  let edgesStale = $state(false);
+
+  function setEdges(next: Partial<Record<ConeId, EdgeFile>>) {
+    edgeFiles = next;
+    saveEdges(ls, next);
+  }
 
   let motionUi = $state<MotionUi>("legacy");
   const motionV2 = $derived(motionUi !== "legacy");
@@ -119,6 +126,10 @@
       }
       profile = built;
       persistProfile(built);
+      // Perfil nuevo: los bordes guardados ya no valen.
+      edgeFiles = {};
+      edgesStale = false;
+      clearEdges(ls);
       stored = built;
       phase = "motion";
     }
@@ -161,11 +172,17 @@
   });
 
   function keep(parsed: UmbralProfile) {
+    const changed = profile?.createdAt !== parsed.createdAt;
     persistProfile(parsed);
     stored = parsed;
     profile = parsed;
     copied = false;
-    edgeFiles = {};
+    // Solo se vacían si cambia el perfil; se restauran los guardados que encajan (basedOn.createdAt).
+    if (changed || !Object.keys(edgeFiles).length) {
+      const restored = loadEdges(ls, parsed);
+      edgeFiles = restored.files;
+      edgesStale = restored.stale;
+    }
     phase = "done";
   }
 
@@ -237,8 +254,14 @@
       onMotion={() => (phase = "motion")}
       onMotionV2={motionV2 ? () => (phase = "motion") : undefined}
       {edgeFiles}
+      {edgesStale}
+      onEdgeImport={(file) => {
+        setEdges({ ...edgeFiles, [file.cone]: file });
+        edgesStale = false;
+      }}
       onEdgeFile={(file) => {
-        edgeFiles = { ...edgeFiles, [file.cone]: file };
+        setEdges({ ...edgeFiles, [file.cone]: file });
+        edgesStale = false;
         if (profile) {
           const enriched = appendHistory(profile, historyEntry("edges", file.reliability ? "quest+" : "staircase", null, file.trials));
           persistProfile(enriched);

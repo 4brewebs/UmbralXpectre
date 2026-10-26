@@ -9,6 +9,7 @@
   import AssistCamera from "./AssistCamera.svelte";
   import EdgeTest from "./EdgeTest.svelte";
   import ImportJson from "./ImportJson.svelte";
+  import { STALE_EDGES_NOTE } from "@/lib/color/edgestore";
 
   let {
     profile,
@@ -20,7 +21,9 @@
     onMotion,
     onMotionV2,
     edgeFiles,
+    edgesStale = false,
     onEdgeFile,
+    onEdgeImport,
   }: {
     profile: UmbralProfile;
     copied: boolean;
@@ -31,7 +34,9 @@
     onMotion: () => void;
     onMotionV2?: () => void;
     edgeFiles: Partial<Record<ConeId, EdgeFile>>;
+    edgesStale?: boolean;
     onEdgeFile: (file: EdgeFile) => void;
+    onEdgeImport?: (file: EdgeFile) => void;
   } = $props();
 
   type Matches = NonNullable<UmbralProfile["luminance"]>["matches"];
@@ -201,7 +206,7 @@
         onclick={onCopy}
         class="inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-border text-base text-fg"
       >{#if copied}<Check class="size-4" aria-hidden="true" />{:else}<Copy class="size-4" aria-hidden="true" />{/if}{copied ? "Copiado" : "Copiar JSON"}</button>
-      <ImportJson onProfile={onImport} />
+      <ImportJson onProfile={onImport} edgeProfile={profile} onEdges={onEdgeImport} />
     </div>
     <button
       type="button"
@@ -209,6 +214,9 @@
       onclick={downloadTransforms}
       class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-border text-base text-fg disabled:opacity-50"
     ><Download class="size-4" aria-hidden="true" />{baking ? "Preparando transformaciones…" : "Descargar JSON transformaciones"}</button>
+    {#if edgesStale}
+      <p class="text-sm text-muted" data-testid="edges-stale">{STALE_EDGES_NOTE}.</p>
+    {/if}
     {#each elevated as pathway (pathway.id)}
       {@const cone = pathway.id as ConeId}
       {@const name = cone === "l" ? "rojos" : cone === "m" ? "verdes" : "azules"}
