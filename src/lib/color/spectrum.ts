@@ -540,6 +540,8 @@ export type Sector = {
   scale: number;
   /** Escala a la que se midieron los bordes (fallo en el borde). */
   edgeScale?: number;
+  /** T del perfil en log entre los ejes medidos (como el mapa): el techo radial es max(1,5·scale, 1,5·T_perfil(ángulo)). */
+  profileT?: { floor: number; points: Array<{ deg: number; ratio: number }> };
   provisional: boolean;
 };
 /** Transición coseno (C1) de 12° (Extremo 14°) en cada extremo, ensanchada al calibrar la ganancia con T/floor ≥ 1,6; los lados provisionales corrigen al 70 %. */
@@ -623,6 +625,7 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
       // Profundidad: max(estimación, edgeScale si el pico falló), ≥ floor, techo = umbral del eje (Colorado, 26/10).
       scale: (usable && fileDepth(usable, floor, axis.threshold)) ?? axis.threshold,
       ...(usable ? { edgeScale: usable.edgeScale } : {}),
+      profileT: { floor, points: confusionPoints(axes, floor, []).points },
       provisional: minus.provisional || plus.provisional,
     });
   }
@@ -638,7 +641,9 @@ export function regionInfo(theta: number, radius: number, sectors: Sector[], sof
     const sideDeg = rel >= 0 ? sct.hiDeg - sct.centerDeg : sct.centerDeg - sct.loDeg;
     const outside = Math.max(0, Math.abs(rel) - sideDeg);
     const ws = 1 - smoothstep(0, softDeg, outside);
-    const wr = 1 - smoothstep(sct.scale, sct.scale * (1 + REGION.scaleSoft), radius);
+    // Techo radial (Colorado, 26/10): max(1,5·depth, 1,5·T_perfil(ángulo)); si depth > T manda depth. El ángulo sigue acotado por los bordes.
+    const base = sct.profileT ? Math.max(sct.scale, confusionT(sct.profileT.points, sct.profileT.floor, deg)) : sct.scale;
+    const wr = 1 - smoothstep(base, base * (1 + REGION.scaleSoft), radius);
     const w = ws * wr;
     if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
   }
@@ -801,6 +806,11 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
  * La exigencia sube con lo lejos que está el color del gris: smoothstep(0, nearFrac · T, |p|), para no pedir separar
  * colores que ya casi son gris. Si con k = kMax (y los topes de giro, croma, esquinas y gamut) no se llega, se aplica
  * el máximo permitido y el color queda «limitado por tope».
+ */
+/*
+ * Deután (perfil sintético m = 5×): el 96–99 % de los nodos activos quedan «limitado por tope». No es la calibración:
+ * con kMax 4, 8, 20 o 100 la proporción no cambia. Frenan el giro (45°/60°) y el croma (≤ 2,5×): el destino blue-end
+ * está a ~95° de m y la diferencia sigue en tonos de T alto. Se deja así (Colorado, 26/10) y el JSON lo marca.
  */
 export const ADAPTIVE = { target: 1.5, targetExtreme: 2, kMax: 4, kMaxExtreme: 4, nearFrac: 0.5, iters: 14 };
 
