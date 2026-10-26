@@ -55,7 +55,7 @@
  "fit": {
   "method": "Peak absolute distance in linear sRGB (unit direction × scale), compared with the control. Gamut fraction is not the rank: a short-gamut axis must not look worse just because it clips sooner.",
   "severity": 0,
-  "timesControl": 1.3,
+  "timesControl": 1.1,
   "timesControlKind": "estimate",
   "controlBounded": false,
   "peakAbs": null,
@@ -78,18 +78,18 @@
    {
     "id": "l",
     "hue": "rojizo",
-    "threshold": 0.0513,
+    "threshold": 0.0412,
     "kind": "estimate",
-    "timesControl": 1.3,
+    "timesControl": 1.1,
     "elevated": false,
     "sameLineAs": null
    },
    {
     "id": "m",
     "hue": "verdoso",
-    "threshold": 0.0479,
+    "threshold": 0.0419,
     "kind": "estimate",
-    "timesControl": 1.2,
+    "timesControl": 1.1,
     "elevated": false,
     "sameLineAs": null
    }
@@ -154,14 +154,13 @@
    "parentId": null,
    "angleDeg": 11.1,
    "maxScale": 0.217,
-   "threshold": 0.0513,
+   "threshold": 0.0412,
    "thresholdNorm": 0.19,
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 5,
    "order": 3,
-   "thresholdStandardY": 0.0412,
-   "thresholdSource": "review-measured"
+   "thresholdSource": "review-unreliable"
   },
   {
    "id": "m",
@@ -172,14 +171,13 @@
    "parentId": null,
    "angleDeg": -156.7,
    "maxScale": 0.2204,
-   "threshold": 0.0479,
+   "threshold": 0.0419,
    "thresholdNorm": 0.19,
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 6,
    "order": 4,
-   "thresholdStandardY": 0.0419,
-   "thresholdSource": "review-measured"
+   "thresholdSource": "review-unreliable"
   },
   {
    "id": "red-end",
@@ -2202,7 +2200,7 @@
   "axes": [
    {
     "id": "l",
-    "threshold": 0.0513,
+    "threshold": 0.0506,
     "thresholdStandardY": 0.0412,
     "lo": 0.0384,
     "hi": 0.0669,
@@ -2210,10 +2208,10 @@
    },
    {
     "id": "m",
-    "threshold": 0.0479,
+    "threshold": 0.0456,
     "thresholdStandardY": 0.0419,
     "lo": 0.034,
-    "hi": 0.073,
+    "hi": 0.0635,
     "trials": 12
    }
   ],
@@ -2221,6 +2219,22 @@
    "shown": 5,
    "falseAlarms": 0
   },
+  "gamma": 0.02,
+  "status": "review-unreliable",
+  "unreliable": [
+   {
+    "id": "l",
+    "reasons": [
+     "original-inside-ci"
+    ]
+   },
+   {
+    "id": "m",
+    "reasons": [
+     "original-inside-ci"
+    ]
+   }
+  ],
   "trials": [
    {
     "order": 1,
@@ -2275,7 +2289,8 @@
     "lumEps": [
      0.061948,
      0.041485
-    ]
+    ],
+    "dEps": -0.020463
    },
    {
     "order": 6,
@@ -2330,7 +2345,8 @@
     "lumEps": [
      0.076385,
      -0.044737
-    ]
+    ],
+    "dEps": -0.121122
    },
    {
     "order": 11,
@@ -2385,7 +2401,8 @@
     "lumEps": [
      0.02069,
      0.031795
-    ]
+    ],
+    "dEps": 0.011105
    },
    {
     "order": 16,
@@ -2440,7 +2457,8 @@
     "lumEps": [
      0.010102,
      -0.04953
-    ]
+    ],
+    "dEps": -0.059632
    },
    {
     "order": 21,
@@ -2495,7 +2513,8 @@
     "lumEps": [
      0.029586,
      0.06828
-    ]
+    ],
+    "dEps": 0.038694
    },
    {
     "order": 26,
@@ -2511,7 +2530,7 @@
    {
     "order": 27,
     "axis": "m",
-    "scale": 0.05926,
+    "scale": 0.05529,
     "different": true,
     "catch": false,
     "lumEps": [
@@ -2522,7 +2541,7 @@
    {
     "order": 28,
     "axis": "l",
-    "scale": 0.05827,
+    "scale": 0.05436,
     "different": true,
     "catch": false,
     "lumEps": [
@@ -2533,7 +2552,7 @@
    {
     "order": 29,
     "axis": "m",
-    "scale": 0.05529,
+    "scale": 0.05158,
     "different": true,
     "catch": false,
     "lumEps": [

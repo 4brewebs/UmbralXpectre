@@ -91,180 +91,119 @@
   [
    [
     120,
-    132,
-    131
-   ],
-   [
-    138,
-    127,
-    127
-   ],
-   [
-    138,
-    127,
-    127
-   ],
-   [
-    138,
-    127,
-    127
-   ]
-  ],
-  [
-   [
-    138,
-    127,
-    128
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    120,
-    132,
-    130
-   ]
-  ],
-  [
-   [
-    138,
-    126,
-    129
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    138,
-    126,
-    129
-   ],
-   [
-    138,
-    126,
-    129
-   ]
-  ],
-  [
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    138,
-    127,
-    128
-   ],
-   [
-    138,
-    127,
-    128
-   ],
-   [
-    138,
-    127,
-    128
-   ]
-  ],
-  [
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    138,
-    127,
-    128
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    120,
-    132,
-    130
-   ]
-  ],
-  [
-   [
-    120,
-    132,
-    131
-   ],
-   [
-    120,
-    132,
-    131
-   ],
-   [
-    120,
-    132,
-    131
-   ],
-   [
-    138,
-    127,
-    128
-   ]
-  ],
-  [
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    120,
-    132,
-    130
-   ],
-   [
-    138,
-    127,
-    128
-   ]
-  ],
-  [
-   [
     131,
-    128,
-    138
+    133
    ],
    [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
+   ]
+  ],
+  [
+   [
+    137,
+    127,
+    125
+   ],
+   [
+    120,
     131,
-    128,
-    138
+    133
    ],
    [
+    120,
     131,
-    128,
-    138
+    133
    ],
    [
-    141,
-    145,
+    120,
+    131,
     133
    ]
   ],
   [
+   [
+    137,
+    127,
+    125
+   ],
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    137,
+    127,
+    125
+   ],
+   [
+    137,
+    127,
+    125
+   ]
+  ],
+  [
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
+   ]
+  ],
+  [
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    137,
+    127,
+    125
+   ],
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    120,
+    131,
+    133
+   ]
+  ],
+  [
+   [
+    127,
+    131,
+    120
+   ],
    [
     127,
     131,
@@ -279,28 +218,331 @@
     145,
     141,
     153
-   ],
-   [
-    127,
-    131,
-    120
    ]
   ],
   [
    [
     120,
     131,
-    132
+    133
+   ],
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    120,
+    131,
+    133
+   ],
+   [
+    137,
+    127,
+    125
+   ]
+  ],
+  [
+   [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
+   ],
+   [
+    137,
+    127,
+    126
    ],
    [
     120,
     131,
     132
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    131
+   ],
+   [
+    120,
+    132,
+    131
+   ],
+   [
+    138,
+    127,
+    127
+   ],
+   [
+    120,
+    132,
+    131
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    127,
+    128
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    138,
+    127,
+    128
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    127,
+    128
+   ],
+   [
+    138,
+    127,
+    128
+   ]
+  ],
+  [
+   [
+    138,
+    127,
+    128
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    126,
+    128
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    127,
+    128
+   ]
+  ],
+  [
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    131,
+    128,
+    138
+   ],
+   [
+    141,
+    145,
+    133
+   ],
+   [
+    131,
+    128,
+    138
+   ],
+   [
+    131,
+    128,
+    138
+   ]
+  ],
+  [
+   [
+    138,
+    126,
+    129
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    138,
+    127,
+    128
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ],
+   [
+    120,
+    132,
+    130
+   ]
+  ],
+  [
+   [
+    120,
+    131,
+    131
    ],
    [
     120,
     131,
-    132
+    131
+   ],
+   [
+    120,
+    131,
+    131
    ],
    [
     138,
@@ -310,90 +552,90 @@
   ],
   [
    [
-    115,
-    133,
-    133
+    136,
+    127,
+    127
    ],
    [
-    115,
-    133,
-    133
+    122,
+    131,
+    131
    ],
    [
-    141,
-    126,
-    125
+    122,
+    131,
+    131
    ],
    [
-    115,
-    133,
-    133
+    122,
+    131,
+    131
    ]
   ],
   [
    [
-    139,
-    126,
-    126
+    136,
+    127,
+    127
    ],
    [
-    118,
-    132,
-    132
+    122,
+    131,
+    131
    ],
    [
-    139,
-    126,
-    126
+    122,
+    131,
+    131
    ],
    [
-    139,
-    126,
-    126
+    122,
+    131,
+    131
    ]
   ],
   [
    [
-    138,
-    126,
-    126
+    123,
+    131,
+    131
    ],
    [
-    119,
-    132,
-    132
+    135,
+    127,
+    128
    ],
    [
-    119,
-    132,
-    132
+    135,
+    127,
+    128
    ],
    [
-    119,
-    132,
-    132
+    135,
+    127,
+    128
    ]
   ],
   [
    [
-    118,
-    132,
-    132
+    135,
+    127,
+    128
    ],
    [
-    118,
-    132,
-    132
+    123,
+    131,
+    131
    ],
    [
-    118,
-    132,
-    132
+    123,
+    131,
+    131
    ],
    [
-    139,
-    126,
-    126
+    123,
+    131,
+    131
    ]
   ]
  ],
@@ -429,39 +671,39 @@
    "found": true,
    "toEnd": false,
    "result": "found",
-   "angleDeg": -8.9,
-   "insideDeg": -4.5,
-   "outsideDeg": -12,
+   "angleDeg": -8.3,
+   "insideDeg": -5,
+   "outsideDeg": -11.5,
    "qp": {
-    "ciDeg": 7.5,
-    "ciDeltaE00": 0.9196,
+    "ciDeg": 6.5,
+    "ciDeltaE00": 0.7971,
     "deg1DeltaE": 8.5,
-    "trials": 1
+    "trials": 8
    }
   },
   "plus": {
    "found": true,
    "toEnd": false,
    "result": "found",
-   "angleDeg": 7.2,
-   "insideDeg": 4,
-   "outsideDeg": 13.5,
+   "angleDeg": 9.4,
+   "insideDeg": 6.5,
+   "outsideDeg": 14,
    "qp": {
-    "ciDeg": 9.5,
-    "ciDeltaE00": 0.9611,
+    "ciDeg": 7.5,
+    "ciDeltaE00": 0.7448,
     "deg1DeltaE": 9.4,
-    "trials": 4
+    "trials": 8
    }
   },
   "depth": {
-   "angleDeg": -0.8,
-   "scale": 0.0398,
+   "angleDeg": 0.5,
+   "scale": 0.0346,
    "bound": "estimate",
    "ceiling": 0.0675
   },
   "confirmed": {
-   "minus": -8.9,
-   "plus": 7.2
+   "minus": -8.3,
+   "plus": 9.4
   },
   "trials": [
    {
@@ -565,11 +807,216 @@
    {
     "order": 5,
     "phase": "edge",
-    "side": "plus",
-    "angleDeg": 4,
+    "side": "minus",
+    "angleDeg": -7.5,
     "scale": 0.0346,
     "oddIndex": 0,
     "oddSign": -1,
+    "picked": [],
+    "none": true,
+    "kind": "none",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     126
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 6,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -9,
+    "scale": 0.0346,
+    "oddIndex": 0,
+    "oddSign": 1,
+    "picked": [],
+    "none": true,
+    "kind": "none",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     125
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 7,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -8,
+    "scale": 0.0346,
+    "oddIndex": 1,
+    "oddSign": -1,
+    "picked": [
+     1
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     125
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 8,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -7,
+    "scale": 0.0346,
+    "oddIndex": 0,
+    "oddSign": -1,
+    "picked": [
+     0
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     126
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 9,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -10,
+    "scale": 0.0346,
+    "oddIndex": 1,
+    "oddSign": 1,
+    "picked": [
+     1
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     125
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 10,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": 90,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": 1,
+    "picked": [
+     3
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     145,
+     141,
+     153
+    ],
+    "negative": [
+     127,
+     131,
+     120
+    ],
+    "catch": true
+   },
+   {
+    "order": 11,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -10,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": 1,
+    "picked": [
+     3
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     125
+    ],
+    "negative": [
+     120,
+     131,
+     133
+    ]
+   },
+   {
+    "order": 12,
+    "phase": "edge",
+    "side": "minus",
+    "angleDeg": -6,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": -1,
+    "picked": [
+     3
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     137,
+     127,
+     126
+    ],
+    "negative": [
+     120,
+     131,
+     132
+    ]
+   },
+   {
+    "order": 13,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 4,
+    "scale": 0.0346,
+    "oddIndex": 2,
+    "oddSign": 1,
     "picked": [],
     "none": true,
     "kind": "none",
@@ -587,10 +1034,86 @@
     ]
    },
    {
-    "order": 6,
+    "order": 14,
     "phase": "edge",
     "side": "plus",
     "angleDeg": 8,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": 1,
+    "picked": [],
+    "none": true,
+    "kind": "none",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     138,
+     127,
+     128
+    ],
+    "negative": [
+     120,
+     132,
+     130
+    ]
+   },
+   {
+    "order": 15,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 12,
+    "scale": 0.0346,
+    "oddIndex": 2,
+    "oddSign": 1,
+    "picked": [
+     2
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     138,
+     126,
+     129
+    ],
+    "negative": [
+     120,
+     132,
+     130
+    ]
+   },
+   {
+    "order": 16,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 8.5,
+    "scale": 0.0346,
+    "oddIndex": 1,
+    "oddSign": -1,
+    "picked": [
+     1
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     138,
+     127,
+     128
+    ],
+    "negative": [
+     120,
+     132,
+     130
+    ]
+   },
+   {
+    "order": 17,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 7,
     "scale": 0.0346,
     "oddIndex": 0,
     "oddSign": 1,
@@ -611,13 +1134,63 @@
     ]
    },
    {
-    "order": 7,
+    "order": 18,
     "phase": "edge",
     "side": "plus",
-    "angleDeg": 12,
+    "angleDeg": 10,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": 1,
+    "picked": [
+     3
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     138,
+     126,
+     128
+    ],
+    "negative": [
+     120,
+     132,
+     130
+    ]
+   },
+   {
+    "order": 19,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 9,
+    "scale": 0.0346,
+    "oddIndex": 3,
+    "oddSign": 1,
+    "picked": [],
+    "none": true,
+    "kind": "none",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     138,
+     127,
+     128
+    ],
+    "negative": [
+     120,
+     132,
+     130
+    ]
+   },
+   {
+    "order": 20,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 11.5,
     "scale": 0.0346,
     "oddIndex": 1,
-    "oddSign": -1,
+    "oddSign": 1,
     "picked": [
      1
     ],
@@ -637,89 +1210,13 @@
     ]
    },
    {
-    "order": 8,
+    "order": 21,
     "phase": "edge",
     "side": "plus",
-    "angleDeg": 8.5,
+    "angleDeg": 11,
     "scale": 0.0346,
-    "oddIndex": 0,
+    "oddIndex": 3,
     "oddSign": -1,
-    "picked": [
-     0
-    ],
-    "none": false,
-    "kind": "seen",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     138,
-     127,
-     128
-    ],
-    "negative": [
-     120,
-     132,
-     130
-    ]
-   },
-   {
-    "order": 9,
-    "phase": "edge",
-    "side": "plus",
-    "angleDeg": 7,
-    "scale": 0.0346,
-    "oddIndex": 1,
-    "oddSign": 1,
-    "picked": [
-     1
-    ],
-    "none": false,
-    "kind": "seen",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     138,
-     127,
-     128
-    ],
-    "negative": [
-     120,
-     132,
-     130
-    ]
-   },
-   {
-    "order": 10,
-    "phase": "edge",
-    "side": "plus",
-    "angleDeg": 6,
-    "scale": 0.0346,
-    "oddIndex": 3,
-    "oddSign": 1,
-    "picked": [],
-    "none": true,
-    "kind": "none",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     138,
-     127,
-     128
-    ],
-    "negative": [
-     120,
-     132,
-     131
-    ]
-   },
-   {
-    "order": 11,
-    "phase": "edge",
-    "side": "plus",
-    "angleDeg": 8,
-    "scale": 0.0346,
-    "oddIndex": 3,
-    "oddSign": 1,
     "picked": [
      3
     ],
@@ -729,8 +1226,8 @@
     "check": null,
     "positive": [
      138,
-     127,
-     128
+     126,
+     129
     ],
     "negative": [
      120,
@@ -739,15 +1236,15 @@
     ]
    },
    {
-    "order": 12,
+    "order": 22,
     "phase": "edge",
     "side": "plus",
     "angleDeg": 90,
     "scale": 0.0346,
-    "oddIndex": 3,
+    "oddIndex": 1,
     "oddSign": -1,
     "picked": [
-     3
+     1
     ],
     "none": false,
     "kind": "seen",
@@ -766,114 +1263,37 @@
     "catch": true
    },
    {
-    "order": 13,
+    "order": 23,
     "phase": "edge",
     "side": "plus",
-    "angleDeg": 90,
+    "angleDeg": 11,
     "scale": 0.0346,
-    "oddIndex": 2,
+    "oddIndex": 0,
     "oddSign": 1,
     "picked": [
-     2
+     0
     ],
     "none": false,
     "kind": "seen",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     145,
-     141,
-     153
-    ],
-    "negative": [
-     127,
-     131,
-     120
-    ],
-    "catch": true
-   },
-   {
-    "order": 14,
-    "phase": "depth",
-    "side": "center",
-    "angleDeg": -0.8,
-    "scale": 0.0346,
-    "oddIndex": 3,
-    "oddSign": 1,
-    "picked": [],
-    "none": true,
-    "kind": "none",
     "repeat": false,
     "check": null,
     "positive": [
      138,
-     127,
-     127
+     126,
+     129
     ],
     "negative": [
      120,
-     131,
-     132
-    ]
-   },
-   {
-    "order": 15,
-    "phase": "depth",
-    "side": "center",
-    "angleDeg": -0.8,
-    "scale": 0.0511,
-    "oddIndex": 2,
-    "oddSign": 1,
-    "picked": [
-     2
-    ],
-    "none": false,
-    "kind": "seen",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     141,
-     126,
-     125
-    ],
-    "negative": [
-     115,
-     133,
-     133
-    ]
-   },
-   {
-    "order": 16,
-    "phase": "depth",
-    "side": "center",
-    "angleDeg": -0.8,
-    "scale": 0.0429,
-    "oddIndex": 1,
-    "oddSign": -1,
-    "picked": [
-     1
-    ],
-    "none": false,
-    "kind": "seen",
-    "repeat": false,
-    "check": null,
-    "positive": [
-     139,
-     126,
-     126
-    ],
-    "negative": [
-     118,
      132,
-     132
+     130
     ]
    },
    {
-    "order": 17,
-    "phase": "depth",
-    "side": "center",
-    "angleDeg": -0.8,
-    "scale": 0.0387,
+    "order": 24,
+    "phase": "edge",
+    "side": "plus",
+    "angleDeg": 6.5,
+    "scale": 0.0346,
     "oddIndex": 0,
     "oddSign": 1,
     "picked": [],
@@ -883,21 +1303,21 @@
     "check": null,
     "positive": [
      138,
-     126,
-     126
+     127,
+     128
     ],
     "negative": [
-     119,
+     120,
      132,
-     132
+     130
     ]
    },
    {
-    "order": 18,
+    "order": 25,
     "phase": "depth",
     "side": "center",
-    "angleDeg": -0.8,
-    "scale": 0.0408,
+    "angleDeg": 0.5,
+    "scale": 0.0346,
     "oddIndex": 3,
     "oddSign": 1,
     "picked": [
@@ -908,14 +1328,118 @@
     "repeat": false,
     "check": null,
     "positive": [
-     139,
-     126,
-     126
+     138,
+     127,
+     127
     ],
     "negative": [
-     118,
-     132,
-     132
+     120,
+     131,
+     131
+    ]
+   },
+   {
+    "order": 26,
+    "phase": "depth",
+    "side": "center",
+    "angleDeg": 0.5,
+    "scale": 0.0273,
+    "oddIndex": 0,
+    "oddSign": 1,
+    "picked": [
+     0
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     136,
+     127,
+     127
+    ],
+    "negative": [
+     122,
+     131,
+     131
+    ]
+   },
+   {
+    "order": 27,
+    "phase": "depth",
+    "side": "center",
+    "angleDeg": 0.5,
+    "scale": 0.0273,
+    "oddIndex": 0,
+    "oddSign": 1,
+    "picked": [
+     0
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     136,
+     127,
+     127
+    ],
+    "negative": [
+     122,
+     131,
+     131
+    ]
+   },
+   {
+    "order": 28,
+    "phase": "depth",
+    "side": "center",
+    "angleDeg": 0.5,
+    "scale": 0.0237,
+    "oddIndex": 0,
+    "oddSign": -1,
+    "picked": [
+     0
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     135,
+     127,
+     128
+    ],
+    "negative": [
+     123,
+     131,
+     131
+    ]
+   },
+   {
+    "order": 29,
+    "phase": "depth",
+    "side": "center",
+    "angleDeg": 0.5,
+    "scale": 0.0237,
+    "oddIndex": 0,
+    "oddSign": 1,
+    "picked": [
+     0
+    ],
+    "none": false,
+    "kind": "seen",
+    "repeat": false,
+    "check": null,
+    "positive": [
+     135,
+     127,
+     128
+    ],
+    "negative": [
+     123,
+     131,
+     131
     ]
    }
   ],
