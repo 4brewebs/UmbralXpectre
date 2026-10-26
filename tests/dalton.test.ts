@@ -5,7 +5,7 @@ import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/l
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift, MASK_EDGE } from "../src/lib/color/spectrum";
+import { correctColor, labHueShift, MASK_EDGE, lossMask } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -49,9 +49,10 @@ test("daltonización: #C04040 vs #708030 (misma Y) ≥ 10 ΔE00 en simulación p
 
 test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (60° Extremo), dentro del gamut", () => {
   // Las dos cartas de la línea de confusión (mismo Y, ± dirección del eje l): a extremos opuestos de S.
+  // Con la máscara por pérdida (t0 = 12 ΔE00) hacen falta cartas más saturadas que las de antes (0.08): 0.2.
   const d = dirFromTheta((11.1 * Math.PI) / 180);
-  const a: Vec3 = [0.22 + d[0] * 0.08, 0.22 + d[1] * 0.08, 0.22 + d[2] * 0.08];
-  const b: Vec3 = [0.22 - d[0] * 0.08, 0.22 - d[1] * 0.08, 0.22 - d[2] * 0.08];
+  const a: Vec3 = [0.22 + d[0] * 0.2, 0.22 + d[1] * 0.2, 0.22 + d[2] * 0.2];
+  const b: Vec3 = [0.22 - d[0] * 0.2, 0.22 - d[1] * 0.2, 0.22 - d[2] * 0.2];
   const blue = (c: Vec3) => c[2] - (c[0] + c[1]) / 2;
   const da = blue(assistColor(a, profile.axes, floor)) - blue(a);
   const db = blue(assistColor(b, profile.axes, floor)) - blue(b);
@@ -102,9 +103,10 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     }
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
-    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) {
+    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) assert.deepEqual(correctColor(c, profile.axes, floor), c);
+    // Asistencia/Extremo: máscara por pérdida; con w = 0 el cambio es exactamente 0.
+    if (lossMask(c, profile.axes, floor) === 0) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
-      assert.deepEqual(correctColor(c, profile.axes, floor), c);
       assert.deepEqual(extremeColor(c, profile.axes, floor), c);
     }
   }

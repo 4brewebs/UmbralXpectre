@@ -7,11 +7,11 @@ import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { luminance, type Vec3 } from "../src/lib/color/space";
 
 /**
- * Colorado, ítem 3: visión protán simulada con el perfil 07:21Z (fixture sintético, ver `_fixtureNote`),
+ * Colorado, ítem 3: visión protán simulada con el perfil real 07:21Z,
  * 5 pares de la línea de confusión, ΔE00 antes/después de la asistencia. Criterio: ninguno < 5 ΔE00 tras la
  * asistencia y mejora clara sobre el original. Se imprime la tabla aunque falle.
  */
-const profile = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z-sintetico.json", import.meta.url), "utf8"))!;
+const profile = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
 const floor = profile.fit.controlAbs!;
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const hex = (h: string): Vec3 => [0, 2, 4].map((i) => lin(parseInt(h.slice(1 + i, 3 + i), 16) / 255)) as Vec3;
@@ -44,7 +44,7 @@ export function protanTable() {
   return { rows, median: { before: med(col("before")), assist: med(col("assist")), extreme: med(col("extreme")) }, min: { before: Math.min(...col("before")), assist: Math.min(...col("assist")), extreme: Math.min(...col("extreme")) } };
 }
 
-test("protán simulado (perfil 07:21Z): 5 pares, ninguno < 5 ΔE00 tras la asistencia y mejora clara", { todo: "FALLA a 26-10-2026: violeta/azul queda en 2,87 ΔE00 (fuera de la máscara de ±35°, sin cambio)" }, () => {
+test("protán simulado (perfil 07:21Z): 5 pares, ninguno < 5 ΔE00 tras la asistencia y mejora clara", { todo: "FALLA (perfil real 07:21Z, máscara por pérdida 12/18): violeta/azul 2,87 ΔE00. ambos quedan bajo t0 (w = 0, sin cambio); con t0 = 2 sí se tocan, pero la inyección con signo en S lleva la B de los dos al mismo valor (violeta S+, azul S−) y la diferencia sigue en ~2,8" }, () => {
   const t = protanTable();
   console.log("par | original | asistencia | extremo");
   for (const r of t.rows) console.log(`${r.name} (${r.ha}/${r.hb}) | ${r.before.toFixed(2)} | ${r.assist.toFixed(2)} | ${r.extreme.toFixed(2)}`);

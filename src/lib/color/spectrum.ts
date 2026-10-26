@@ -17,7 +17,7 @@ import {
   thetaOf,
   type Vec3,
 } from "./space";
-import { labOfLinear } from "./deltaE";
+import { deltaE00Linear, labOfLinear } from "./deltaE";
 import type { UmbralProfile } from "./profile";
 import type { EdgeFile } from "./edges";
 
@@ -538,6 +538,48 @@ function redGuard(rgb: Vec3): number {
   return d >= RED_GUARD ? 1 : (d / RED_GUARD) ** 2;
 }
 
+/**
+ * Máscara por píxel según la pérdida (Colorado, 3.ª ronda): w = smoothstep(t0, t1, ΔE00(original, simulación del
+ * perfil)). Sustituye a la máscara por ángulo de tono en Asistencia/Extremo: solo se corrige lo que este perfil
+ * pierde de verdad, sea cual sea su tono.
+ */
+// t0 = 2 (propuesta): 58 % de los nodos con t1 = 8 y aún 35 % con t1 = 80 (este perfil pierde ~82 % de L−M); 12/18 es el
+// primer par que deja la asistencia ≤ 30 % (10531/35937, con el suavizado de pared de gamut).
+export const LOSS_MASK = { t0: 12, t1: 18 };
+export function smoothstep(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+/**
+ * Simulación protán del perfil, sin compuerta de tono: en la línea de confusión del perfil se pierde
+ * p·(1 − visto) (visto = control/umbral del eje); la Y se conserva. Es la que alimenta la máscara de pérdida.
+ */
+export function protanSimProfile(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
+  if (!(floor > 0)) return rgb;
+  const band = filterModel(axes, floor).confusion;
+  if (!band) return rgb;
+  const y = luminance(rgb);
+  const plane = killPlane(rgb, y);
+  const { u, p } = splitPlane(plane, band.mid);
+  const lost = p * (1 - Math.min(1, floor / band.T));
+  return [0, 1, 2].map((i) => Math.min(1, Math.max(0, y + plane[i] - u[i] * lost))) as Vec3;
+}
+export function lossMask(rgb: Vec3, axes: AxisMark[], floor: number): number {
+  return smoothstep(LOSS_MASK.t0, LOSS_MASK.t1, deltaE00Linear(rgb, protanSimProfile(rgb, axes, floor)));
+}
+
+const GAMUT_SOFT = 0.15;
+/** Margen del canal más justo en la dirección en que se mueve (1 − c si sube, c si baja). */
+function gamutRoom(a: Vec3, b: Vec3): number {
+  let m = 1;
+  for (let i = 0; i < 3; i++) {
+    const d = b[i] - a[i];
+    if (Math.abs(d) < 1e-6) continue;
+    m = Math.min(m, d > 0 ? 1 - a[i] : a[i]);
+  }
+  return m;
+}
+
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
@@ -547,7 +589,7 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const mask = bandMask(thetaOf(plane), band.mid);
+  const mask = lossMask(rgb, axes, floor);
   if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
@@ -562,8 +604,12 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   // Continuo en la entrada: si se sale del cubo se encoge el croma hacia la misma Y (sin recorte de canal);
   // el giro lo acotan el tope de plano y el de CIELAB después.
   const full = capPlaneTurn(y, plane, [plane[0] + d[0], plane[1] + d[1], plane[2] + d[2]], cap);
+  // Pared del gamut: si un canal que tendría que subir (o bajar) ya está en 1 (o 0) reachT da 0, y a 0,01 de la
+  // pared ya da el desplazamiento casi entero (borde duro a HSV 180° en S = 50 %). Se suaviza con el margen libre
+  // de los canales que se mueven.
+  const room = gamutRoom(rgb, full);
   // La máscara mezcla el resultado completo con el original: el cambio va a 0 sin saltos.
-  return limitLabHue(rgb, mixRgb(rgb, full, mask), cap * redGuard(rgb));
+  return limitLabHue(rgb, mixRgb(rgb, full, mask * smoothstep(0, GAMUT_SOFT, room)), cap * redGuard(rgb));
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
