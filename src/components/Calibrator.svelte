@@ -380,7 +380,7 @@
 </main>
 
 <style>
-  /* Negro de la portada → color de entorno de la app durante el test (el fondo del body, --color-bg,
+  /* Fondo de la portada (--color-bg) → color de entorno de la app durante el test (el fondo del body, --color-bg,
      igual que en 973dd0e), a pantalla completa, antes del primer ensayo. */
   .fundido {
     position: fixed;
@@ -391,7 +391,7 @@
   }
   @keyframes fundido {
     from {
-      background: #000;
+      background: var(--color-bg);
     }
     to {
       background: var(--color-bg);
