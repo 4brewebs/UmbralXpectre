@@ -39,25 +39,33 @@ test("sin borde hasta el gamut: noEdgeToGamut, y cuenta como abierto para la asi
   assert.equal(n.loOpen, false);
 });
 
-test("lado sin explorar (visto ya en el pico): unexplored; escala ≥ 3× umbral, sin nota de pico bajo el umbral", () => {
-  const f = edgeFile(run(-200, 200, true));
-  assert.equal(f.minus.result, "unexplored");
-  assert.ok(f.edgeScale >= 3 * f.sourceThreshold - 1e-4);
-  assert.ok(!f.notes?.some((n) => n.startsWith("peak-seen-below-source")));
+test("pico visto: no se cierra; baja la escala y repite, sin lados «unexplored»", () => {
+  // Observador: ve el disco en el pico mientras la escala sea > 0,012; por debajo, banda real [−30, 40].
+  let r = startRun({ ...base, floor: 0.0059 });
+  const start = r.edgeScale;
+  for (let i = 0; i < 300 && r.phase !== "done" && r.phase !== "confirm"; i++) {
+    const hidden = r.phase === "depth" ? r.scale < 0.01 : r.angle >= -30 && r.angle <= 40 && !(r.phase === "peak" && r.scale > 0.012);
+    r = applyAnswer(r, hidden ? { picked: [], none: true } : { picked: [r.oddIndex], none: false });
+  }
+  const f = edgeFile(r);
+  assert.ok((f.scaleLowered ?? 0) >= 1, JSON.stringify(f.scaleLowered));
+  assert.ok(f.edgeScale < start && f.edgeScale <= 0.012 + 1e-4);
+  assert.notEqual(f.band, "none");
+  assert.notEqual(f.minus.result, "unexplored");
+  assert.notEqual(f.plus.result, "unexplored");
 });
 
-test("escala de Bordes: ≥ 3× umbral, ≥ 5 ΔE00 del gris, 1 ΔE00 ≤ 10°; si el gamut no deja, banda abierta", async () => {
-  const { edgeScaleFor, angleForDeltaE } = await import("../src/lib/color/edges");
-  // Verdes de Lucas (21:49Z): m a −156,7°, umbral 0,016.
-  const g = edgeScaleFor(-156.7, 0.016);
-  assert.equal(g.limited, false);
-  assert.ok(g.scale >= 0.048 - 1e-6);
-  assert.ok(angleForDeltaE(-156.7, g.scale, 1, 1) <= 10 && angleForDeltaE(-156.7, g.scale, -1, 1) <= 10);
-  const big = edgeScaleFor(11.1, 0.0608);
-  assert.equal(big.limited, true);
-  const r = run(-30, 40);
-  const limited = edgeFile({ ...r, scaleLimited: true, band: "closed" });
-  assert.equal(limited.band, "open");
+test("escala de Bordes: entre 2× control y 0,8× umbral del eje; si no cabe, no se ofrece", async () => {
+  const { edgeWindow } = await import("../src/lib/color/edges");
+  // Perfil de Lucas 21:40Z: control 0,0059; rojos 0,0229; verdes 0,016.
+  const red = edgeWindow(11.1, 0.0229, 0.0059);
+  assert.ok(red.offered && red.scale >= 2 * 0.0059 - 1e-9 && red.scale <= 0.8 * 0.0229 + 1e-9, JSON.stringify(red));
+  const green = edgeWindow(-156.7, 0.016, 0.0059);
+  assert.ok(green.offered && green.scale >= 0.0118 - 1e-9 && green.scale <= 0.0128 + 1e-9, JSON.stringify(green));
+  assert.equal(edgeWindow(11.1, 0.02, 0.0059 * 1.4).offered, false);
+  const r = startRun({ ...base, floor: 0.0059 });
+  assert.ok(Math.abs(r.edgeScale - red.scale) < 1e-9);
+  assert.equal(edgeFile(r).offeredBecause, "2× control < 0.8× axis");
 });
 
 test("verde: un notch que cruza −180° pinta igual en el ángulo equivalente", async () => {

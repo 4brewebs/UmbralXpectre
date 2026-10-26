@@ -66,13 +66,17 @@ export interface EdgeFile {
   floorFrom?: "band";
   /** La escala pedida no cabe en el gamut: banda abierta por construcción. */
   scaleLimited?: boolean;
+  /** Ventana de escala: [2× control, 0,8× eje]. */
+  scaleWindow?: { lo: number; hi: number };
+  /** Veces que se bajó la escala porque el pico se veía. */
+  scaleLowered?: number;
   /** Observaciones del registro (no son errores), p. ej. pico visto por debajo del umbral calibrado. */
   notes?: string[];
   createdAt: string;
   basedOn: { schema: string; createdAt: string };
   cone: ConeId;
   name: EdgeName;
-  offeredBecause: "estimate >= 1.6× control";
+  offeredBecause: "estimate >= 1.6× control" | "2× control < 0.8× axis";
   floor: number;
   edgeScale: number;
   startAngleDeg: number;
@@ -172,8 +176,13 @@ export interface EdgeRun {
   catchTrial?: boolean;
   catches?: { shown: number; none: number };
   floorFrom?: "band";
-  /** El gamut no deja la escala pedida (≥ 3× umbral, ≥ 5 ΔE00 del gris, 1 ΔE00 ≤ 10°): la banda queda abierta. */
+  /** El gamut no deja la escala pedida: la banda queda abierta (archivos anteriores). */
   scaleLimited?: boolean;
+  /** Escala mínima a la que se baja si el pico se ve (umbral del control). */
+  scaleFloor?: number;
+  scaleWindow?: { lo: number; hi: number };
+  /** Veces que se bajó la escala porque el pico se veía. */
+  scaleLowered?: number;
 }
 
 export interface EdgeAnswer {
@@ -309,44 +318,30 @@ function atEnd(cursor: number, limit: number): boolean {
   return Math.abs(cursor - limit) < 0.05;
 }
 
-/** Requisitos de escala de Bordes (Colorado, 6.ª ronda). */
-export const EDGE_SCALE = { timesThreshold: 3, grayDeltaE: 5, maxDegPerDeltaE: 10, minSpanDeg: 20 } as const;
+/** Ventana de escala de Bordes (Colorado, 7.ª ronda): ≥ 2× el umbral del control y ≤ 0,8× el umbral del eje. */
+export const EDGE_SCALE = { timesControl: 2, timesAxis: 0.8, lowerStep: 0.8 } as const;
+
+export interface EdgeWindow {
+  /** 2 × umbral del control: por encima se ve en ángulos sanos. */
+  lo: number;
+  /** 0,8 × umbral del eje: por debajo no se ve en el pico. */
+  hi: number;
+  /** Escala inicial: media geométrica de la ventana, sin salir del gamut en el pico. */
+  scale: number;
+  offered: boolean;
+}
 
 /**
- * Escala del disco: ≥ 3× el umbral del propio eje, ≥ 5 ΔE00 desde el gris y tal que 1 ΔE00 de tono quede en ≤ 10°
- * a ambos lados del pico. Si el gamut no lo permite, la mayor que cabe y `limited` (la banda se marca abierta).
+ * La escala debe ser invisible en el pico y visible en ángulos sanos: entre 2× el control y 0,8× el umbral del eje.
+ * Si 2× control ≥ 0,8× eje, la prueba de Bordes no se ofrece para ese eje.
  */
-export function edgeScaleFor(peakDeg: number, threshold: number): { scale: number; limited: boolean } {
-  // Además, la escala debe dejar ≥ 20° de búsqueda a cada lado a Y constante; si no, no hay borde que buscar.
-  const spans = (s: number) =>
-    Math.abs(searchLimit(peakDeg, 1, s) - peakDeg) >= EDGE_SCALE.minSpanDeg && Math.abs(peakDeg - searchLimit(peakDeg, -1, s)) >= EDGE_SCALE.minSpanDeg;
-  let room = roomAt(peakDeg);
-  if (!spans(room)) {
-    let a = 0;
-    let b = room;
-    for (let i = 0; i < 30; i++) {
-      const mid = (a + b) / 2;
-      if (spans(mid)) a = mid;
-      else b = mid;
-    }
-    room = a;
-  }
-  const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
-  const dir = dirFromTheta(rad(peakDeg));
-  const fromGray = (s: number) => deltaE00Linear(gray, addScaled(gray, dir, s));
-  const fine = (s: number) =>
-    angleForDeltaE(peakDeg, s, 1, 1, 90) <= EDGE_SCALE.maxDegPerDeltaE &&
-    angleForDeltaE(peakDeg, s, -1, 1, 90) <= EDGE_SCALE.maxDegPerDeltaE;
-  const ok = (s: number) => s >= EDGE_SCALE.timesThreshold * threshold && fromGray(s) >= EDGE_SCALE.grayDeltaE && fine(s);
-  if (!ok(room)) return { scale: Math.max(0.01, room), limited: true };
-  let lo = 0;
-  let hi = room;
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2;
-    if (ok(mid)) hi = mid;
-    else lo = mid;
-  }
-  return { scale: hi, limited: false };
+export function edgeWindow(peakDeg: number, axisThreshold: number, controlThreshold: number): EdgeWindow {
+  const lo = EDGE_SCALE.timesControl * controlThreshold;
+  const hi = EDGE_SCALE.timesAxis * axisThreshold;
+  const offered = controlThreshold > 0 && axisThreshold > 0 && lo < hi;
+  const room = roomAt(peakDeg);
+  const scale = offered ? Math.max(0.001, Math.min(Math.sqrt(lo * hi), room)) : 0;
+  return { lo, hi, scale, offered: offered && room > lo };
 }
 
 function roomAt(angleDeg: number): number {
@@ -393,8 +388,10 @@ export function startRun(input: {
   const fromBand = input.controlBounded === true && input.sourceThreshold > 0;
   const floor = fromBand ? input.sourceThreshold : input.floor > 0 ? input.floor : 0.02;
   // Con el suelo de la banda, el disco va por debajo de su umbral (0,8×): dentro no se ve, fuera sí.
-  const sized = edgeScaleFor(input.peakDeg, input.sourceThreshold > 0 ? input.sourceThreshold : floor);
-  const edgeScale = sized.scale;
+  const control = input.floor > 0 ? input.floor : 0.02;
+  const win = edgeWindow(input.peakDeg, input.sourceThreshold, control);
+  // Fuera de la ventana no se ofrece (la UI no lo lanza); si se fuerza, se usa la cota inferior.
+  const edgeScale = win.offered ? win.scale : Math.max(0.001, Math.min(win.lo, roomAt(input.peakDeg)));
   const rolled = roll(input.seed ?? ((Date.now() >>> 0) || 1));
   const peak = input.peakDeg;
   return {
@@ -404,7 +401,8 @@ export function startRun(input: {
     edgeScale,
     peak,
     ...(fromBand ? { floorFrom: "band" as const } : {}),
-    ...(sized.limited ? { scaleLimited: true } : {}),
+    scaleFloor: Math.min(control, edgeScale),
+    scaleWindow: { lo: win.lo, hi: win.hi },
     sourceThreshold: input.sourceThreshold,
     sourceTimes: input.sourceTimes,
     profileSchema: input.profileSchema,
@@ -634,6 +632,13 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
         const again = place(run, "peak", run.peak, run.edgeScale);
         return { ...again, peakSeen: 1, edgeConfirm: "outside" };
       }
+      // Pico visto dos veces: no se cierra. Se baja la escala y se repite (Colorado, 7.ª ronda).
+      const floorScale = run.scaleFloor ?? 0.001;
+      const lowered = Math.max(floorScale, run.edgeScale * EDGE_SCALE.lowerStep);
+      if (lowered < run.edgeScale - 1e-6) {
+        const next = { ...run, edgeScale: lowered, depthHi: lowered, depthCursor: lowered, peakSeen: 0, scaleLowered: (run.scaleLowered ?? 0) + 1 };
+        return place(next, "peak", run.peak, lowered);
+      }
       return { ...run, phase: "done", band: "none", edgeConfirm: null };
     }
     const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone).lo);
@@ -748,7 +753,7 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     basedOn: { schema: run.profileSchema, createdAt: run.profileCreatedAt },
     cone: run.cone,
     name: run.name,
-    offeredBecause: "estimate >= 1.6× control",
+    offeredBecause: run.scaleWindow ? "2× control < 0.8× axis" : "estimate >= 1.6× control",
     floor: round4(run.floor),
     ...(run.floorFrom === "band" ? { floorFrom: "band" as const } : {}),
     edgeScale: round4(run.edgeScale),
@@ -757,6 +762,8 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     sourceTimes: run.sourceTimes,
     band: run.scaleLimited && run.band === "closed" ? "open" : (run.band ?? (run.phase === "done" ? "none" : "open")),
     ...(run.scaleLimited ? { scaleLimited: true } : {}),
+    ...(run.scaleWindow ? { scaleWindow: { lo: round4(run.scaleWindow.lo), hi: round4(run.scaleWindow.hi) } } : {}),
+    ...(run.scaleLowered ? { scaleLowered: run.scaleLowered } : {}),
     minus,
     plus,
     depth,

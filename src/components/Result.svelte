@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Check, Copy, Download, RotateCcw } from "@lucide/svelte";
-  import { edgeFilename, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
+  import { edgeFilename, edgeWindow, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
   import { buildTransformFile } from "@/lib/color/lut";
   import type { UmbralProfile } from "@/lib/color/profile";
   import ConeCard from "./ConeCard.svelte";
@@ -70,7 +70,14 @@
     }, 40);
   }
 
-  const elevated = $derived(profile.fit.pathways?.filter((pathway) => pathway.elevated) ?? []);
+  // Bordes solo si cabe una escala entre 2× el control y 0,8× el umbral del eje (Colorado, 7.ª ronda).
+  const elevated = $derived(
+    profile.fit.pathways?.filter((pathway) => {
+      if (!pathway.elevated) return false;
+      const axis = profile.axes.find((item) => item.id === pathway.id);
+      return edgeWindow(axis?.angleDeg ?? 0, pathway.threshold ?? axis?.threshold ?? 0, profile.fit.controlAbs ?? 0).offered;
+    }) ?? [],
+  );
   const peak = $derived(Math.max(...profile.axes.map((item) => item.threshold ?? 0), 0.0001));
 
   function brightnessStatus(matches: Matches): string {
