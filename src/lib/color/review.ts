@@ -9,7 +9,8 @@
  * `thresholdStandardY` y los pesos en `review.weights`.
  */
 import { createQuestPlus, weibull, type JsQuest, type QuestPlus, type ResponseFn } from "./questplus";
-import { ANCHOR, addScaled, dirFromTheta, isoDir, lumEps, makeLumNoise, maxScale, measuredLumWeights, toSrgb8, withLum, type LumNoise, type Vec3 } from "./space";
+import { gammaOf } from "./calibqp";
+import { ANCHOR, addScaled, dirFromTheta, isoDir, lumEps, makeLumNoise, noiseOf, maxScale, measuredLumWeights, toSrgb8, withLum, type LumNoise, type Vec3 } from "./space";
 import { refitProfile, type UmbralProfile } from "./profile";
 
 export const REVIEW = {
@@ -26,6 +27,10 @@ export const REVIEW = {
   gamma: 0.05,
   lapses: [0.02, 0.05],
   axes: ["l", "m"] as const,
+  /** Falsas alarmas / catch por encima de esto: repaso no fiable (se conserva el umbral original). */
+  maxFalseAlarmRate: 0.15,
+  /** Razón repasado/original fuera de [½, 2]: solo aviso (no se rechaza). */
+  ratioWarn: [0.5, 2] as const,
 } as const;
 
 export type ReviewAxisId = (typeof REVIEW.axes)[number];
@@ -37,6 +42,8 @@ export interface ReviewTrial {
   different: boolean;
   catch: boolean;
   lumEps: [number, number];
+  /** Solo catch con ruido activo: ε₂ − ε₁. */
+  dEps?: number;
 }
 
 interface ReviewAxis {
@@ -45,6 +52,8 @@ interface ReviewAxis {
   original: number;
   qp: QuestPlus;
   trials: number;
+  /** Rejillas y prior, para reconstruir el QUEST+ cuando cambia γ. */
+  spec: { stim: number[]; alphas: number[]; prior: number[] };
 }
 
 export interface ReviewState {
@@ -55,6 +64,9 @@ export interface ReviewState {
   next: number | "catch";
   log: ReviewTrial[];
   done: boolean;
+  /** γ en uso: `gammaOf(catch, falsas alarmas)` (0,05 con menos de 5 catch). */
+  gamma: number;
+  Q: JsQuest;
 }
 
 export interface ReviewStimulus {
@@ -76,8 +88,8 @@ function logGrid(lo: number, hi: number, n: number): number[] {
   return Array.from({ length: n }, (_, i) => Math.exp(Math.log(lo) + ((Math.log(hi) - Math.log(lo)) * i) / (n - 1)));
 }
 
-function yesNo(): ResponseFn[] {
-  const yes: ResponseFn = (x, a, b, l) => weibull(x, a, b, REVIEW.gamma, l);
+function yesNo(gamma: number): ResponseFn[] {
+  const yes: ResponseFn = (x, a, b, l) => weibull(x, a, b, gamma, l);
   return [yes, (x, a, b, l) => 1 - yes(x, a, b, l)];
 }
 
@@ -87,7 +99,27 @@ function reach(angleDeg: number, w: Vec3): number {
 }
 
 /** Estado inicial, o null si no hay pesos medidos o el perfil no tiene umbral en l y m. */
-export function createReview(profile: UmbralProfile, Q: JsQuest, opts: { seed?: number; lumNoise?: boolean } = {}): ReviewState | null {
+function buildQp(Q: JsQuest, spec: ReviewAxis["spec"], gamma: number): QuestPlus {
+  return createQuestPlus(Q, { stim: spec.stim, params: [spec.alphas, [REVIEW.beta], [...REVIEW.lapses]], prior: [spec.prior], responses: yesNo(gamma) });
+}
+
+/** γ de los catch del registro (como `calibqp.gammaOf`). */
+export function reviewGamma(log: ReviewTrial[]): number {
+  const c = log.filter((t) => t.catch);
+  return gammaOf(c.length, c.filter((t) => t.different).length);
+}
+
+/** Reconstruye el QUEST+ de cada eje con `gamma` y repite sus ensayos (como `calibqp.rebuild`). */
+function rebuildAxes(Q: JsQuest, axes: ReviewAxis[], log: ReviewTrial[], gamma: number): ReviewAxis[] {
+  return axes.map((a) => {
+    const qp = buildQp(Q, a.spec, gamma);
+    for (const t of log) if (t.axis === a.id) qp.update(t.scale, t.different ? 0 : 1);
+    return { ...a, qp };
+  });
+}
+
+/** `lumNoise`: `true` = ±8 %, número = esa amplitud (0 incluido, se guarda), `false`/ausente = sin ruido. */
+export function createReview(profile: UmbralProfile, Q: JsQuest, opts: { seed?: number; lumNoise?: boolean | number } = {}): ReviewState | null {
   const w = reviewWeights(profile);
   if (!w) return null;
   const axes: ReviewAxis[] = [];
@@ -99,11 +131,11 @@ export function createReview(profile: UmbralProfile, Q: JsQuest, opts: { seed?: 
     const alphas = logGrid(t / REVIEW.span, t * REVIEW.span, REVIEW.points);
     const stim = alphas.filter((v) => v <= top + 1e-12);
     const prior = alphas.map((v) => Math.exp(-((Math.log(v / t)) ** 2) / (2 * REVIEW.priorSigma ** 2)));
-    const qp = createQuestPlus(Q, { stim: stim.length ? stim : [alphas[0]], params: [alphas, [REVIEW.beta], [...REVIEW.lapses]], prior: [prior], responses: yesNo() });
-    axes.push({ id, angleDeg: a.angleDeg, original: t, qp, trials: 0 });
+    const spec = { stim: stim.length ? stim : [alphas[0]], alphas, prior };
+    axes.push({ id, angleDeg: a.angleDeg, original: t, qp: buildQp(Q, spec, REVIEW.gamma), trials: 0, spec });
   }
   if (!axes.length) return null;
-  return { weights: w, noise: opts.lumNoise ? makeLumNoise(((opts.seed ?? Date.now()) ^ 0x2545f491) >>> 0) : null, axes, next: 0, log: [], done: false };
+  return { weights: w, noise: noiseOf(opts.lumNoise, ((opts.seed ?? Date.now()) ^ 0x2545f491) >>> 0), axes, next: 0, log: [], done: false, gamma: REVIEW.gamma, Q };
 }
 
 const gray = (): Vec3 => [ANCHOR, ANCHOR, ANCHOR];
@@ -111,7 +143,7 @@ const gray = (): Vec3 => [ANCHOR, ANCHOR, ANCHOR];
 export function reviewStimulus(state: ReviewState): ReviewStimulus | null {
   if (state.done) return null;
   const n = state.log.length;
-  const eps: [number, number] = state.noise ? [lumEps(state.noise, n, 0), lumEps(state.noise, n, 1)] : [0, 0];
+  const eps: [number, number] = state.noise?.amp ? [lumEps(state.noise, n, 0), lumEps(state.noise, n, 1)] : [0, 0];
   const total = state.axes.length * REVIEW.trialsPerAxis;
   const total2 = total + Math.ceil(total / REVIEW.catchEvery) - 1;
   if (state.next === "catch") {
@@ -135,13 +167,19 @@ export function reviewStimulus(state: ReviewState): ReviewStimulus | null {
 export function answerReview(state: ReviewState, different: boolean): ReviewState {
   const stim = reviewStimulus(state);
   if (!stim) return state;
-  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, different, catch: stim.axis === "catch", lumEps: stim.lumEps }];
-  const axes = state.axes.map((a) => ({ ...a }));
+  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, different, catch: stim.axis === "catch", lumEps: stim.lumEps, ...(stim.axis === "catch" && state.noise?.amp ? { dEps: Math.round((stim.lumEps[1] - stim.lumEps[0]) * 1e6) / 1e6 } : {}) }];
+  let axes = state.axes.map((a) => ({ ...a }));
+  let gamma = state.gamma;
   if (state.next !== "catch") {
     const ax = axes[state.next];
     ax.qp.update(stim.scale, different ? 0 : 1);
     ax.trials += 1;
+  } else {
+    // Catch: γ con los catch ya vistos; si cambia, se reconstruyen los QUEST+ y se repiten los ensayos.
+    gamma = reviewGamma(log);
+    if (gamma !== state.gamma) axes = rebuildAxes(state.Q, axes, log, gamma);
   }
+  state = { ...state, gamma };
   const colorDone = axes.reduce((t, a) => t + a.trials, 0);
   const done = axes.every((a) => a.trials >= REVIEW.trialsPerAxis);
   if (done) return { ...state, axes, log, next: 0, done: true };
@@ -173,16 +211,46 @@ export function reviewEstimates(state: ReviewState): ReviewEstimate[] {
 const r4 = (v: number) => Math.round(v * 10000) / 10000;
 
 /**
- * Aplica el repaso: el umbral repasado sustituye al original en los ejes (filtros) y en `fit` (T);
+ * Aplica el repaso: el umbral repasado sustituye al original en los ejes (filtros) y en `fit` (T), salvo si el eje
+ * es «review-unreliable» (FA/catch > 0,15 o el original dentro del IC): entonces se conserva el original.
+ * La razón frente al original fuera de [½, 2] solo avisa (`warnings`).
  * el original queda en `thresholdStandardY` y los pesos usados en `review`.
  */
+export interface ReviewVerdict {
+  falseAlarmRate: number;
+  gamma: number;
+  /** Por eje: motivos de «review-unreliable» (vacío = sustituye) y aviso de razón. */
+  axes: Array<{ id: ReviewAxisId; reasons: string[]; ratio: number; warn: boolean }>;
+}
+
+export function reviewVerdict(state: ReviewState): ReviewVerdict {
+  const catches = state.log.filter((t) => t.catch);
+  const fa = catches.filter((t) => t.different).length;
+  const falseAlarmRate = catches.length ? fa / catches.length : 0;
+  const axes = reviewEstimates(state).map((e) => {
+    const reasons: string[] = [];
+    if (falseAlarmRate > REVIEW.maxFalseAlarmRate) reasons.push(`false-alarms ${fa}/${catches.length}`);
+    if (e.lo <= e.thresholdStandardY && e.thresholdStandardY <= e.hi) reasons.push("original-inside-ci");
+    const ratio = e.threshold / e.thresholdStandardY;
+    return { id: e.id, reasons, ratio, warn: ratio < REVIEW.ratioWarn[0] || ratio > REVIEW.ratioWarn[1] };
+  });
+  return { falseAlarmRate, gamma: state.gamma, axes };
+}
+
 export function applyReview(profile: UmbralProfile, state: ReviewState): UmbralProfile {
   const est = reviewEstimates(state);
+  const verdict = reviewVerdict(state);
   const axes = profile.axes.map((a) => {
     const e = est.find((x) => x.id === a.id);
-    return e ? { ...a, threshold: r4(e.threshold), thresholdStandardY: a.threshold, thresholdSource: "review-measured" as const } : a;
+    const v = verdict.axes.find((x) => x.id === a.id);
+    if (!e) return a;
+    // No fiable: se conserva el umbral original (Y estándar).
+    if (v?.reasons.length) return { ...a, thresholdSource: "review-unreliable" as const };
+    return { ...a, threshold: r4(e.threshold), thresholdStandardY: a.threshold, thresholdSource: "review-measured" as const };
   });
   const catches = state.log.filter((t) => t.catch);
+  const unreliable = verdict.axes.filter((v) => v.reasons.length);
+  const warnings = verdict.axes.filter((v) => v.warn).map((v) => `ratio-out-of-range ${v.id} ×${Math.round(v.ratio * 100) / 100}`);
   return refitProfile({
     ...profile,
     axes,
@@ -193,6 +261,10 @@ export function applyReview(profile: UmbralProfile, state: ReviewState): UmbralP
       ...(state.noise ? { lumNoise: state.noise } : {}),
       axes: est.map((e) => ({ id: e.id, threshold: r4(e.threshold), thresholdStandardY: e.thresholdStandardY, lo: r4(e.lo), hi: r4(e.hi), trials: e.trials })),
       catches: { shown: catches.length, falseAlarms: catches.filter((t) => t.different).length },
+      gamma: Math.round(state.gamma * 1e4) / 1e4,
+      status: unreliable.length === 0 ? "review-measured" : unreliable.length === verdict.axes.length ? "review-unreliable" : "partial",
+      ...(unreliable.length ? { unreliable: unreliable.map((v) => ({ id: v.id, reasons: v.reasons })) } : {}),
+      ...(warnings.length ? { warnings } : {}),
       trials: state.log,
     },
   });

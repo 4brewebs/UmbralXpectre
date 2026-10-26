@@ -136,6 +136,9 @@
   <div class="flex flex-col gap-8">
     <p class="text-lg leading-relaxed text-fg">{profile.summary.replace(/ Brillo, por movimiento:.*$/, "")}</p>
     <p class="text-sm text-muted">Pares iguales: {profile.catches.same} vistos iguales{profile.catches.missed ? `, ${profile.catches.missed} marcados distintos` : ""}.</p>
+    {#if profile.catches.obvious?.unreliable}
+      <p role="alert" class="rounded-2xl border border-border p-4 text-sm leading-relaxed text-fg" data-testid="obvious-unreliable">Perfil poco fiable: en {profile.catches.obvious.missed} de {profile.catches.obvious.shown} pares claramente distintos marcaste «iguales». Conviene repetir la calibración con calma.</p>
+    {/if}
     {#if profile.luminance?.matches?.length}
       {@render brightness(profile.luminance.matches)}
     {:else}
@@ -192,6 +195,9 @@
     {#if edgeReliability}
       <p class="text-sm text-muted" data-testid="edge-reliability">Fiabilidad de bordes: {edgeReliability.status} · {edgeReliability.catches} controles en {edgeReliability.rounds} {edgeReliability.rounds === 1 ? "ronda" : "rondas"}{edgeReliability.none ? `, ${edgeReliability.none} sin ver` : ""}.</p>
     {/if}
+    {#each edgeList.filter((f) => f.warnings?.length) as f (f.cone)}
+      <p role="alert" class="text-sm text-fg" data-testid="edge-imbalance">Bordes de {f.name}: un lado tuvo muy pocos ensayos frente al otro ({f.warnings!.join("; ").replace("side-imbalance: ", "").replace("minus", "lado −").replace("plus", "lado +")}). El borde con menos ensayos es poco seguro.</p>
+    {/each}
     <Plates {profile} edgeFiles={edgeList} />
     <div id="camara" class="scroll-mt-4"><AssistCamera {profile} edgeFiles={edgeList} /></div>
     <p class="text-sm leading-relaxed text-muted">{profile.disclaimer}</p>

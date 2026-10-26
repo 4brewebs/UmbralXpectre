@@ -12,7 +12,7 @@
     type UmbralProfile,
     measuredLumWeights,
   } from "@/lib/color/profile";
-  import { lumNoiseEnabled } from "@/lib/color/space";
+  import { lumNoiseAmp } from "@/lib/color/space";
   import Intro from "./Intro.svelte";
   import SavedPages from "./SavedPages.svelte";
   import { loadStored } from "@/lib/stored";
@@ -142,7 +142,7 @@
       }
     }
     // C1: pares con los pesos personales medidos de la última prueba de luminancia en esta pantalla; si no, Y estándar.
-    session = createSession(Date.now(), Q, resume, pairWeightsFrom(stored), lumNoiseEnabled(window.location.search));
+    session = createSession(Date.now(), Q, resume, pairWeightsFrom(stored), lumNoiseAmp(window.location.search));
     fading = true;
     phase = "run";
     setTimeout(() => (fading = false), FADE_MS);
@@ -187,6 +187,13 @@
   }
 
   let review = $state.raw<ReviewState | null>(null);
+  const reviewAlert = $derived.by(() => {
+    const r = profile?.review;
+    if (!r || phase !== "done") return null;
+    const bad = r.unreliable ?? [];
+    if (!bad.length && !r.warnings?.length) return null;
+    return { bad, warnings: r.warnings ?? [], fa: r.catches };
+  });
 
   /** Tras la luminancia: repaso corto de l y m solo con pesos medidos en esta pantalla; si no, al resultado. */
   async function afterLuminance(p: UmbralProfile) {
@@ -194,7 +201,7 @@
     if (pairWeightsFrom(p)) {
       try {
         const Q = await (await import("@/lib/color/questplus")).loadQuestPlus();
-        review = createReview(p, Q, { seed: Date.now(), lumNoise: lumNoiseEnabled(window.location.search) });
+        review = createReview(p, Q, { seed: Date.now(), lumNoise: lumNoiseAmp(window.location.search) });
       } catch {
         review = null;
       }
@@ -335,6 +342,17 @@
 
   {#if phase === "review" && review}
     <ReviewTest state={review} onDone={takeReview} onSkip={() => { review = null; phase = "done"; }} />
+  {/if}
+
+  {#if reviewAlert}
+    <section role="alert" class="flex flex-col gap-3 rounded-2xl border border-border p-4" data-testid="review-alert">
+      {#if reviewAlert.bad.length}
+        <p class="text-base leading-relaxed text-fg">Repaso no fiable en {reviewAlert.bad.map((b) => b.id).join(" y ")}: {reviewAlert.bad.some((b) => b.reasons.some((x) => x.startsWith("false-alarms"))) ? `marcaste distintos ${reviewAlert.fa.falseAlarms} de ${reviewAlert.fa.shown} pares iguales` : "el umbral nuevo no se distingue del anterior"}. Se conserva el umbral con el brillo estándar.</p>
+      {/if}
+      {#each reviewAlert.warnings as w (w)}
+        <p class="text-sm text-muted">Aviso: el umbral repasado cambia mucho frente al original ({w.replace("ratio-out-of-range ", "")}).</p>
+      {/each}
+    </section>
   {/if}
 
   {#if deviceWarning && profile}

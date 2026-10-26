@@ -125,7 +125,7 @@ export interface UmbralProfile {
     thresholdKind: Axis["thresholdKind"];
     /** Solo tras el repaso con pesos personales: el umbral original (pares con la Y estándar). */
     thresholdStandardY?: number | null;
-    thresholdSource?: "review-measured";
+    thresholdSource?: "review-measured" | "review-unreliable";
     closed: boolean;
     trials: number;
     order: number;
@@ -136,7 +136,7 @@ export interface UmbralProfile {
     same: number;
     missed: number;
     /** Solo QUEST+: pares obvios (+20 % de Y); «igual» en ellos es un fallo de atención. */
-    obvious?: { shown: number; missed: number };
+    obvious?: { shown: number; missed: number; unreliable?: true };
     trials: Array<TrialRecord & { order: number }> };
   /**
    * Luminancia. `matches` son las igualaciones de la prueba antigua a 1 Hz (legado: los filtros
@@ -152,6 +152,12 @@ export interface UmbralProfile {
     lumNoise?: LumNoise;
     axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; trials: number }>;
     catches: { shown: number; falseAlarms: number };
+    /** γ estimada con los catch (`gammaOf`). */
+    gamma?: number;
+    status?: "review-measured" | "review-unreliable" | "partial";
+    unreliable?: Array<{ id: string; reasons: string[] }>;
+    /** Avisos que no rechazan (razón frente al original fuera de [½, 2]). */
+    warnings?: string[];
     trials: unknown[];
   };
 }
@@ -402,7 +408,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
     catches: {
       same: session.catchHits,
       missed: session.catchMisses,
-      ...(session.obviousShown ? { obvious: { shown: session.obviousShown, missed: session.obviousMissed ?? 0 } } : {}),
+      ...(session.obviousShown ? { obvious: { shown: session.obviousShown, missed: session.obviousMissed ?? 0, ...((session.obviousMissed ?? 0) >= 1 ? { unreliable: true as const } : {}) } } : {}),
       trials: orderCatchTrials(session.log),
     },
   };
@@ -800,6 +806,7 @@ export function parseProfile(raw: string): UmbralProfile | null {
       catches: {
         same: parsed.catches?.same ?? catchTrials.filter((trial) => trial.judgment === "same").length,
         missed: parsed.catches?.missed ?? catchTrials.filter((trial) => trial.judgment === "different").length,
+        ...(parsed.catches?.obvious ? { obvious: parsed.catches.obvious } : {}),
         trials: catchTrials,
       },
       luminance: parsed.luminance

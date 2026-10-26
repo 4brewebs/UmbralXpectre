@@ -66,19 +66,41 @@ export function isoDir(dir: Vec3, w?: Vec3 | null): Vec3 {
   return w ? killLuminance(dir, w) : dir;
 }
 
-/** Ruido de luminancia por estímulo (26/10): Y·(1+ε), ε uniforme en ±amp, nuevo en cada ensayo y estímulo. */
-export const LUM_NOISE_AMP = 0.08;
+/**
+ * Ruido de luminancia por estímulo: Y·(1+ε), ε uniforme en ±amp, nuevo en cada ensayo y estímulo.
+ * Por defecto APAGADO (amp 0, Lucas 26/10); `?lumnoise=1` lo activa a ±8 % y `?lumnoise=0.05` fija la amplitud.
+ */
+export const LUM_NOISE_AMP = 0;
+/** Amplitud con el flag activo (`?lumnoise=1`) o con `lumNoise: true`. */
+export const LUM_NOISE_ON_AMP = 0.08;
 export interface LumNoise {
   amp: number;
   seed: number;
 }
 
-/** Flag: `?lumnoise=0` lo desactiva; por defecto, activo en la UI. */
-export function lumNoiseEnabled(search: string): boolean {
-  return new URLSearchParams(search).get("lumnoise") !== "0";
+/** Amplitud del flag `?lumnoise=`: ausente/0/no válido → 0; `1` → 0,08; otro número en (0, 0,5] → ese valor. */
+export function lumNoiseAmp(search: string): number {
+  const raw = new URLSearchParams(search).get("lumnoise");
+  if (raw == null || raw === "") return LUM_NOISE_AMP;
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  if (v === 1) return LUM_NOISE_ON_AMP;
+  return v <= 0.5 ? v : 0;
 }
 
-export function makeLumNoise(seed: number, amp = LUM_NOISE_AMP): LumNoise {
+/** Flag activo (amplitud > 0). */
+export function lumNoiseEnabled(search: string): boolean {
+  return lumNoiseAmp(search) > 0;
+}
+
+/** `true` → ±8 %; número → esa amplitud (0 incluido: se registra); `false`/ausente → null. */
+export function noiseOf(opt: boolean | number | undefined, seed: number): LumNoise | null {
+  if (opt === true) return makeLumNoise(seed, LUM_NOISE_ON_AMP);
+  if (typeof opt === "number" && opt >= 0) return makeLumNoise(seed, opt);
+  return null;
+}
+
+export function makeLumNoise(seed: number, amp = LUM_NOISE_ON_AMP): LumNoise {
   return { amp, seed: (seed >>> 0) || 1 };
 }
 

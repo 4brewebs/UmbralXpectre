@@ -15,7 +15,7 @@ import {
   isoDir,
   fromSrgb8,
   lumEps,
-  makeLumNoise,
+  noiseOf,
   withLum,
   type LumNoise,
   hueName,
@@ -101,6 +101,8 @@ export interface TrialRecord {
   at: number;
   /** ε aplicados [referencia, comparación] (ruido de luminancia). */
   lumEps?: [number, number];
+  /** Solo trampas (catch) con ruido activo: ε comparación − ε referencia. */
+  dEps?: number;
 }
 
 export interface Session {
@@ -302,7 +304,7 @@ function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
   });
 }
 
-export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null, lumWeights?: Vec3 | null, lumNoise = false): Session {
+export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null, lumWeights?: Vec3 | null, lumNoise: boolean | number = false): Session {
   const w = lumWeights ?? undefined;
   const priors = searchPriors();
   const axes = disambiguate([
@@ -344,7 +346,7 @@ export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | 
     catchMisses: 0,
     ...(resumed ? { catchHits: resume!.catchHits, catchMisses: resume!.catchMisses, note: "Sigo donde lo dejaste: solo quedan las vías sin cerrar." } : {}),
     ...(w ? { lumWeights: w } : {}),
-    ...(lumNoise ? { lumNoise: makeLumNoise((now || 1) ^ 0x5bd1e995) } : {}),
+    ...(noiseOf(lumNoise, (now || 1) ^ 0x5bd1e995) ? { lumNoise: noiseOf(lumNoise, (now || 1) ^ 0x5bd1e995)! } : {}),
   };
 }
 
@@ -373,7 +375,7 @@ function catchColor(slot: number, w?: Vec3): Vec3 {
 
 export function stimulusOf(session: Session): Stimulus | null {
   const raw = rawStimulus(session);
-  if (!raw || !session.lumNoise) return raw;
+  if (!raw || !session.lumNoise?.amp) return raw;
   // Ruido de luminancia, después de igualar (con los pesos personales si los hay): cada estímulo su ε.
   const n = session.lumNoise;
   const eps: [number, number] = [lumEps(n, session.log.length, 0), lumEps(n, session.log.length, 1)];
@@ -713,7 +715,7 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
       comparison: stim.comparison,
       side: stim.side,
       at: now,
-      ...(stim.lumEps ? { lumEps: stim.lumEps } : {}),
+      ...(stim.lumEps ? { lumEps: stim.lumEps, dEps: dEpsOf(stim.lumEps) } : {}),
     },
   ];
   const counted = { ...session, catchHits: session.catchHits + (hit ? 1 : 0), catchMisses: session.catchMisses + (hit ? 0 : 1) };
@@ -735,11 +737,16 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
   };
 }
 
+/** Δε de una trampa (comparación − referencia), solo con ruido activo. */
+function dEpsOf(eps: [number, number]): number {
+  return Math.round((eps[1] - eps[0]) * 1e6) / 1e6;
+}
+
 /** Catch obvio (+20 % de Y): «igual» es un fallo de atención; no entra en γ (que solo usa pares idénticos). */
 function answerObvious(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
   const log: TrialRecord[] = [
     ...session.log,
-    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now, ...(stim.lumEps ? { lumEps: stim.lumEps } : {}) },
+    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now, ...(stim.lumEps ? { lumEps: stim.lumEps, dEps: dEpsOf(stim.lumEps) } : {}) },
   ];
   const axes = session.axes.map((a) => ({ ...a }));
   applyCap(session, axes, log.length);

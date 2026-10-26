@@ -76,7 +76,11 @@ test("repaso: el umbral repasado se usa para T y filtros; JSON guarda thresholdS
   const orig = (id: string) => p.axes.find((a) => a.id === id)!.threshold!;
   const out = applyReview(p, run(p, Q, (id) => orig(id) * (id === "l" ? 3 : 1), 3));
   const est = out.review!.axes;
-  for (const id of ["l", "m"]) {
+  // m (verdad = original): el original cae dentro del IC del repaso → «review-unreliable», se conserva (26/10).
+  const m = out.axes.find((a) => a.id === "m")!;
+  assert.equal(m.thresholdSource, "review-unreliable");
+  assert.equal(m.threshold, orig("m"));
+  for (const id of ["l"]) {
     const ax = out.axes.find((a) => a.id === id)!;
     const e = est.find((x) => x.id === id)!;
     assert.equal(ax.thresholdStandardY, orig(id));
