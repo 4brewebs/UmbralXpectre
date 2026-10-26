@@ -24,9 +24,17 @@ export const VALIDATION = {
   maxAxes: 4,
   /** Conflictivo: umbral ≥ esto × control (como `elevated` del perfil). */
   elevatedRatio: 1.6,
-  /** Rejilla de α en log: umbral del perfil ×/÷ 4, 41 puntos. */
-  span: 4,
-  points: 41,
+  /**
+   * Rejilla de α en log: centro ×/÷ 8, 61 puntos (paso ≈ 7 %). Diagnóstico 26/10 (observador de conos): con ×/÷ 4 el
+   * prior dominaba los extremos; ÷8 baja el RMS ln en normales y leves.
+   */
+  span: 8,
+  points: 61,
+  /**
+   * Centro del prior y de la rejilla: umbral del perfil × 0,55. La bisección sí/no converge por encima del α de la
+   * 3AFC (nivel de rendimiento ≈ ×0,78 y geometría Y estándar frente a pesos medidos); sesgo medido ≈ +0,6 ln.
+   */
+  priorScale: 0.55,
   priorSigma: Math.log(2),
   beta: 3,
   /** Azar de «elige el distinto entre 3». Fija. */
@@ -124,8 +132,16 @@ export const rotationOf = (seed: number, n: number): number => rotationAt(seed, 
 /**
  * Ejes conflictivos del perfil: los de umbral ≥ 1,6× el control (vías elevadas, extremos y afinados), de mayor a
  * menor razón, como mucho `maxAxes`. Sin ninguno (observador normal): el de mayor razón, para confirmarlo.
+ * Siempre se añade el control (mismo formato y pesos): el suelo de los filtros sale del control validado.
  */
 export function validationTargets(profile: UmbralProfile): Array<{ id: string; angleDeg: number; threshold: number; ratio: number }> {
+  const ctl = profile.axes.find((a) => a.role === "control" && a.threshold != null && a.threshold > 0);
+  const controlTarget = ctl ? [{ id: ctl.id, angleDeg: ctl.angleDeg, threshold: ctl.threshold as number, ratio: 1 }] : [];
+  return [...conflictTargets(profile), ...controlTarget];
+}
+
+/** Solo los conflictivos (sin el control). */
+function conflictTargets(profile: UmbralProfile): Array<{ id: string; angleDeg: number; threshold: number; ratio: number }> {
   const control = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : (profile.axes.find((a) => a.role === "control")?.threshold ?? 0);
   const all = profile.axes
     .filter((a) => a.role !== "control" && a.threshold != null && a.threshold > 0)
@@ -141,13 +157,13 @@ export function createValidation(profile: UmbralProfile, Q: JsQuest, opts: { see
   if (!w) return null;
   const axes: ValidationAxis[] = [];
   for (const target of validationTargets(profile)) {
-    const t = target.threshold;
+    const t = target.threshold * VALIDATION.priorScale;
     const top = Math.min(t * VALIDATION.span, reach(target.angleDeg, w));
     const alphas = logGrid(t / VALIDATION.span, t * VALIDATION.span, VALIDATION.points);
     const stim = alphas.filter((v) => v <= top + 1e-12);
     const prior = alphas.map((v) => Math.exp(-(Math.log(v / t) ** 2) / (2 * VALIDATION.priorSigma ** 2)));
     const qp = createQuestPlus(Q, { stim: stim.length ? stim : [alphas[0]], params: [alphas, [VALIDATION.beta], [...VALIDATION.lapses]], prior: [prior], responses: oddity3() });
-    axes.push({ id: target.id, angleDeg: target.angleDeg, original: t, qp, trials: 0, done: false });
+    axes.push({ id: target.id, angleDeg: target.angleDeg, original: target.threshold, qp, trials: 0, done: false });
   }
   if (!axes.length) return null;
   return { weights: w, axes, next: 0, seed: (opts.seed ?? Date.now()) >>> 0, log: [], done: false };
@@ -241,7 +257,7 @@ export function applyValidation(profile: UmbralProfile, state: ValidationState):
     ...profile,
     axes,
     validation: {
-      method: "3AFC: disco en 3 sectores de 120° (giro de 15–45° en sentido al azar entre ensayos, distinto al azar), ejes conflictivos del perfil, QUEST+ con γ = 1/3 fija y lapse estimada, prior log-normal en el umbral del perfil (σ = ln 2), parada por IC 95 % (ln hi/lo < ln 2, mínimo 6, tope 30 por eje)",
+      method: "3AFC: disco en 3 sectores de 120° (giro de 15–45° en sentido al azar entre ensayos, distinto al azar), ejes conflictivos del perfil y el control, QUEST+ con γ = 1/3 fija, β = 3 y lapse estimada, prior log-normal en 0,55 × el umbral del perfil (σ = ln 2), rejilla ×/÷ 8 con 61 puntos, parada por IC 95 % (ln hi/lo < ln 2, mínimo 6, tope 30 por eje)",
       pairLuminance: { source: "measured", weights: [state.weights[0], state.weights[1], state.weights[2]] },
       gamma: Math.round(VALIDATION.gamma * 1e4) / 1e4,
       axes: est.map((e) => ({ id: e.id, threshold: r4(e.threshold), thresholdStandardY: e.thresholdStandardY, lo: r4(e.lo), hi: r4(e.hi), lapse: Math.round(e.lapse * 1000) / 1000, trials: e.trials, stop: e.stop, ratio: Math.round(e.ratio * 100) / 100, label: r4(e.lo) <= e.thresholdStandardY && e.thresholdStandardY <= r4(e.hi) ? ("confirmado" as const) : ("nuevo" as const) })),

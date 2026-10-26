@@ -328,13 +328,16 @@ export function sampleLut(lut: Uint8Array, r8: number, g8: number, b8: number): 
 /**
  * Perfil para filtros: solo los ejes de la validación 3AFC (sus umbrales ya sustituyen a los del perfil).
  * Sin validación, null: no hay filtros (los umbrales del perfil sí/no ya no los construyen).
+ * El suelo (`fit.controlAbs`) es el control validado; sin control validado, null.
  */
 export function filterProfile(profile: UmbralProfile): UmbralProfile | null {
   const v = profile.validation;
   if (!v?.axes?.length) return null;
   const ids = new Set(v.axes.map((a) => a.id));
   const axes = profile.axes.filter((a) => ids.has(a.id) && a.thresholdSource === "validation-3afc");
-  return axes.length ? { ...profile, axes } : null;
+  const control = axes.find((a) => a.role === "control");
+  if (!control?.threshold || !axes.some((a) => a.role !== "control")) return null;
+  return { ...profile, axes, fit: { ...profile.fit, controlAbs: control.threshold } };
 }
 
 /** Transformaciones solo desde la validación 3AFC y los bordes; null sin validación. */

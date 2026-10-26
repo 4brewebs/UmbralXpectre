@@ -72,14 +72,16 @@ test("validación: sin pesos medidos no hay validación", async () => {
   assert.equal(createValidation({ ...lucas, luminance: { ...lucas.luminance, weightsSource: "standard" } }, Q, { seed: 1 }), null);
 });
 
-test("validación: mide los ejes conflictivos del perfil (≥ 1,6× control), no fijo en l y m", () => {
+test("validación: mide los ejes conflictivos del perfil (≥ 1,6× control), no fijo en l y m, y siempre el control", () => {
   const t = validationTargets(lucas);
-  assert.ok(t.length >= 1 && t.length <= VALIDATION.maxAxes);
-  for (const x of t) assert.ok(x.ratio >= VALIDATION.elevatedRatio);
-  assert.deepEqual(t.map((x) => x.id), ["l", "red-end"]);
+  const hot = t.filter((x) => x.id !== "control");
+  assert.ok(hot.length >= 1 && hot.length <= VALIDATION.maxAxes);
+  for (const x of hot) assert.ok(x.ratio >= VALIDATION.elevatedRatio);
+  assert.deepEqual(t.map((x) => x.id), ["l", "red-end", "control"]);
   // Normal: nada conflictivo → solo el de mayor razón, para confirmarlo.
   const flat = { ...lucas, axes: lucas.axes.map((a: { threshold: number | null }) => ({ ...a, threshold: a.threshold == null ? null : lucas.fit.controlAbs * 1.1 })) };
-  assert.equal(validationTargets(flat).length, 1);
+  assert.deepEqual(validationTargets(flat).map((x) => x.id).slice(-1), ["control"]);
+  assert.equal(validationTargets(flat).length, 2);
 });
 
 test("validación: 3 sectores, 2 iguales y 1 distinto, distinto y orientación al azar, γ = 1/3, sin catch", async () => {
@@ -115,10 +117,25 @@ test("validación: parada por IC (sin número fijo), tope de seguridad y orienta
   assert.ok((p.validation!.trials as Array<{ rotationDeg: number }>).every((t) => typeof t.rotationDeg === "number"));
 });
 
-test("validación: el prior se centra en el umbral del perfil", async () => {
+test("validación: el prior se centra en 0,55 × el umbral del perfil, rejilla ×/÷ 8 con 61 puntos, β = 3", async () => {
+  assert.equal(VALIDATION.priorScale, 0.55);
+  assert.equal(VALIDATION.span, 8);
+  assert.equal(VALIDATION.points, 61);
+  assert.equal(VALIDATION.beta, 3);
   const Q = await loadQuestPlus();
   const st = createValidation(lucas, Q, { seed: 1 })!;
-  for (const e of validationEstimates(st)) assert.ok(Math.abs(Math.log(e.threshold / e.thresholdStandardY)) < 0.05, `${e.id} ${e.threshold}`);
+  for (const e of validationEstimates(st)) assert.ok(Math.abs(Math.log(e.threshold / (0.55 * e.thresholdStandardY))) < 0.05, `${e.id} ${e.threshold}`);
+});
+
+test("filtros: el suelo es el control validado, no el del perfil; sin control validado no hay filtros", async () => {
+  const p = applyValidation(lucas, await run(truthOf(), 31));
+  const vc = p.validation!.axes.find((a) => a.id === "control")!;
+  assert.ok(vc, "el control se valida");
+  const fp = filterProfile(p)!;
+  assert.equal(fp.fit.controlAbs, vc.threshold);
+  assert.ok(fp.axes.some((a) => a.id === "control" && a.thresholdSource === "validation-3afc"));
+  const sinControl = { ...p, validation: { ...p.validation!, axes: p.validation!.axes.filter((a) => a.id !== "control") }, axes: p.axes.map((a) => (a.id === "control" ? { ...a, thresholdSource: undefined } : a)) };
+  assert.equal(filterProfile(sinControl as typeof p), null);
 });
 
 test("validación: sustituye el umbral, guarda el original y etiqueta «confirmado» si cae en el IC", async () => {
