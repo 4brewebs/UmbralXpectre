@@ -23,7 +23,7 @@ import {
   type Vec3,
 } from "./space";
 import type { JsQuest } from "./questplus";
-import { QP_CALIB, entropyOf, gammaOf, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
+import { QP_CALIB, entropyOf, gammaOf, logWidth, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
 
 export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
@@ -239,7 +239,8 @@ export const QP_RESUME_KEY = "umbral.calib.qp.resume";
 /** Null si todos los ejes pararon por su regla (nada que reanudar). */
 export function qpResumeOf(session: Session, now = 0): QpResume | null {
   const Q = session.questPlus;
-  if (!Q || !session.axes.some((a) => a.qpForced)) return null;
+  const reopen = (a: Axis) => !!a.qpForced || (a.phase === "done" && !!a.qpLog && !a.qpBound && !isClosed(a));
+  if (!Q || !session.axes.some(reopen)) return null;
   const gamma = sessionGamma(session);
   return {
     schema: "umbral.calib.qp.v1",
@@ -255,7 +256,7 @@ export function qpResumeOf(session: Session, now = 0): QpResume | null {
       searchPrior: a.searchPrior,
       maxS: a.maxS,
       qpLog: a.qpLog ?? [],
-      open: !!a.qpForced,
+      open: reopen(a),
       threshold: a.threshold,
       qpEstimate: a.qpEstimate ?? null,
       ...(a.qpBound ? { qpBound: a.qpBound } : {}),
@@ -733,7 +734,20 @@ export function axisNorm(axis: Axis): number {
   return axis.threshold / axis.maxS;
 }
 
+/**
+ * IC de QUEST+ convergido: anchura ln(hi/lo) < ln 2,2 y sin pegarse al techo de la rejilla (10 ΔE00 en perfiles
+ * antiguos, QP_CALIB.deMax ahora) ni al alcance del eje. Si no, el eje queda abierto.
+ */
+export function qpConverged(e: { lo: number; hi: number }, reach?: number): boolean {
+  const ceiling = Math.min(QP_CALIB.deMax, reach ?? Infinity);
+  if (e.hi >= ceiling - 1e-6 || Math.abs(e.hi - 10) < 1e-6) return false;
+  return logWidth(e) < QP_CALIB.relaxedLogWidth;
+}
+
 export function isClosed(axis: Axis): boolean {
   if (axis.qpBound) return false;
+  // QUEST+ sin converger (cortado por el tope de sesión o IC ancho): abierto, no cerrado (Colorado, 7.ª ronda).
+  if (axis.qpForced) return false;
+  if (axis.qpLog && axis.qpEstimate && !qpConverged(axis.qpEstimate, axis.qpReach)) return false;
   return axis.phase === "done" && axis.threshold != null && axis.threshold <= ABS_CLOSE * 1.25;
 }

@@ -15,7 +15,7 @@ import {
 import { readHistory, type HistoryLog } from "./history";
 import type { DeviceFingerprint } from "./device";
 import { BUILD, type BuildInfo } from "../env";
-import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
+import { axisNorm, isClosed, qpConverged, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
 import type { WeightsSource } from "./lumweights";
@@ -713,7 +713,14 @@ export function parseProfile(raw: string): UmbralProfile | null {
     const schema = (parsed as { schema?: string })?.schema;
     if (schema !== "umbral.profile.v3" && schema !== "umbral.profile.v2" && schema !== "umbral.profile.v1") return null;
     if (!parsed.fit || !Array.isArray(parsed.axes) || parsed.axes.length === 0) return null;
-    const axes = orderAxes(parsed.axes).map((axis, index) => ({ ...axis, order: index + 1 }));
+    // Un eje QUEST+ reanudable no convergió: se muestra abierto aunque un perfil antiguo lo guardara cerrado.
+    const unconverged = (axis: UmbralProfile["axes"][number]) => !!axis.quest && (axis.quest.atLeast === true || !qpConverged(axis.quest));
+    const reopened = new Set(parsed.axes.filter((axis) => axis.closed && unconverged(axis)).map((axis) => axis.label ?? axis.hue));
+    const axes = orderAxes(parsed.axes).map((axis, index) => ({ ...axis, ...(unconverged(axis) ? { closed: false } : {}), order: index + 1 }));
+    if (reopened.size && Array.isArray(parsed.closedAxes)) {
+      parsed.closedAxes = parsed.closedAxes.filter((name) => !reopened.has(name));
+      parsed.measuredAxes = [...(parsed.measuredAxes ?? []), ...[...reopened].filter((name) => !(parsed.measuredAxes ?? []).includes(name))];
+    }
     const rank = new Map(axes.map((axis) => [axis.id, axis.order]));
     const sourceTrials = Array.isArray(parsed.trials) ? parsed.trials : [];
     const trials = sourceTrials
