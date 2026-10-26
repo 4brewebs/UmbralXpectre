@@ -538,33 +538,9 @@ function redGuard(rgb: Vec3): number {
   return d >= RED_GUARD ? 1 : (d / RED_GUARD) ** 2;
 }
 
-/**
- * Máscara por píxel según la pérdida (Colorado, 3.ª ronda): w = smoothstep(t0, t1, ΔE00(original, simulación del
- * perfil)). Sustituye a la máscara por ángulo de tono en Asistencia/Extremo: solo se corrige lo que este perfil
- * pierde de verdad, sea cual sea su tono.
- */
-// Base 14/20 (Colorado): ~28 % de nodos y los 4 pares de la línea roja/verde ≥ 5 ΔE00.
-export const LOSS_MASK = { t0: 14, t1: 20 };
 export function smoothstep(a: number, b: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
-}
-/**
- * Simulación protán del perfil, sin compuerta de tono: en la línea de confusión del perfil se pierde
- * p·(1 − visto) (visto = control/umbral del eje); la Y se conserva. Es la que alimenta la máscara de pérdida.
- */
-export function protanSimProfile(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
-  if (!(floor > 0)) return rgb;
-  const band = filterModel(axes, floor).confusion;
-  if (!band) return rgb;
-  const y = luminance(rgb);
-  const plane = killPlane(rgb, y);
-  const { u, p } = splitPlane(plane, band.mid);
-  const lost = p * (1 - Math.min(1, floor / band.T));
-  return [0, 1, 2].map((i) => Math.min(1, Math.max(0, y + plane[i] - u[i] * lost))) as Vec3;
-}
-export function lossMask(rgb: Vec3, axes: AxisMark[], floor: number): number {
-  return smoothstep(LOSS_MASK.t0, LOSS_MASK.t1, deltaE00Linear(rgb, protanSimProfile(rgb, axes, floor)));
 }
 
 /** Anchura de la atenuación en la pared del gamut (margen del canal que se mueve). */
@@ -587,16 +563,82 @@ function gamutAtten(a: Vec3, b: Vec3): number {
   return w;
 }
 
-/**
- * Limitación conocida (Colorado, decisión tras la 5.ª ronda): esquina azul saturada de la gama sin corrección.
- * El par violeta/azul queda como el original (2,87 ΔE00 protán); el derrame a luminosidad se descartó.
- */
+/** Notas del filtro (principio «solo lo medido», 26-10-2026). Las dos limitaciones previas se retiran: ver texto. */
 export const KNOWN_LIMITATIONS = [
-  "esquina azul saturada de la gama: sin corrección",
-  "escalón cian→menta al 50 % en la pared verde de la gama, ~181–205°",
+  "máscara solo con datos medidos: sector entre los bordes medidos de cada eje elevado y por debajo de la escala hasta la que se midió el fallo; fuera, cambio 0 (transición C1)",
+  "la simulación («Tu visión») es solo ilustración; no decide qué se modifica",
+  "colores fuera de la región medida (p. ej. saturados) sin corrección hasta que se mida fallo ahí",
+  "retirada «esquina azul saturada de la gama: sin corrección»: queda fuera de la región medida, cambio 0 por diseño (no es zona medida, no una limitación del filtro)",
+  "retirada «escalón cian→menta al 50 % en la pared verde, ~181–205°»: la pared verde queda fuera de la región; el barrido HSV ya no añade escalón",
 ];
+export const PROVISIONAL_NOTE = "provisional: eje elevado sin bordes medidos (sin explorar, «unmeasurable», abierto o en el techo); se corrige solo ±10° alrededor del ángulo medido del eje";
 
-function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
+
+/**
+ * Región medida (principio de Lucas, 26-10-2026: «solo modificar lo que sabemos y podemos medir que el usuario
+ * falla»). Asistencia/Extremo solo tocan píxeles dentro de un sector medido y por debajo de la escala hasta la que
+ * se midió el fallo. La simulación («Tu visión») ya no decide nada.
+ * - Eje elevado con bordes medidos (ambos lados «found»): sector [minus, plus]; escala = profundidad medida
+ *   (depth.scale) o el umbral del eje.
+ * - Eje elevado sin bordes (sin explorar, «unmeasurable», abierto o en el techo): ±10° alrededor del ángulo
+ *   medido del eje, escala = umbral del eje; provisional.
+ * Fuera: cambio 0, con transición C1 (smoothstep) en ángulo y en escala.
+ */
+export type Sector = { axis: string; loDeg: number; hiDeg: number; scale: number; provisional: boolean; reason: string };
+export const REGION = { edgeSoftDeg: 6, provisionalHalfDeg: 10, scaleSoft: 0.5 };
+
+function edgeSectorOf(file: EdgeFile | undefined): { lo: number; hi: number; scale: number | null } | null {
+  if (!file || file.band === "unmeasurable" || file.band === "none") return null;
+  const m = file.minus, p = file.plus;
+  if (m?.result !== "found" || p?.result !== "found" || m.angleDeg == null || p.angleDeg == null) return null;
+  return { lo: m.angleDeg, hi: p.angleDeg, scale: file.depth?.scale ?? null };
+}
+
+export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[] = []): Sector[] {
+  if (!(floor > 0)) return [];
+  const gate = floor * GATE;
+  const out: Sector[] = [];
+  for (const axis of axes) {
+    if (isReference(axis) || axis.threshold == null || !(axis.threshold > gate) || axis.thresholdKind === "upper-bound") continue;
+    const id = axis.id ?? axis.role ?? "?";
+    const open = axis.thresholdKind != null && axis.thresholdKind !== "estimate";
+    const cone = axis.role === "l" || axis.role === "m" ? axis.role : null;
+    const sec = cone && !open ? edgeSectorOf(edges.find((e) => e.cone === cone)) : null;
+    if (sec) {
+      out.push({ axis: id, loDeg: sec.lo, hiDeg: sec.hi, scale: sec.scale ?? axis.threshold, provisional: false, reason: "bordes medidos" });
+    } else {
+      const h = REGION.provisionalHalfDeg;
+      out.push({ axis: id, loDeg: axis.angleDeg - h, hiDeg: axis.angleDeg + h, scale: axis.threshold, provisional: true,
+        reason: open ? "eje abierto o en el techo" : cone ? "bordes sin medir" : "eje sin prueba de bordes" });
+    }
+  }
+  return out;
+}
+
+/** Peso C1 de la región: sector (smoothstep fuera del borde) × escala (1 hasta la escala medida, 0 a ×1,5). */
+export function regionMask(theta: number, radius: number, sectors: Sector[]): number {
+  let w = 0;
+  for (const sct of sectors) {
+    const lo = rad(sct.loDeg);
+    const width = (((rad(sct.hiDeg) - lo) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const rel = (((theta - lo) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const outside = rel <= width ? 0 : Math.min(rel - width, 2 * Math.PI - rel);
+    const ws = 1 - smoothstep(0, rad(REGION.edgeSoftDeg), outside);
+    const wr = 1 - smoothstep(sct.scale, sct.scale * (1 + REGION.scaleSoft), radius);
+    w = Math.max(w, ws * wr);
+  }
+  return w;
+}
+const regionCache = new WeakMap<AxisMark[], { floor: number; sectors: Sector[] }>();
+function defaultRegion(axes: AxisMark[], floor: number): Sector[] {
+  const c = regionCache.get(axes);
+  if (c && c.floor === floor) return c.sectors;
+  const sectors = measuredRegion(axes, floor);
+  regionCache.set(axes, { floor, sectors });
+  return sectors;
+}
+
+function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
@@ -605,7 +647,7 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const mask = lossMask(rgb, axes, floor);
+  const mask = regionMask(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
   if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
@@ -630,13 +672,13 @@ function killPlane(rgb: Vec3, y: number): Vec3 {
 }
 
 /** La misma daltonización que la asistencia, con más ganancia y giro de hasta 60°. */
-export function extremeColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = []): Vec3 {
-  return daltonize(rgb, axes, floor, true);
+export function extremeColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = [], region?: Sector[]): Vec3 {
+  return daltonize(rgb, axes, floor, true, region);
 }
 
 /** Lo perdido en L−M pasa a S (daltonización), giro de tono ≤ 45°, misma Y. */
-export function assistColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = []): Vec3 {
-  return daltonize(rgb, axes, floor, false);
+export function assistColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: LumaGain[] = [], region?: Sector[]): Vec3 {
+  return daltonize(rgb, axes, floor, false, region);
 }
 
 export type FilterSource = "profile" | "edges";
@@ -827,8 +869,9 @@ export function colorFor(
   const luma = lumaFromProfile(profile);
   if (kind === "simulate") return paintYours(rgb, profile.axes, floor, luma);
   if (kind === "correct") return correctColor(rgb, profile.axes, floor);
-  if (kind === "extreme") return extremeColor(rgb, profile.axes, floor, luma);
-  return assistColor(rgb, profile.axes, floor, luma);
+  const region = measuredRegion(profile.axes, floor, files);
+  if (kind === "extreme") return extremeColor(rgb, profile.axes, floor, luma, region);
+  return assistColor(rgb, profile.axes, floor, luma, region);
 }
 
 export function coneBlurb(pathway: Pathway): string {

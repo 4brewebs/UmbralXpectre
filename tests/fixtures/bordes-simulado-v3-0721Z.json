@@ -1,0 +1,1018 @@
+{
+  "schema": "umbral.edges.sim.v3",
+  "note": "Sesión simulada (no medida) con el algoritmo nuevo de Bordes sobre el perfil de Lucas 2026-10-26T07:21Z (perfil real) con la ventana 1,5× control–0,8× eje y la entrada basedOn (edgeInputFromProfile). Observador determinista: umbral(θ)=control+(eje−control)·max(0,1−(|θ−pico|/H)²); ve el disco si escala>umbral(θ).",
+  "profile": {
+    "createdAt": "2026-10-26T07:21:35.267Z",
+    "controlAbs": 0.0105
+  },
+  "runs": [
+    {
+      "observer": {
+        "halfWidthDeg": 14,
+        "axisThreshold": 0.0568,
+        "controlThreshold": 0.0105
+      },
+      "phaseAtEnd": "confirm",
+      "file": {
+        "schema": "umbral.edges.v1",
+        "createdAt": "2026-10-26T08:22:56.948Z",
+        "basedOn": {
+          "schema": "umbral.profile.v3",
+          "createdAt": "2026-10-26T07:21:35.267Z"
+        },
+        "cone": "l",
+        "name": "rojos",
+        "offeredBecause": "1.5× control < 0.8× axis",
+        "floor": 0.0105,
+        "edgeScale": 0.0268,
+        "startAngleDeg": 11.1,
+        "sourceThreshold": 0.0568,
+        "sourceTimes": 5.4,
+        "band": "closed",
+        "scaleWindow": {
+          "lo": 0.0158,
+          "hi": 0.0454
+        },
+        "minus": {
+          "found": true,
+          "toEnd": false,
+          "result": "found",
+          "angleDeg": 1.1,
+          "insideDeg": 1.1,
+          "outsideDeg": -0.9
+        },
+        "plus": {
+          "found": true,
+          "toEnd": false,
+          "result": "found",
+          "angleDeg": 22,
+          "insideDeg": 22,
+          "outsideDeg": 23.4
+        },
+        "depth": {
+          "angleDeg": 11.6,
+          "scale": 0.0564,
+          "bound": "estimate",
+          "ceiling": 0.0767
+        },
+        "confirmed": {
+          "minus": 1.1,
+          "plus": 22
+        },
+        "trials": [
+          {
+            "order": 1,
+            "phase": "edge",
+            "side": "peak",
+            "angleDeg": 11.1,
+            "scale": 0.0268,
+            "oddIndex": 0,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              129
+            ],
+            "negative": [
+              122,
+              131,
+              130
+            ]
+          },
+          {
+            "order": 2,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": 7.1,
+            "scale": 0.0268,
+            "oddIndex": 2,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              128
+            ],
+            "negative": [
+              122,
+              131,
+              130
+            ]
+          },
+          {
+            "order": 3,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": 3.1,
+            "scale": 0.0268,
+            "oddIndex": 3,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              128
+            ],
+            "negative": [
+              122,
+              131,
+              131
+            ]
+          },
+          {
+            "order": 4,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -0.9,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              127
+            ],
+            "negative": [
+              122,
+              131,
+              131
+            ]
+          },
+          {
+            "order": 5,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": 1.1,
+            "scale": 0.0268,
+            "oddIndex": 2,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              127
+            ],
+            "negative": [
+              122,
+              131,
+              131
+            ]
+          },
+          {
+            "order": 6,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": 1.1,
+            "scale": 0.0268,
+            "oddIndex": 0,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": "inside",
+            "positive": [
+              136,
+              127,
+              127
+            ],
+            "negative": [
+              122,
+              131,
+              131
+            ]
+          },
+          {
+            "order": 7,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -0.9,
+            "scale": 0.0268,
+            "oddIndex": 3,
+            "oddSign": 1,
+            "picked": [
+              3
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": "outside",
+            "positive": [
+              136,
+              127,
+              127
+            ],
+            "negative": [
+              122,
+              131,
+              131
+            ]
+          },
+          {
+            "order": 8,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 14,
+            "scale": 0.0268,
+            "oddIndex": 2,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              129
+            ],
+            "negative": [
+              122,
+              131,
+              129
+            ]
+          },
+          {
+            "order": 9,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 18,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              129
+            ]
+          },
+          {
+            "order": 10,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 22,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 11,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 27.5,
+            "scale": 0.0268,
+            "oddIndex": 3,
+            "oddSign": -1,
+            "picked": [
+              3
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              131
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 12,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 24.8,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 13,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 23.4,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 14,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 22,
+            "scale": 0.0268,
+            "oddIndex": 2,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": "inside",
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 15,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": 23.4,
+            "scale": 0.0268,
+            "oddIndex": 0,
+            "oddSign": -1,
+            "picked": [
+              0
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": "outside",
+            "positive": [
+              136,
+              127,
+              130
+            ],
+            "negative": [
+              122,
+              131,
+              128
+            ]
+          },
+          {
+            "order": 16,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": 11.6,
+            "scale": 0.0268,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              136,
+              127,
+              129
+            ],
+            "negative": [
+              122,
+              131,
+              130
+            ]
+          },
+          {
+            "order": 17,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": 11.6,
+            "scale": 0.0517,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              142,
+              125,
+              128
+            ],
+            "negative": [
+              115,
+              133,
+              130
+            ]
+          },
+          {
+            "order": 18,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": 11.6,
+            "scale": 0.0642,
+            "oddIndex": 2,
+            "oddSign": -1,
+            "picked": [
+              2
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              145,
+              124,
+              128
+            ],
+            "negative": [
+              111,
+              134,
+              130
+            ]
+          },
+          {
+            "order": 19,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": 11.6,
+            "scale": 0.058,
+            "oddIndex": 0,
+            "oddSign": -1,
+            "picked": [
+              0
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              143,
+              125,
+              128
+            ],
+            "negative": [
+              113,
+              133,
+              130
+            ]
+          },
+          {
+            "order": 20,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": 11.6,
+            "scale": 0.0548,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              142,
+              125,
+              128
+            ],
+            "negative": [
+              114,
+              133,
+              130
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "observer": {
+        "halfWidthDeg": 12,
+        "axisThreshold": 0.0237,
+        "controlThreshold": 0.0105
+      },
+      "phaseAtEnd": "confirm",
+      "file": {
+        "schema": "umbral.edges.v1",
+        "createdAt": "2026-10-26T08:22:56.951Z",
+        "basedOn": {
+          "schema": "umbral.profile.v3",
+          "createdAt": "2026-10-26T07:21:35.267Z"
+        },
+        "cone": "m",
+        "name": "verdes",
+        "offeredBecause": "1.5× control < 0.8× axis",
+        "floor": 0.0105,
+        "edgeScale": 0.0173,
+        "startAngleDeg": -156.7,
+        "sourceThreshold": 0.0237,
+        "sourceTimes": 2.3,
+        "band": "closed",
+        "scaleWindow": {
+          "lo": 0.0158,
+          "hi": 0.019
+        },
+        "minus": {
+          "found": true,
+          "toEnd": false,
+          "result": "found",
+          "angleDeg": -164,
+          "insideDeg": -164,
+          "outsideDeg": -166
+        },
+        "plus": {
+          "found": true,
+          "toEnd": false,
+          "result": "found",
+          "angleDeg": -148.7,
+          "insideDeg": -148.7,
+          "outsideDeg": -146.7
+        },
+        "depth": {
+          "angleDeg": -156.3,
+          "scale": 0.0228,
+          "bound": "estimate",
+          "ceiling": 0.032
+        },
+        "confirmed": {
+          "minus": -164,
+          "plus": -148.7
+        },
+        "trials": [
+          {
+            "order": 1,
+            "phase": "edge",
+            "side": "peak",
+            "angleDeg": -156.7,
+            "scale": 0.0173,
+            "oddIndex": 0,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 2,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -160,
+            "scale": 0.0173,
+            "oddIndex": 2,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 3,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -164,
+            "scale": 0.0173,
+            "oddIndex": 3,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              134,
+              128,
+              129
+            ]
+          },
+          {
+            "order": 4,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -168,
+            "scale": 0.0173,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              134,
+              128,
+              129
+            ]
+          },
+          {
+            "order": 5,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -166,
+            "scale": 0.0173,
+            "oddIndex": 2,
+            "oddSign": -1,
+            "picked": [
+              2
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              134,
+              128,
+              129
+            ]
+          },
+          {
+            "order": 6,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -164,
+            "scale": 0.0173,
+            "oddIndex": 0,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": "inside",
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              134,
+              128,
+              129
+            ]
+          },
+          {
+            "order": 7,
+            "phase": "edge",
+            "side": "minus",
+            "angleDeg": -166,
+            "scale": 0.0173,
+            "oddIndex": 3,
+            "oddSign": 1,
+            "picked": [
+              3
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": "outside",
+            "positive": [
+              125,
+              130,
+              129
+            ],
+            "negative": [
+              134,
+              128,
+              129
+            ]
+          },
+          {
+            "order": 8,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -152.7,
+            "scale": 0.0173,
+            "oddIndex": 2,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 9,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -148.7,
+            "scale": 0.0173,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 10,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -144.7,
+            "scale": 0.0173,
+            "oddIndex": 1,
+            "oddSign": -1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              127
+            ],
+            "negative": [
+              133,
+              128,
+              131
+            ]
+          },
+          {
+            "order": 11,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -146.7,
+            "scale": 0.0173,
+            "oddIndex": 3,
+            "oddSign": -1,
+            "picked": [
+              3
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              131
+            ]
+          },
+          {
+            "order": 12,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -148.7,
+            "scale": 0.0173,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": "inside",
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 13,
+            "phase": "edge",
+            "side": "plus",
+            "angleDeg": -146.7,
+            "scale": 0.0173,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [
+              1
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": "outside",
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              131
+            ]
+          },
+          {
+            "order": 14,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": -156.3,
+            "scale": 0.0173,
+            "oddIndex": 2,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              125,
+              131,
+              128
+            ],
+            "negative": [
+              133,
+              128,
+              130
+            ]
+          },
+          {
+            "order": 15,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": -156.3,
+            "scale": 0.0246,
+            "oddIndex": 0,
+            "oddSign": -1,
+            "picked": [
+              0
+            ],
+            "none": false,
+            "kind": "seen",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              123,
+              131,
+              128
+            ],
+            "negative": [
+              135,
+              127,
+              130
+            ]
+          },
+          {
+            "order": 16,
+            "phase": "depth",
+            "side": "center",
+            "angleDeg": -156.3,
+            "scale": 0.021,
+            "oddIndex": 1,
+            "oddSign": 1,
+            "picked": [],
+            "none": true,
+            "kind": "none",
+            "repeat": false,
+            "check": null,
+            "positive": [
+              124,
+              131,
+              128
+            ],
+            "negative": [
+              134,
+              127,
+              130
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

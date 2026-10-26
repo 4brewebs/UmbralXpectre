@@ -6,7 +6,7 @@ import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/l
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift, MASK_EDGE, lossMask } from "../src/lib/color/spectrum";
+import { correctColor, labHueShift, MASK_EDGE, measuredRegion, regionMask } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -40,21 +40,21 @@ export function pairReport() {
   };
 }
 
-test("daltonización: #C04040 vs #708030 (misma Y) ≥ 10 ΔE00 en simulación protan tras Asistencia", () => {
+test("solo lo medido: #C04040 vs #708030 (saturados, fuera de la región medida) quedan como el original", () => {
   const r = pairReport();
-  assert.ok(r.assist >= 10, JSON.stringify(r));
-  assert.ok(r.extreme >= r.assist - 1e-9, JSON.stringify(r));
-  // Solo croma: la Y no cambia.
+  assert.ok(Math.abs(r.assist - r.before) < 1e-9 && Math.abs(r.extreme - r.before) < 1e-9, JSON.stringify(r));
   assert.ok(Math.abs(r.y[0] - r.y[1]) < 1e-7 && Math.abs(r.y[2] - r.y[3]) < 1e-7);
 });
 
 test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (60° Extremo), dentro del gamut", () => {
   // Las dos cartas de la línea de confusión (mismo Y, ± dirección del eje l): a extremos opuestos de S.
-  // Máscara por pérdida (base t0 = 14): con el perfil 21:40Z la carta rojiza ya no pierde bastante; se usa el real 07:21Z.
+  // Región medida: dentro del sector del eje y por debajo de su escala (umbral l 0,0568) → radio 0,045.
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const d = dirFromTheta((11.1 * Math.PI) / 180);
-  const a: Vec3 = [0.22 + d[0] * 0.22, 0.22 + d[1] * 0.22, 0.22 + d[2] * 0.22];
-  const b: Vec3 = [0.22 - d[0] * 0.22, 0.22 - d[1] * 0.22, 0.22 - d[2] * 0.22];
+  const a: Vec3 = [0.22 + d[0] * 0.045, 0.22 + d[1] * 0.045, 0.22 + d[2] * 0.045];
+  // Carta verdosa dentro del sector m (−156,7°) y bajo su escala (umbral 0,0237) → radio 0,02.
+  const e = dirFromTheta((-156.7 * Math.PI) / 180);
+  const b: Vec3 = [0.22 + e[0] * 0.02, 0.22 + e[1] * 0.02, 0.22 + e[2] * 0.02];
   const blue = (c: Vec3) => c[2] - (c[0] + c[1]) / 2;
   const da = blue(assistColor(a, real.axes, real.fit.controlAbs!)) - blue(a);
   const db = blue(assistColor(b, real.axes, real.fit.controlAbs!)) - blue(b);
@@ -76,11 +76,11 @@ test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (
   }
 });
 
-test("perfil de Lucas 21:40Z: Asistencia y Extremo ya cambian nodos", () => {
+test("perfil de Lucas 21:40Z: Asistencia y Extremo cambian nodos (solo en la región medida)", () => {
   const t = buildTransformFile(profile);
   const changed = (id: string) => t.filters.find((f) => f.id === id)!.changed;
-  assert.ok(changed("assist") > 1000, `${changed("assist")}`);
-  assert.ok(changed("extreme") > 1000, `${changed("extreme")}`);
+  assert.ok(changed("assist") > 0, `${changed("assist")}`);
+  assert.ok(changed("extreme") > 0, `${changed("extreme")}`);
 });
 
 test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (objetivo 30 %)", () => {
@@ -106,8 +106,8 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
     if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) assert.deepEqual(correctColor(c, profile.axes, floor), c);
-    // Asistencia/Extremo: máscara por pérdida; con w = 0 el cambio es exactamente 0.
-    if (lossMask(c, profile.axes, floor) === 0) {
+    // Asistencia/Extremo: región medida; con w = 0 el cambio es exactamente 0.
+    if (regionMask(thetaOf(plane), Math.hypot(...plane), measuredRegion(profile.axes, floor)) === 0) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
       assert.deepEqual(extremeColor(c, profile.axes, floor), c);
     }
@@ -119,14 +119,23 @@ test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono
   for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
 });
 
-test("transforms: guarda t0/t1 de la máscara por pérdida y la limitación conocida (sin derrame a Y)", () => {
-  const f = buildTransformFile(profile) as { params?: { lossMask: { t0: number; t1: number }; notes: string[]; lightSpill?: unknown } };
-  assert.deepEqual(f.params?.lossMask, { t0: 14, t1: 20 });
-  assert.deepEqual(f.params?.notes, ["esquina azul saturada de la gama: sin corrección", "escalón cian→menta al 50 % en la pared verde de la gama, ~181–205°"]);
-  assert.equal(f.params?.lightSpill, undefined);
+test("transforms: máscara de región medida; sin bordes → provisional ±10°; limitaciones previas retiradas", () => {
+  const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
+  const f = buildTransformFile(real);
+  assert.equal(f.params?.mask, "región medida");
+  assert.equal(f.params?.provisional, true);
+  assert.deepEqual(f.params?.region.map((r) => [r.axis, r.provisional, +(r.hiDeg - r.loDeg).toFixed(6)]), [["l", true, 20], ["m", true, 20]]);
+  assert.ok(f.params?.notes.some((n) => n.startsWith("provisional:")));
+  assert.ok(!f.params?.notes.includes("esquina azul saturada de la gama: sin corrección"));
+  assert.ok(f.params?.notes.some((n) => n.startsWith("retirada «esquina azul")) && f.params?.notes.some((n) => n.startsWith("retirada «escalón cian")));
+  assert.equal((f.params as { lossMask?: unknown }).lossMask, undefined);
+  const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((r: { file: unknown }) => r.file);
+  const g = buildTransformFile(real, sim);
+  assert.equal(g.params?.provisional, false);
+  assert.deepEqual(g.params?.region.map((r) => [r.axis, r.loDeg, r.hiDeg, r.scale]), [["l", 1.1, 22, 0.0564], ["m", -164, -148.7, 0.0228]]);
 });
 
-test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 1 ΔE00 (Asistencia y Extremo, perfil 07:21Z)", { todo: "limitación conocida: escalón cian→menta al 50 % en la pared verde (~181–205°); exceso 2,63 (asist.) / 3,33 (extr.) ΔE00. Ensanchar la pared a 0,6 deja 1,49; a 0,8/1,0 rosa/gris cae < 5" }, () => {
+test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 1 ΔE00 (Asistencia y Extremo, perfil 07:21Z)", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const hsv = (h: number, s: number): Vec3 => {
     const g = (n: number) => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); };

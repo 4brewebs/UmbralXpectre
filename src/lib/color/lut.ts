@@ -1,5 +1,5 @@
 import type { UmbralProfile } from "./profile";
-import { GAMUT_SOFT, KNOWN_LIMITATIONS, LOSS_MASK, assistColor, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -93,7 +93,14 @@ export type TransformFile = {
   floor: number;
   gate: number;
   /** Parámetros de Asistencia/Extremo con los que se hornearon los nodos (ausente en archivos anteriores). */
-  params?: { lossMask: { t0: number; t1: number }; gamutSoft: number; notes: string[] };
+  params?: {
+    mask: "región medida";
+    region: Sector[];
+    provisional: boolean;
+    regionSoft: { edgeDeg: number; scaleTimes: number; provisionalHalfDeg: number };
+    gamutSoft: number;
+    notes: string[];
+  };
   filters: TransformFilter[];
 };
 
@@ -103,10 +110,11 @@ const GATE = 1.6;
  * One element per filter. The lattice is the same function the plates and the camera apply,
  * baked from this profile. Identity filters omit the bytes.
  */
-export function buildTransformFile(profile: UmbralProfile): TransformFile {
+export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = []): TransformFile {
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const luma = lumaFromProfile(profile);
   const axes = profile.axes;
+  const region = measuredRegion(axes, floor, edges);
   const specs: Array<{
     id: TransformFilter["id"];
     name: string;
@@ -135,13 +143,13 @@ export function buildTransformFile(profile: UmbralProfile): TransformFile {
       id: "assist",
       name: "Asistencia",
       note: "Mueve un poco la banda hacia el rojo o el verde que ya separas, sin cambiar un pálido por uno vivo.",
-      apply: (rgb) => assistColor(rgb, axes, floor, luma),
+      apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
     },
     {
       id: "extreme",
       name: "Extremo",
       note: "La misma dirección que la asistencia, ampliada hasta el borde del gamut, para separar los píxeles de la banda.",
-      apply: (rgb) => extremeColor(rgb, axes, floor, luma),
+      apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
     },
   ];
   return {
@@ -153,7 +161,14 @@ export function buildTransformFile(profile: UmbralProfile): TransformFile {
     order: "Índice ((b * size + g) * size + r). r es el eje rápido. Tres bytes RGB por nodo.",
     floor: Math.round(floor * 10000) / 10000,
     gate: GATE,
-    params: { lossMask: { t0: LOSS_MASK.t0, t1: LOSS_MASK.t1 }, gamutSoft: GAMUT_SOFT, notes: [...KNOWN_LIMITATIONS] },
+    params: {
+      mask: "región medida",
+      region,
+      provisional: region.some((sector) => sector.provisional),
+      regionSoft: { edgeDeg: REGION.edgeSoftDeg, scaleTimes: 1 + REGION.scaleSoft, provisionalHalfDeg: REGION.provisionalHalfDeg },
+      gamutSoft: GAMUT_SOFT,
+      notes: [...KNOWN_LIMITATIONS, ...(region.some((sector) => sector.provisional) ? [PROVISIONAL_NOTE] : [])],
+    },
     filters: specs.map((spec) => bakeFilter(spec, floor)),
   };
 }

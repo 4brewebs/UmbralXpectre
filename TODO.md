@@ -7,8 +7,10 @@ cada push a `main` despliega en Pages.
 - [ ] **Persistencia** (no implementado aún): migrar localStorage a IndexedDB con `idb` (ISC, Jake Archibald) + `navigator.storage.persist()` + exportar/importar JSON + migración automática desde localStorage, con prefijo por entorno (`qa.`). Sync entre dispositivos opcional más adelante; descartados Firebase (datos de salud RGPD, cuentas, backend) y FalkorDB (servidor).
 
 ## 01. Tarea futura (aparte)
-- [ ] **Corrección de claridad con máscara estrecha en la cara azul (violeta/azul).** Ahora la esquina azul saturada de la gama queda sin corrección (limitación conocida en `transforms.params.notes`): violeta/azul 2,87 ΔE00 protán, igual que el original. El intento de la 5.ª ronda (residuo de S a Y, umbrales 2/4 por déficit) llegaba a 5,17 pero cambiaba ~69 % de los nodos y dejaba escalones de 3–4 ΔE00.
-- [ ] **Escalón cian→menta al 50 % en la pared verde de la gama (~181–205°)** (limitación conocida en `transforms.params.notes`): exceso sobre el original 2,63 ΔE00 (Asistencia) y 3,33 (Extremo). Probado ensanchar la pared de gamut: 0,6 → 1,49 en Extremo; 0,8 y 1,0 lo arreglan (0,96/0,73) pero rosa/gris baja a 4,71/4,06 (< 5).
+- [x] ~~Esquina azul saturada (violeta/azul)~~ y ~~escalón cian→menta al 50 %~~: ya no son limitaciones. Con el principio «solo modificar lo que sabemos y podemos medir que el usuario falla» (26/10), Asistencia/Extremo solo tocan la región medida (sector entre bordes medidos × escala de fallo medida; sin bordes, ±10° provisional). Esas zonas quedan fuera, con cambio 0.
+- [ ] **Pares dentro de la región medida < 5 ΔE00 tras la Asistencia** (protán Machado, perfil 07:21Z): l 4,58 y m 2,17 con bordes SIMULADOS v3 (Extremo 6,74 y 3,01). El test está como TODO.
+- [ ] **Extremo en la transición angular de 6° a croma baja**: hasta +1,4 ΔE00/1° sobre el original (r 0,045–0,06, ~25°). Asistencia ≤ 0,85.
+- [ ] Láminas y cámara con fuente «Perfil» usan los bordes que se les pasen; sin bordes, la región es provisional.
 
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
