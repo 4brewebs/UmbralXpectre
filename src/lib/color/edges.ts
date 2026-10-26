@@ -1,4 +1,4 @@
-import { ANCHOR, addScaled, dirFromTheta, hueName, maxScale, toSrgb8, type Vec3 } from "./space";
+import { ANCHOR, addScaled, dirFromTheta, hueName, isoDir, lumEps, makeLumNoise, maxScale, measuredLumWeights, pairLuminanceOf, toSrgb8, withLum, type LumNoise, type PairLuminance, type Vec3 } from "./space";
 import { createQuestPlus, detect3, grid, type JsQuest, type QuestPlus } from "./questplus";
 import { deltaE00Linear } from "./deltaE";
 
@@ -42,6 +42,8 @@ export type EdgePhase = "peak" | "minus" | "plus" | "depth" | "confirm" | "done"
 
 export interface EdgeTrial {
   order: number;
+  /** ε de los cuatro discos (ruido de luminancia), en orden de disco. */
+  lumEps?: number[];
   phase: "edge" | "depth" | "confirm";
   side: "peak" | "minus" | "plus" | "center";
   angleDeg: number;
@@ -74,6 +76,10 @@ export interface EdgeFile {
   notes?: string[];
   createdAt: string;
   basedOn: { schema: string; createdAt: string };
+  /** Pesos de luminancia con que se igualaron los discos (C1): fuente y valores. */
+  pairLuminance?: PairLuminance;
+  /** Ruido de luminancia: amplitud y semilla (los ε de cada ensayo van en `trials[].lumEps`). */
+  lumNoise?: LumNoise;
   cone: ConeId;
   name: EdgeName;
   offeredBecause: "estimate >= 1.6× control" | "1.5× control < 0.8× axis";
@@ -140,6 +146,10 @@ interface Side {
 }
 
 export interface EdgeRun {
+  /** Ruido de luminancia por disco (sin él, ?lumnoise=0, todo como antes). */
+  lumNoise?: LumNoise;
+  /** Pesos personales de luminancia medidos (C1); sin ellos, Y estándar. */
+  lumWeights?: Vec3;
   cone: ConeId;
   name: EdgeName;
   floor: number;
@@ -226,12 +236,18 @@ export function scaleAt(floor: number, angleDeg: number): number {
   return Math.max(0.01, Math.min(floor * 2, room * 0.82));
 }
 
-export function discEnds(angleDeg: number, scale: number): { positive: [number, number, number]; negative: [number, number, number] } {
-  const dir = dirFromTheta(rad(angleDeg));
+/** Con pesos personales, la escala se recorta a lo que cabe en el gamut por los dos lados (un canal recortado rompe la igualación). */
+function isoReach(dir: Vec3, scale: number): number {
+  return Math.min(scale, maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]]));
+}
+
+export function discEnds(angleDeg: number, scale: number, w?: Vec3): { positive: [number, number, number]; negative: [number, number, number] } {
+  const dir = isoDir(dirFromTheta(rad(angleDeg)), w);
   const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const sc = w ? isoReach(dir, scale) : scale;
   return {
-    positive: toSrgb8(addScaled(gray, dir, scale)),
-    negative: toSrgb8(addScaled(gray, dir, -scale)),
+    positive: toSrgb8(addScaled(gray, dir, sc)),
+    negative: toSrgb8(addScaled(gray, dir, -sc)),
   };
 }
 
@@ -239,13 +255,27 @@ export function discEnds(angleDeg: number, scale: number): { positive: [number, 
  * Los cuatro discos del ensayo (sRGB 8 bits). En un catch obvio el disco distinto, además del tono,
  * lleva un 25 % más de luminancia Y (≥ 20 %, Colorado): obvio para cualquier daltónico.
  */
-export function discsOf(run: Pick<EdgeRun, "angle" | "scale" | "oddIndex" | "oddSign" | "catchTrial">): Array<[number, number, number]> {
-  const dir = dirFromTheta(rad(run.angle));
+/** ε de los cuatro discos del ensayo en curso (o null sin ruido). */
+export function discEps(run: Pick<EdgeRun, "lumNoise"> & { trials?: unknown[] }): number[] | null {
+  const n = run.lumNoise;
+  if (!n) return null;
+  const t = run.trials?.length ?? 0;
+  return [0, 1, 2, 3].map((i) => lumEps(n, t, i));
+}
+
+export function discsOf(run: Pick<EdgeRun, "angle" | "scale" | "oddIndex" | "oddSign" | "catchTrial" | "lumWeights" | "lumNoise"> & { trials?: unknown[] }): Array<[number, number, number]> {
+  const dir = isoDir(dirFromTheta(rad(run.angle)), run.lumWeights);
   const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
-  const odd = addScaled(gray, dir, run.oddSign * run.scale);
-  const other = toSrgb8(addScaled(gray, dir, -run.oddSign * run.scale));
+  const sc = run.lumWeights ? isoReach(dir, run.scale) : run.scale;
+  const odd = addScaled(gray, dir, run.oddSign * sc);
+  const otherLin = addScaled(gray, dir, -run.oddSign * sc);
   const k = run.catchTrial ? QP_EDGES.catchLum : 1;
-  const oddRgb = toSrgb8(odd.map((v) => Math.min(1, v * k)) as Vec3);
+  const oddLin = odd.map((v) => Math.min(1, v * k)) as Vec3;
+  const eps = discEps(run);
+  // Ruido después de igualar (pesos personales incluidos): cada disco, el impar también, su propio ε.
+  if (eps) return [0, 1, 2, 3].map((i) => toSrgb8(withLum(i === run.oddIndex ? oddLin : otherLin, eps[i])));
+  const other = toSrgb8(otherLin);
+  const oddRgb = toSrgb8(oddLin);
   return [0, 1, 2, 3].map((i) => (i === run.oddIndex ? oddRgb : other));
 }
 
@@ -393,6 +423,7 @@ export function edgeInputFromProfile(
     createdAt: string;
     fit: { controlAbs?: number | null; controlBounded?: boolean; timesControlKind?: string | null; pathways?: Array<{ id: string; threshold?: number | null; timesControl?: number | null }> };
     axes: Array<{ id: string; angleDeg: number; threshold: number | null }>;
+    luminance?: { weightsSource?: string; weights?: Vec3 } | null;
   },
   cone: ConeId,
 ): Parameters<typeof startRun>[0] {
@@ -407,6 +438,7 @@ export function edgeInputFromProfile(
     profileSchema: profile.schema,
     profileCreatedAt: profile.createdAt,
     controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
+    lumWeights: measuredLumWeights(profile),
   };
 }
 
@@ -422,6 +454,10 @@ export function startRun(input: {
   questPlus?: JsQuest;
   /** El control del perfil está acotado (último peldaño): no se hereda; el suelo es el umbral de la banda. */
   controlBounded?: boolean;
+  /** Pesos personales de luminancia medidos (C1). */
+  lumWeights?: Vec3 | null;
+  /** Ruido de luminancia por disco (por defecto no; la UI lo activa salvo ?lumnoise=0). */
+  lumNoise?: boolean;
 }): EdgeRun {
   const fromBand = input.controlBounded === true && input.sourceThreshold > 0;
   const floor = fromBand ? input.sourceThreshold : input.floor > 0 ? input.floor : 0.02;
@@ -466,11 +502,13 @@ export function startRun(input: {
     trials: [],
     band: null,
     ...(input.questPlus ? { questPlus: input.questPlus } : {}),
+    ...(input.lumNoise ? { lumNoise: makeLumNoise(rolled.rng ^ 0x5bd1e995) } : {}),
+    ...(input.lumWeights ? { lumWeights: [input.lumWeights[0], input.lumWeights[1], input.lumWeights[2]] as Vec3 } : {}),
   };
 }
 
 function pushTrial(run: EdgeRun, input: EdgeAnswer, kind: AnswerKind, phase: EdgeTrial["phase"], side: EdgeTrial["side"]): EdgeRun {
-  const ends = discEnds(run.angle, run.scale);
+  const ends = discEnds(run.angle, run.scale, run.lumWeights);
   const trial: EdgeTrial = {
     order: run.trials.length + 1,
     phase,
@@ -486,6 +524,7 @@ function pushTrial(run: EdgeRun, input: EdgeAnswer, kind: AnswerKind, phase: Edg
     check: run.edgeConfirm,
     positive: ends.positive,
     negative: ends.negative,
+    ...(run.lumNoise ? { lumEps: discEps(run)! } : {}),
   };
   return { ...run, trials: [...run.trials, trial] };
 }
@@ -828,6 +867,8 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     name: run.name,
     offeredBecause: run.scaleWindow ? "1.5× control < 0.8× axis" : "estimate >= 1.6× control",
     floor: round4(run.floor),
+    pairLuminance: pairLuminanceOf(run.lumWeights),
+    ...(run.lumNoise ? { lumNoise: run.lumNoise } : {}),
     ...(run.floorFrom === "band" ? { floorFrom: "band" as const } : {}),
     edgeScale: round4(run.edgeScale),
     startAngleDeg: round1(run.peak),

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { num } from "@/lib/format";
   import { untrack } from "svelte";
-  import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
+  import { ANCHOR, cssRgb, lumNoiseEnabled, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
   import { questPlusEnabled } from "@/lib/color/motion2";
   import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
@@ -38,7 +38,7 @@
   // Inicial, como useState(() => startRun(...)); EdgeTest se monta con {#key cone}.
   let run = $state.raw<EdgeRun>(
     untrack(() => {
-      return startRun(edgeInputFromProfile(profile, cone));
+      return startRun({ ...edgeInputFromProfile(profile, cone), lumNoise: lumNoiseEnabled(window.location.search) });
     }),
   );
 

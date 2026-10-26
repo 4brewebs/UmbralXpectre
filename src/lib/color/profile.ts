@@ -11,7 +11,12 @@ import {
   round3,
   roundMatrix,
   type Vec3,
+  measuredLumWeights,
+  pairLuminanceOf,
+  type LumNoise,
+  type PairLuminance,
 } from "./space";
+export { measuredLumWeights } from "./space";
 import { readHistory, type HistoryLog } from "./history";
 import type { DeviceFingerprint } from "./device";
 import { BUILD, type BuildInfo } from "../env";
@@ -44,6 +49,10 @@ export interface UmbralProfile {
   calibrationResume?: QpResume;
   /** Historial completo de sesiones (`umbral.history.v1`, ver `history.ts`). Opcional: perfiles previos no lo traen. */
   history?: HistoryLog;
+  /** Pesos de luminancia con que se igualaron los pares de esta calibración (C1): fuente y valores. */
+  pairLuminance?: PairLuminance;
+  /** Ruido de luminancia de los pares: amplitud y semilla (los ε de cada ensayo, en los ensayos). */
+  lumNoise?: LumNoise;
   disclaimer: string;
   createdAt: string;
   /** Build que generó el perfil: entorno, rama y commit. */
@@ -384,7 +393,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
     },
   };
   const resume = qpResumeOf(session, now.getTime());
-  return { ...built, luminance: emptyLuminance(built), ...(resume ? { calibrationResume: resume } : {}) };
+  return { ...built, pairLuminance: pairLuminanceOf(session.lumWeights), ...(session.lumNoise ? { lumNoise: session.lumNoise } : {}), luminance: emptyLuminance(built), ...(resume ? { calibrationResume: resume } : {}) };
 }
 
 const ROLE_RANK: Record<string, number> = {

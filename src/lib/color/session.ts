@@ -12,6 +12,12 @@ import {
   addScaled,
   angDist,
   dirFromTheta,
+  isoDir,
+  fromSrgb8,
+  lumEps,
+  makeLumNoise,
+  withLum,
+  type LumNoise,
   hueName,
   killLuminance,
   maxScale,
@@ -93,6 +99,8 @@ export interface TrialRecord {
   comparison: [number, number, number];
   side: "left" | "right";
   at: number;
+  /** ε aplicados [referencia, comparación] (ruido de luminancia). */
+  lumEps?: [number, number];
 }
 
 export interface Session {
@@ -115,6 +123,10 @@ export interface Session {
   obviousMissed?: number;
   /** jsQuestPlus cargado: QUEST+ sí/no por eje (flag `?qp=1`). Pares y catch no cambian. */
   questPlus?: JsQuest;
+  /** Pesos personales de luminancia medidos (C1); sin ellos, Y estándar. */
+  lumWeights?: Vec3;
+  /** Ruido de luminancia por estímulo (sin él, ?lumnoise=0, todo como antes). */
+  lumNoise?: LumNoise;
 }
 
 export interface Stimulus {
@@ -126,6 +138,8 @@ export interface Stimulus {
   sNorm: number;
   reference: [number, number, number];
   comparison: [number, number, number];
+  /** ε aplicados [referencia, comparación]. */
+  lumEps?: [number, number];
   side: "left" | "right";
   step: number;
   priorsDone: number;
@@ -179,8 +193,8 @@ function nextRand(state: number): { state: number; value: number } {
   return { state: a, value: ((t ^ (t >>> 14)) >>> 0) / 4294967296 };
 }
 
-function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchPrior: string): Axis {
-  const dir = normalize(killLuminance(primary));
+function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchPrior: string, w?: Vec3): Axis {
+  const dir = normalize(w ? killLuminance(primary, w) : killLuminance(primary));
   const theta = thetaOf(dir);
   const aligned = dirFromTheta(theta);
   const opposite: Vec3 = [-aligned[0], -aligned[1], -aligned[2]];
@@ -288,12 +302,13 @@ function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
   });
 }
 
-export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null): Session {
+export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null, lumWeights?: Vec3 | null, lumNoise = false): Session {
+  const w = lumWeights ?? undefined;
   const priors = searchPriors();
   const axes = disambiguate([
     ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[DESCEND_START] * p.maxS)),
-    endAxis("red-end", [1, 0, 0], "rojo extremo", "last red this display emits"),
-    endAxis("blue-end", [0, 0, 1], "azul extremo", "first blue this display emits"),
+    endAxis("red-end", [1, 0, 0], "rojo extremo", "last red this display emits", w),
+    endAxis("blue-end", [0, 0, 1], "azul extremo", "first blue this display emits", w),
   ]);
   let rngState = (now || 1) >>> 0;
   const startRoll = nextRand(rngState);
@@ -328,6 +343,8 @@ export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | 
     catchHits: 0,
     catchMisses: 0,
     ...(resumed ? { catchHits: resume!.catchHits, catchMisses: resume!.catchMisses, note: "Sigo donde lo dejaste: solo quedan las vías sin cerrar." } : {}),
+    ...(w ? { lumWeights: w } : {}),
+    ...(lumNoise ? { lumNoise: makeLumNoise((now || 1) ^ 0x5bd1e995) } : {}),
   };
 }
 
@@ -347,14 +364,23 @@ export function activeAxis(session: Session): Axis | null {
   return session.axes.find((a) => a.id === session.activeId) ?? null;
 }
 
-function catchColor(slot: number): Vec3 {
+function catchColor(slot: number, w?: Vec3): Vec3 {
   if (slot % 4 === 0) return gray();
   const primary: Vec3 = slot % 4 === 1 ? [1, 0, 0] : slot % 4 === 2 ? [0, 0, 1] : [0, 1, 0];
-  const dir = normalize(killLuminance(primary));
+  const dir = normalize(w ? killLuminance(primary, w) : killLuminance(primary));
   return addScaled(gray(), dir, maxScale(dir) * 0.42);
 }
 
 export function stimulusOf(session: Session): Stimulus | null {
+  const raw = rawStimulus(session);
+  if (!raw || !session.lumNoise) return raw;
+  // Ruido de luminancia, después de igualar (con los pesos personales si los hay): cada estímulo su ε.
+  const n = session.lumNoise;
+  const eps: [number, number] = [lumEps(n, session.log.length, 0), lumEps(n, session.log.length, 1)];
+  return { ...raw, reference: toSrgb8(withLum(fromSrgb8(raw.reference), eps[0])), comparison: toSrgb8(withLum(fromSrgb8(raw.comparison), eps[1])), lumEps: eps };
+}
+
+function rawStimulus(session: Session): Stimulus | null {
   const axis = activeAxis(session);
   if (!axis || session.complete) return null;
   const priors = session.axes.filter((a) => a.priorKey !== "refine");
@@ -365,7 +391,7 @@ export function stimulusOf(session: Session): Stimulus | null {
     side: session.side,
   };
   if (session.pendingCatch) {
-    const base = catchColor(session.catchSlot);
+    const base = catchColor(session.catchSlot, session.lumWeights);
     const rgb = toSrgb8(base);
     if (session.questPlus && session.catchObvious) {
       const k = QP_CALIB.obviousLum;
@@ -399,9 +425,12 @@ export function stimulusOf(session: Session): Stimulus | null {
       ...shared,
     };
   }
-  const dir = dirFromTheta(axis.theta);
-  const positive = toSrgb8(addScaled(gray(), dir, axis.cursor));
-  const negative = toSrgb8(addScaled(gray(), dir, -axis.cursor));
+  const dir = isoDir(dirFromTheta(axis.theta), session.lumWeights);
+  // Con pesos personales la dirección cambia y su gamut también: el par se recorta a lo que cabe sin saturar un canal
+  // (un canal recortado rompería la igualación). Sin pesos, el cursor tal cual.
+  const reach = session.lumWeights ? Math.min(axis.cursor, maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]])) : axis.cursor;
+  const positive = toSrgb8(addScaled(gray(), dir, reach));
+  const negative = toSrgb8(addScaled(gray(), dir, -reach));
   return {
     axisId: axis.id,
     hue: axis.hue,
@@ -520,6 +549,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
       comparison: stim.comparison,
       side: stim.side,
       at: now,
+      ...(stim.lumEps ? { lumEps: stim.lumEps } : {}),
     },
   ];
 
@@ -683,6 +713,7 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
       comparison: stim.comparison,
       side: stim.side,
       at: now,
+      ...(stim.lumEps ? { lumEps: stim.lumEps } : {}),
     },
   ];
   const counted = { ...session, catchHits: session.catchHits + (hit ? 1 : 0), catchMisses: session.catchMisses + (hit ? 0 : 1) };
@@ -708,7 +739,7 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
 function answerObvious(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
   const log: TrialRecord[] = [
     ...session.log,
-    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now },
+    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now, ...(stim.lumEps ? { lumEps: stim.lumEps } : {}) },
   ];
   const axes = session.axes.map((a) => ({ ...a }));
   applyCap(session, axes, log.length);

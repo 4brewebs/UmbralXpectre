@@ -11,7 +11,9 @@
     parseProfile,
     readHardware,
     type UmbralProfile,
+    measuredLumWeights,
   } from "@/lib/color/profile";
+  import { lumNoiseEnabled } from "@/lib/color/space";
   import Intro from "./Intro.svelte";
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
@@ -79,6 +81,17 @@
     stored = loadStored();
   });
 
+  function pairWeightsFrom(saved: UmbralProfile | null) {
+    const w = measuredLumWeights(saved);
+    if (!w || !saved) return null;
+    const device = weightsDevice(saved);
+    try {
+      return device && deviceDiff(device, fingerprint(readHardware(), null)).length === 0 ? w : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function start() {
     copied = false;
     edgeFiles = {};
@@ -93,7 +106,8 @@
         resume = null;
       }
     }
-    session = createSession(Date.now(), Q, resume);
+    // C1: pares con los pesos personales medidos de la última prueba de luminancia en esta pantalla; si no, Y estándar.
+    session = createSession(Date.now(), Q, resume, pairWeightsFrom(stored), lumNoiseEnabled(window.location.search));
     phase = "run";
   }
 
