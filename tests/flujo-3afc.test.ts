@@ -7,7 +7,8 @@ import { answer, createSession, stimulusOf } from "../src/lib/color/session";
 import { edgeInputFromProfile, QP_EDGES } from "../src/lib/color/edges";
 import { buildProfile, type HardwareSnapshot } from "../src/lib/color/profile";
 import { buildFilterTransforms, filterProfile } from "../src/lib/color/lut";
-import { answerValidation, applyValidation, createValidation, oddPosition, VALIDATION, validationEstimates, validationStimulus, type ValidationState } from "../src/lib/color/validation";
+import { answerValidation, applyValidation, createValidation, oddPosition, rotationOf, VALIDATION, validationEstimates, validationStimulus, validationTargets, type ValidationState } from "../src/lib/color/validation";
+import { acceptsAnswer, diff120, sectorFill, wheelPhase, wheelPlan } from "../src/lib/color/wheel";
 
 const FIX = new URL("./fixtures/lucas-9dd5bcd/", import.meta.url);
 const lucas = JSON.parse(readFileSync(new URL("perfil.json", FIX), "utf8"));
@@ -27,6 +28,9 @@ function rng(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+const ids = () => validationTargets(lucas).map((t) => t.id);
+const truthOf = (f: Record<string, number> = {}) => Object.fromEntries(ids().map((id) => [id, orig(id) * (f[id] ?? 1)]));
 
 async function run(truth: Record<string, number>, seed: number): Promise<ValidationState> {
   const Q = await loadQuestPlus();
@@ -68,23 +72,47 @@ test("validación: sin pesos medidos no hay validación", async () => {
   assert.equal(createValidation({ ...lucas, luminance: { ...lucas.luminance, weightsSource: "standard" } }, Q, { seed: 1 }), null);
 });
 
-test("validación: 3 campos, 2 iguales y 1 distinto, posición aleatoria, 10 por eje, sin catch, γ = 1/3", async () => {
+test("validación: mide los ejes conflictivos del perfil (≥ 1,6× control), no fijo en l y m", () => {
+  const t = validationTargets(lucas);
+  assert.ok(t.length >= 1 && t.length <= VALIDATION.maxAxes);
+  for (const x of t) assert.ok(x.ratio >= VALIDATION.elevatedRatio);
+  assert.deepEqual(t.map((x) => x.id), ["l", "red-end"]);
+  // Normal: nada conflictivo → solo el de mayor razón, para confirmarlo.
+  const flat = { ...lucas, axes: lucas.axes.map((a: { threshold: number | null }) => ({ ...a, threshold: a.threshold == null ? null : lucas.fit.controlAbs * 1.1 })) };
+  assert.equal(validationTargets(flat).length, 1);
+});
+
+test("validación: 3 sectores, 2 iguales y 1 distinto, distinto y orientación al azar, γ = 1/3, sin catch", async () => {
   const Q = await loadQuestPlus();
   assert.equal(VALIDATION.gamma, 1 / 3);
-  assert.equal(VALIDATION.trialsPerAxis, 10);
   const st0 = createValidation(lucas, Q, { seed: 42 })!;
   const x = validationStimulus(st0)!;
   assert.equal(x.fields.length, 3);
   const others = x.fields.filter((_, i) => i !== x.odd);
   assert.deepEqual(others[0], others[1]);
   assert.notDeepEqual(x.fields[x.odd], others[0]);
-  assert.equal(x.total, 20);
-  const pos = new Set(Array.from({ length: 30 }, (_, n) => oddPosition(42, n)));
-  assert.deepEqual([...pos].sort(), [0, 1, 2]);
-  const st = await run({ l: orig("l"), m: orig("m") }, 3);
-  assert.equal(st.log.length, 20);
-  assert.equal(st.log.filter((t) => t.axis === "l").length, 10);
-  assert.ok(st.log.every((t) => t.axis === "l" || t.axis === "m"));
+  assert.deepEqual([...new Set(Array.from({ length: 30 }, (_, n) => oddPosition(42, n)))].sort(), [0, 1, 2]);
+});
+
+test("validación: misma Y con los pesos medidos en los 3 sectores (sin ruido)", async () => {
+  const Q = await loadQuestPlus();
+  const st = createValidation(lucas, Q, { seed: 3 })!;
+  const w = st.weights;
+  const lin = (c: number) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const x = validationStimulus(st)!;
+  const ys = x.fields.map((f) => w[0] * lin(f[0]) + w[1] * lin(f[1]) + w[2] * lin(f[2]));
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 0.004, ys.join(" "));
+});
+
+test("validación: parada por IC (sin número fijo), tope de seguridad y orientación en el log", async () => {
+  const st = await run(truthOf(), 3);
+  for (const a of st.axes) {
+    assert.ok(a.done && a.trials >= VALIDATION.minTrials && a.trials <= VALIDATION.maxTrials);
+    if (a.stop === "ci") { const e = a.qp.estimate(); assert.ok(Math.log(e.hi / e.lo) < VALIDATION.stopLogWidth); }
+  }
+  assert.ok(st.log.every((t) => Number.isInteger(t.rotationDeg) && t.rotationDeg >= 0 && t.rotationDeg < 360));
+  const p = applyValidation(lucas, st);
+  assert.ok((p.validation!.trials as Array<{ rotationDeg: number }>).every((t) => typeof t.rotationDeg === "number"));
 });
 
 test("validación: el prior se centra en el umbral del perfil", async () => {
@@ -94,26 +122,25 @@ test("validación: el prior se centra en el umbral del perfil", async () => {
 });
 
 test("validación: sustituye el umbral, guarda el original y etiqueta «confirmado» si cae en el IC", async () => {
-  let confirmed = 0;
+  let confirmed = 0, n = 0;
   for (let k = 0; k < 20; k++) {
-    const st = await run({ l: orig("l"), m: orig("m") }, 100 + k);
-    const p = applyValidation(lucas, st);
-    for (const id of ["l", "m"]) {
+    const p = applyValidation(lucas, await run(truthOf(), 100 + k));
+    for (const id of ids()) {
       const a = p.axes.find((x) => x.id === id)!;
       const v = p.validation!.axes.find((x) => x.id === id)!;
       assert.equal(a.thresholdSource, "validation-3afc");
       assert.equal(a.thresholdStandardY, orig(id));
       assert.equal(a.threshold, v.threshold);
-      if (v.label === "confirmado") confirmed++;
       assert.equal(v.label === "confirmado", v.lo <= orig(id) && orig(id) <= v.hi);
+      n++;
+      if (v.label === "confirmado") confirmed++;
     }
   }
-  assert.ok(confirmed >= 34, `confirmados ${confirmed}/40`);
+  assert.ok(confirmed >= 0.8 * n, `confirmados ${confirmed}/${n}`);
 });
 
 test("validación: razón fuera de [½, 2] solo avisa (el umbral se sustituye igual)", async () => {
-  const st = await run({ l: orig("l") * 4, m: orig("m") }, 9);
-  const p = applyValidation(lucas, st);
+  const p = applyValidation(lucas, await run(truthOf({ l: 4 }), 9));
   const l = p.validation!.axes.find((x) => x.id === "l")!;
   assert.ok(l.ratio > 2, `razón ${l.ratio}`);
   assert.equal(l.label, "nuevo");
@@ -124,19 +151,69 @@ test("validación: razón fuera de [½, 2] solo avisa (el umbral se sustituye ig
 test("bordes: parten del umbral validado, mínimo 8 y tope 20 QUEST+ por lado", async () => {
   assert.equal(QP_EDGES.minTrials, 8);
   assert.equal(QP_EDGES.maxTrials, 20);
-  const st = await run({ l: orig("l") * 1.8, m: orig("m") }, 5);
-  const p = applyValidation(lucas, st);
-  const l = p.axes.find((x) => x.id === "l")!;
-  assert.equal(edgeInputFromProfile(p, "l").sourceThreshold, l.threshold);
+  const p = applyValidation(lucas, await run(truthOf({ l: 1.8 }), 5));
+  assert.equal(edgeInputFromProfile(p, "l").sourceThreshold, p.axes.find((x) => x.id === "l")!.threshold);
+});
+
+test("orientación: diferencia ≥ 30° módulo 120° con la anterior en todos los ensayos", () => {
+  for (const seed of [1, 42, 777, 123456]) {
+    const r = Array.from({ length: 200 }, (_, n) => rotationOf(seed, n));
+    for (let n = 1; n < r.length; n++) assert.ok(diff120(r[n], r[n - 1]) >= 30, `semilla ${seed} n ${n}: ${r[n - 1]}→${r[n]}`);
+    assert.ok(r.every((x) => Number.isInteger(x) && x >= 0 && x < 360));
+  }
+});
+
+test("orientación: el sector distinto es independiente de la orientación", () => {
+  const N = 3000;
+  const table = Array.from({ length: 3 }, () => [0, 0, 0]);
+  for (let n = 0; n < N; n++) table[Math.floor(rotationOf(9, n) / 120)][oddPosition(9, n)]++;
+  // χ² de independencia 3×3 (4 g.l.; p = 0,001 → 18,5).
+  const rows = table.map((r) => r.reduce((a, b) => a + b, 0));
+  const cols = [0, 1, 2].map((j) => table.reduce((a, r) => a + r[j], 0));
+  let chi = 0;
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const e = (rows[i] * cols[j]) / N; chi += (table[i][j] - e) ** 2 / e; }
+  assert.ok(chi < 18.5, `χ² ${chi.toFixed(2)}`);
+  for (const c of cols) assert.ok(Math.abs(c / N - 1 / 3) < 0.04);
+});
+
+test("transición: fundido a gris, giro corto 300–500 ms en gris, colores al pararse; sin respuesta antes", () => {
+  for (const u of [0, 0.5, 0.999]) {
+    const p = wheelPlan(725, 40, false, u);
+    assert.ok(p.spinMs >= 300 && p.spinMs <= 500);
+    assert.equal(diff120(p.to, 40), 0);
+    assert.ok(p.to - p.from >= 0 && p.to - p.from < 120);
+    assert.equal(p.target, 40);
+    const at = (t: number) => wheelPhase(p, t);
+    for (const t of [0, p.fadeMs - 1]) assert.equal(at(t), "fade");
+    for (const t of [p.fadeMs, p.fadeMs + p.spinMs - 1]) assert.equal(at(t), "spin");
+    for (const t of [0, p.fadeMs, p.fadeMs + p.spinMs - 1]) {
+      assert.equal(acceptsAnswer(at(t)), false);
+      assert.equal(sectorFill(at(t), "rgb(1, 2, 3)", "gris"), "gris");
+    }
+    assert.equal(at(p.fadeMs + p.spinMs), "ready");
+    assert.equal(acceptsAnswer("ready"), true);
+    assert.equal(sectorFill("ready", "rgb(1, 2, 3)", "gris"), "rgb(1, 2, 3)");
+  }
+  // Primer ensayo: sin transición.
+  assert.equal(wheelPhase(wheelPlan(null, 10, false, 0.5), 0), "ready");
+});
+
+test("transición: con prefers-reduced-motion no hay giro, solo cambia la orientación", () => {
+  const p = wheelPlan(725, 40, true, 0.5);
+  assert.equal(p.spinMs, 0);
+  assert.equal(p.from, p.to);
+  assert.equal(diff120(p.to, 40), 0);
+  assert.notEqual(wheelPhase(p, 0), "spin");
+  assert.equal(wheelPhase(p, p.fadeMs), "ready");
 });
 
 test("filtros: sin validación no hay; con ella salen solo de sus ejes y basedOn lo dice", async () => {
   assert.equal(filterProfile(lucas), null);
   assert.equal(buildFilterTransforms(lucas), null);
-  const st = await run({ l: orig("l"), m: orig("m") }, 11);
+  const st = await run(truthOf(), 11);
   const p = applyValidation(lucas, st);
   const base = filterProfile(p)!;
-  assert.deepEqual(base.axes.map((a) => a.id).sort(), ["l", "m"]);
+  assert.deepEqual(base.axes.map((a) => a.id).sort(), ids().sort());
   const t = buildFilterTransforms(p, [])!;
   assert.equal(t.basedOn.thresholds, "validation-3afc");
   assert.deepEqual(t.basedOn.validation!.map((v) => v.threshold), base.axes.map((a) => a.threshold));

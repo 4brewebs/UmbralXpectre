@@ -1,19 +1,29 @@
 /**
- * Validación 3AFC de l y m con los pesos personales (sustituye al repaso sí/no tras la luminancia).
+ * Validación 3AFC con los pesos personales (sustituye al repaso sí/no tras la luminancia).
  *
- * «Elige el distinto entre 3»: dos campos iguales (gris − s·dir) y uno distinto (gris + s·dir), los tres igualados en
- * brillo con los pesos medidos (`isoDir`), sin ruido de brillo, en posición aleatoria (semilla) y separados.
- * QUEST+ con γ = 1/3 fija (azar de 3AFC) y lapse estimada (se marginaliza); sin catch: la γ no se estima.
- * Prior log-normal centrado en el umbral del perfil (σ = ln 2). ~10 ensayos por eje, ejes alternados.
+ * Mide los ejes que el perfil (escalera) marcó como conflictivos (`validationTargets`), no fijo en l y m.
+ * Disco en 3 sectores de 120°, orientación y sector distinto al azar en cada ensayo: dos sectores iguales
+ * (gris − s·dir) y uno distinto (gris + s·dir), los tres con la misma Y con los pesos medidos (`isoDir`), sin ruido.
+ * Se responde tocando un sector (sin «ninguno» ni «iguales»). QUEST+ con γ = 1/3 fija y lapse estimada.
+ * Prior log-normal centrado en el umbral del perfil (σ = ln 2). Parada por precisión (IC 95 % en ln), con tope.
  * El umbral validado sustituye al del perfil (filtros y `fit`); el original queda en `thresholdStandardY`.
  * «confirmado» si el original cae dentro del IC 95 %; razón fuera de [½, 2]: solo aviso.
  */
 import { createQuestPlus, weibull, type JsQuest, type QuestPlus, type ResponseFn } from "./questplus";
 import { ANCHOR, addScaled, dirFromTheta, isoDir, maxScale, measuredLumWeights, toSrgb8, type Vec3 } from "./space";
 import { refitProfile, type UmbralProfile } from "./profile";
+import { nextRotation } from "./wheel";
 
 export const VALIDATION = {
-  trialsPerAxis: 10,
+  /** Parada por eje: IC 95 % de α con ln(hi/lo) < stopLogWidth, tras minTrials. */
+  stopLogWidth: Math.log(2),
+  minTrials: 6,
+  /** Tope de seguridad por eje. */
+  maxTrials: 30,
+  /** Como mucho estos ejes conflictivos (los de mayor razón frente al control). */
+  maxAxes: 4,
+  /** Conflictivo: umbral ≥ esto × control (como `elevated` del perfil). */
+  elevatedRatio: 1.6,
   /** Rejilla de α en log: umbral del perfil ×/÷ 4, 41 puntos. */
   span: 4,
   points: 41,
@@ -23,19 +33,19 @@ export const VALIDATION = {
   gamma: 1 / 3,
   /** Rejilla de lapse (se estima marginalizando). */
   lapses: [0, 0.02, 0.04, 0.07, 0.1],
-  axes: ["l", "m"] as const,
   ratioWarn: [0.5, 2] as const,
   choices: 3,
 } as const;
 
-export type ValidationAxisId = (typeof VALIDATION.axes)[number];
+export type ValidationAxisId = string;
 
 export interface ValidationTrial {
   order: number;
   axis: ValidationAxisId;
   scale: number;
-  /** Posición del distinto (0..2) y la elegida. */
+  /** Sector distinto (0..2), orientación del disco (°) y sector elegido. */
   odd: number;
+  rotationDeg: number;
   picked: number;
   correct: boolean;
 }
@@ -46,6 +56,9 @@ interface ValidationAxis {
   original: number;
   qp: QuestPlus;
   trials: number;
+  /** Parado por precisión o por tope. */
+  done: boolean;
+  stop?: "ci" | "cap";
 }
 
 export interface ValidationState {
@@ -60,11 +73,13 @@ export interface ValidationState {
 export interface ValidationStimulus {
   axis: ValidationAxisId;
   scale: number;
-  /** Los tres campos en orden de pantalla; `odd` es el distinto. */
+  /** Los tres sectores (0..2, en sentido horario desde `rotationDeg`); `odd` es el distinto. */
   fields: [number, number, number][];
   odd: number;
+  rotationDeg: number;
   step: number;
-  total: number;
+  /** Tope de seguridad (los ejes paran antes por precisión). */
+  maxTotal: number;
 }
 
 /** 3AFC: P(acierto) = γ + (1 − γ − λ)·(1 − e^{−(x/α)^β}). Respuestas: 0 acierto, 1 fallo. */
@@ -82,12 +97,38 @@ function reach(angleDeg: number, w: Vec3): number {
   return Math.min(maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]]));
 }
 
-/** Posición del distinto en el ensayo `n` (determinista con la semilla). */
-export function oddPosition(seed: number, n: number): number {
-  let t = (seed ^ Math.imul(n + 1, 0x9e3779b1)) >>> 0;
+function hash(seed: number, n: number, salt: number): number {
+  let t = (seed ^ Math.imul(n + 1, 0x9e3779b1) ^ salt) >>> 0;
   t = Math.imul(t ^ (t >>> 16), 0x85ebca6b) >>> 0;
   t = Math.imul(t ^ (t >>> 13), 0xc2b2ae35) >>> 0;
-  return ((t ^ (t >>> 16)) >>> 0) % VALIDATION.choices;
+  return (t ^ (t >>> 16)) >>> 0;
+}
+/** Sector distinto en el ensayo `n` (determinista con la semilla). */
+export function oddPosition(seed: number, n: number): number {
+  return hash(seed, n, 0) % VALIDATION.choices;
+}
+/**
+ * Orientación del disco en el ensayo `n`, 0–359° (determinista con la semilla): diferencia con la anterior ≥ 30°
+ * módulo 120° (`nextRotation`). Independiente del sector distinto (otra sal).
+ */
+export function rotationOf(seed: number, n: number): number {
+  let r: number | null = null;
+  for (let i = 0; i <= n; i++) r = nextRotation(r, hash(seed, i, 0x5bd1e995) / 4294967296, hash(seed, i, 0x27d4eb2f) / 4294967296);
+  return r as number;
+}
+
+/**
+ * Ejes conflictivos del perfil: los de umbral ≥ 1,6× el control (vías elevadas, extremos y afinados), de mayor a
+ * menor razón, como mucho `maxAxes`. Sin ninguno (observador normal): el de mayor razón, para confirmarlo.
+ */
+export function validationTargets(profile: UmbralProfile): Array<{ id: string; angleDeg: number; threshold: number; ratio: number }> {
+  const control = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : (profile.axes.find((a) => a.role === "control")?.threshold ?? 0);
+  const all = profile.axes
+    .filter((a) => a.role !== "control" && a.threshold != null && a.threshold > 0)
+    .map((a) => ({ id: a.id, angleDeg: a.angleDeg, threshold: a.threshold as number, ratio: control > 0 ? (a.threshold as number) / control : 1 }))
+    .sort((x, y) => y.ratio - x.ratio);
+  const hot = all.filter((a) => a.ratio >= VALIDATION.elevatedRatio).slice(0, VALIDATION.maxAxes);
+  return hot.length ? hot : all.slice(0, 1);
 }
 
 /** Estado inicial, o null si no hay pesos medidos o el perfil no tiene umbral en l y m. */
@@ -95,16 +136,14 @@ export function createValidation(profile: UmbralProfile, Q: JsQuest, opts: { see
   const w = measuredLumWeights(profile);
   if (!w) return null;
   const axes: ValidationAxis[] = [];
-  for (const id of VALIDATION.axes) {
-    const a = profile.axes.find((x) => x.id === id);
-    if (!a || a.threshold == null || !(a.threshold > 0)) continue;
-    const t = a.threshold;
-    const top = Math.min(t * VALIDATION.span, reach(a.angleDeg, w));
+  for (const target of validationTargets(profile)) {
+    const t = target.threshold;
+    const top = Math.min(t * VALIDATION.span, reach(target.angleDeg, w));
     const alphas = logGrid(t / VALIDATION.span, t * VALIDATION.span, VALIDATION.points);
     const stim = alphas.filter((v) => v <= top + 1e-12);
     const prior = alphas.map((v) => Math.exp(-(Math.log(v / t) ** 2) / (2 * VALIDATION.priorSigma ** 2)));
     const qp = createQuestPlus(Q, { stim: stim.length ? stim : [alphas[0]], params: [alphas, [VALIDATION.beta], [...VALIDATION.lapses]], prior: [prior], responses: oddity3() });
-    axes.push({ id, angleDeg: a.angleDeg, original: t, qp, trials: 0 });
+    axes.push({ id: target.id, angleDeg: target.angleDeg, original: t, qp, trials: 0, done: false });
   }
   if (!axes.length) return null;
   return { weights: w, axes, next: 0, seed: (opts.seed ?? Date.now()) >>> 0, log: [], done: false };
@@ -122,7 +161,7 @@ export function validationStimulus(state: ValidationState): ValidationStimulus |
   const diff = toSrgb8(addScaled(gray(), dir, s));
   const odd = oddPosition(state.seed, n);
   const fields = [0, 1, 2].map((i) => (i === odd ? diff : same));
-  return { axis: ax.id, scale: s, fields, odd, step: n + 1, total: state.axes.length * VALIDATION.trialsPerAxis };
+  return { axis: ax.id, scale: s, fields, odd, rotationDeg: rotationOf(state.seed, n), step: n + 1, maxTotal: state.axes.length * VALIDATION.maxTrials };
 }
 
 /** Respuesta: posición elegida (0..2). */
@@ -130,12 +169,16 @@ export function answerValidation(state: ValidationState, picked: number): Valida
   const stim = validationStimulus(state);
   if (!stim) return state;
   const correct = picked === stim.odd;
-  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, odd: stim.odd, picked, correct }];
+  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, odd: stim.odd, rotationDeg: stim.rotationDeg, picked, correct }];
   const axes = state.axes.map((a) => ({ ...a }));
-  axes[state.next].qp.update(stim.scale, correct ? 0 : 1);
-  axes[state.next].trials += 1;
-  if (axes.every((a) => a.trials >= VALIDATION.trialsPerAxis)) return { ...state, axes, log, done: true };
-  const open = axes.map((a, i) => ({ a, i })).filter(({ a }) => a.trials < VALIDATION.trialsPerAxis);
+  const ax = axes[state.next];
+  ax.qp.update(stim.scale, correct ? 0 : 1);
+  ax.trials += 1;
+  const e = ax.qp.estimate();
+  if (ax.trials >= VALIDATION.minTrials && Math.log(e.hi / e.lo) < VALIDATION.stopLogWidth) Object.assign(ax, { done: true, stop: "ci" });
+  else if (ax.trials >= VALIDATION.maxTrials) Object.assign(ax, { done: true, stop: "cap" });
+  if (axes.every((a) => a.done)) return { ...state, axes, log, done: true };
+  const open = axes.map((a, i) => ({ a, i })).filter(({ a }) => !a.done);
   const pick = open.reduce((x, y) => (y.a.trials < x.a.trials ? y : x));
   return { ...state, axes, log, next: pick.i };
 }
@@ -148,6 +191,7 @@ export interface ValidationEstimate {
   hi: number;
   lapse: number;
   trials: number;
+  stop: "ci" | "cap" | null;
   ratio: number;
   label: "confirmado" | "nuevo";
   warn: boolean;
@@ -169,6 +213,7 @@ export function validationEstimates(state: ValidationState): ValidationEstimate[
       hi: e.hi,
       lapse,
       trials: a.trials,
+      stop: a.stop ?? null,
       ratio,
       label: e.lo <= a.original && a.original <= e.hi ? "confirmado" : "nuevo",
       warn: ratio < VALIDATION.ratioWarn[0] || ratio > VALIDATION.ratioWarn[1],
@@ -191,10 +236,10 @@ export function applyValidation(profile: UmbralProfile, state: ValidationState):
     ...profile,
     axes,
     validation: {
-      method: "3AFC «elige el distinto entre 3», QUEST+ con γ = 1/3 fija y lapse estimada, prior log-normal en el umbral del perfil (σ = ln 2)",
+      method: "3AFC: disco en 3 sectores de 120° (orientación y distinto al azar), ejes conflictivos del perfil, QUEST+ con γ = 1/3 fija y lapse estimada, prior log-normal en el umbral del perfil (σ = ln 2), parada por IC 95 % (ln hi/lo < ln 2, mínimo 6, tope 30 por eje)",
       pairLuminance: { source: "measured", weights: [state.weights[0], state.weights[1], state.weights[2]] },
       gamma: Math.round(VALIDATION.gamma * 1e4) / 1e4,
-      axes: est.map((e) => ({ id: e.id, threshold: r4(e.threshold), thresholdStandardY: e.thresholdStandardY, lo: r4(e.lo), hi: r4(e.hi), lapse: Math.round(e.lapse * 1000) / 1000, trials: e.trials, ratio: Math.round(e.ratio * 100) / 100, label: r4(e.lo) <= e.thresholdStandardY && e.thresholdStandardY <= r4(e.hi) ? ("confirmado" as const) : ("nuevo" as const) })),
+      axes: est.map((e) => ({ id: e.id, threshold: r4(e.threshold), thresholdStandardY: e.thresholdStandardY, lo: r4(e.lo), hi: r4(e.hi), lapse: Math.round(e.lapse * 1000) / 1000, trials: e.trials, stop: e.stop, ratio: Math.round(e.ratio * 100) / 100, label: r4(e.lo) <= e.thresholdStandardY && e.thresholdStandardY <= r4(e.hi) ? ("confirmado" as const) : ("nuevo" as const) })),
       ...(warnings.length ? { warnings } : {}),
       trials: state.log,
     },

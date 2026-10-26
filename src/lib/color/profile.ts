@@ -152,7 +152,7 @@ export interface UmbralProfile {
     method: string;
     pairLuminance: PairLuminance;
     gamma: number;
-    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; lapse: number; trials: number; ratio: number; label: "confirmado" | "nuevo" }>;
+    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; lapse: number; trials: number; stop: "ci" | "cap" | null; ratio: number; label: "confirmado" | "nuevo" }>;
     /** Razón frente al original fuera de [½, 2]: solo aviso. */
     warnings?: string[];
     trials: unknown[];
