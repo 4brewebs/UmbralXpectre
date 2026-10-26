@@ -42,7 +42,10 @@
             <a href={o.href} class="opcion flex h-full items-start gap-3 rounded-2xl border border-border bg-surface px-4 py-4 text-fg" class:primaria={o.primary}>
               <o.Icon class="mt-0.5 size-6 shrink-0" aria-hidden="true" />
               <span class="flex flex-col gap-1">
-                <span class="text-base font-semibold">{o.label}</span>
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="text-base font-semibold">{o.label}</span>
+                  {#if o.primary}<span class="recomendado rounded-full border border-fg px-2 py-0.5 text-xs font-medium text-fg" data-testid="recomendado">Recomendado</span>{/if}
+                </span>
                 <span class="text-sm leading-snug text-fg">{o.hint}</span>
               </span>
             </a>
@@ -73,7 +76,9 @@
   .opcion :global(svg) {
     color: var(--color-accent);
   }
+  /* La opción principal no depende solo del color: borde de 2 px y la etiqueta «Recomendado». */
   .opcion.primaria {
+    border-width: 2px;
     border-color: var(--color-accent);
   }
   .opcion:hover {
