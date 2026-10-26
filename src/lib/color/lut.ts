@@ -3,6 +3,7 @@ import { LOSS_RAMP, lossPoints } from "./lossmap";
 import { ADAPTIVE, adaptiveColor, GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
+import { labHueShift } from "./spectrum";
 
 /** Lattice per channel. 33³ is the usual film size: smooth enough, cheap to bake. */
 export const LUT_N = 33;
@@ -22,12 +23,41 @@ const APPLY: Record<
   extreme: extremeColor,
 };
 
+
+/** Giro CIELAB máximo tras cuantizar (Lucas, 26/10): 45° Asistencia, 60° Extremo; el simulador no tiene tope. */
+export const QUANT_CAP_DEG: Partial<Record<string, number>> = { assist: 45, extreme: 60 };
+
+/**
+ * Cuantiza `out` a 8 bits y, si el byte resultante gira más que `capDeg` respecto al nodo de entrada (también en
+ * 8 bits), acerca `out` a la entrada (mezcla lineal) hasta que el byte quepa.
+ */
+export function quantizeCapped(input: Vec3, out: Vec3, capDeg?: number): [number, number, number] {
+  const q = (v: Vec3): [number, number, number] => [0, 1, 2].map((i) => Math.round(linearToSrgbChannel(v[i]) * 255)) as [number, number, number];
+  const first = q(out);
+  if (capDeg == null) return first;
+  const cap = (capDeg * Math.PI) / 180;
+  const inQ = q(input);
+  const lin = (b: number[]): Vec3 => b.map((x) => srgbToLinear(x / 255)) as Vec3;
+  const inL = lin(inQ);
+  const ok = (b: number[]) => labHueShift(inL, lin(b)) <= cap + 1e-9;
+  if (ok(first)) return first;
+  const mix = (t: number) => q([input[0] + (out[0] - input[0]) * t, input[1] + (out[1] - input[1]) * t, input[2] + (out[2] - input[2]) * t]);
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (ok(mix(mid))) lo = mid;
+    else hi = mid;
+  }
+  return ok(mix(lo)) ? mix(lo) : inQ;
+}
+
 /**
  * Bake one profile filter into an sRGB lattice.
  * The camera never reimplements the math: every entry is that function.
  * Index order is r fastest, then g, then b, RGBA.
  */
-function bakeLattice(apply: (rgb: Vec3) => Vec3): Uint8Array {
+function bakeLattice(apply: (rgb: Vec3) => Vec3, capDeg?: number): Uint8Array {
   const n = LUT_N;
   const data = new Uint8Array(n * n * n * 4);
   let i = 0;
@@ -36,10 +66,11 @@ function bakeLattice(apply: (rgb: Vec3) => Vec3): Uint8Array {
     for (let g = 0; g < n; g++) {
       const gl = srgbToLinear(g / (n - 1));
       for (let r = 0; r < n; r++) {
-        const out = apply([srgbToLinear(r / (n - 1)), gl, bl]);
-        data[i++] = Math.round(linearToSrgbChannel(out[0]) * 255);
-        data[i++] = Math.round(linearToSrgbChannel(out[1]) * 255);
-        data[i++] = Math.round(linearToSrgbChannel(out[2]) * 255);
+        const input: Vec3 = [srgbToLinear(r / (n - 1)), gl, bl];
+        const [q0, q1, q2] = quantizeCapped(input, apply(input), capDeg);
+        data[i++] = q0;
+        data[i++] = q1;
+        data[i++] = q2;
         data[i++] = 255;
       }
     }
@@ -52,7 +83,7 @@ export function buildFilterLut(profile: UmbralProfile, kind: FilterKind): Uint8A
     const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
     const luma = lumaFromProfile(profile);
     return APPLY[kind](rgb, profile.axes, floor, luma);
-  });
+  }, QUANT_CAP_DEG[kind]);
 }
 
 export function buildFilterLuts(
@@ -69,7 +100,7 @@ export function buildFilterLuts(
   }
   const kinds: FilterKind[] = ["assist", "simulate", "extreme"];
   const out = {} as Record<FilterKind, Uint8Array>;
-  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, "edges", files));
+  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, "edges", files), QUANT_CAP_DEG[kind]);
   return out;
 }
 
@@ -254,10 +285,8 @@ function bakeFilter(
       const gl = srgbToLinear(g / (n - 1));
       const g8 = Math.round((g / (n - 1)) * 255);
       for (let r = 0; r < n; r++) {
-        const out = spec.apply([srgbToLinear(r / (n - 1)), gl, bl]);
-        const r8 = Math.round(linearToSrgbChannel(out[0]) * 255);
-        const gOut = Math.round(linearToSrgbChannel(out[1]) * 255);
-        const bOut = Math.round(linearToSrgbChannel(out[2]) * 255);
+        const input: Vec3 = [srgbToLinear(r / (n - 1)), gl, bl];
+        const [r8, gOut, bOut] = quantizeCapped(input, spec.apply(input), QUANT_CAP_DEG[spec.id]);
         const inR = Math.round((r / (n - 1)) * 255);
         rgb[i++] = r8;
         rgb[i++] = gOut;

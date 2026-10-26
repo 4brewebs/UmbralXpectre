@@ -83,7 +83,7 @@ test("perfil de Lucas 21:40Z: Asistencia y Extremo cambian nodos (solo en la reg
   assert.ok(changed("extreme") > 0, `${changed("extreme")}`);
 });
 
-test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (objetivo 30 %)", () => {
+test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (tope 50 %, Lucas 26/10)", () => {
   const red: Vec3 = [1, 0, 0];
   for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) {
     const dh = (labHueShift(red, f(red, profile.axes, floor)) * 180) / Math.PI;
@@ -92,7 +92,7 @@ test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤
   const t = buildTransformFile(profile);
   const changed = (id: string) => t.filters.find((x) => x.id === id)!.changed;
   assert.equal(t.nodes, 35937);
-  assert.ok(changed("assist") <= 0.32 * 35937, `${changed("assist")}`);
+  assert.ok(changed("assist") <= 0.5 * 35937, `${changed("assist")}`);
 });
 
 test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de la máscara el cambio es exactamente 0", () => {

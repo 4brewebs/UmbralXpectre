@@ -388,7 +388,7 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
   if (!hit) return rgb;
   const { u, p, n } = splitPlane(plane, hit.band.mid);
   // Misma T(θ) que el mapa y el filtro, en el tono del color (punto 2, 26/10).
-  const seen = Math.min(1, floor / confusionT(simPoints(axes, floor), floor, (thetaOf(plane) * 180) / Math.PI));
+  const seen = Math.min(1, floor / confusionT(simPoints(axes, floor), floor, (thetaOf(plane) * 180) / Math.PI, norm(plane)));
   const pSim = p * (1 - hit.w * (1 - seen));
   // Punto 4 (26/10): solo encoge la componente en la línea de confusión (factor suelo/T(θ)); sin derrame hacia la
   // vía que la recogía (llevaba rojos y magentas al verde).
@@ -423,13 +423,18 @@ export function labHueShift(a: Vec3, b: Vec3): number {
  * se mezcla hacia `rgb` (en lineal, misma Y si ambos la tienen) hasta que quepa.
  */
 function limitLabHue(rgb: Vec3, out: Vec3, cap: number): Vec3 {
-  if (labHueShift(rgb, out) <= cap) return out;
+  // Tope suave (Lucas, 26/10, «arcoíris»): giro lineal hasta la mitad del tope y, por encima, a + (cap − a)·tanh:
+  // C¹ y siempre < cap, sin meseta con esquina donde la corrección satura.
+  const r = labHueShift(rgb, out);
+  const a = cap * 0.5;
+  if (r <= a) return out;
+  const want = a + (cap - a) * Math.tanh((r - a) / (cap - a));
   const mix = (t: number): Vec3 => [rgb[0] + (out[0] - rgb[0]) * t, rgb[1] + (out[1] - rgb[1]) * t, rgb[2] + (out[2] - rgb[2]) * t];
   let lo = 0;
   let hi = 1;
   for (let i = 0; i < 30; i++) {
     const mid = (lo + hi) / 2;
-    if (labHueShift(rgb, mix(mid)) <= cap) lo = mid;
+    if (labHueShift(rgb, mix(mid)) <= want) lo = mid;
     else hi = mid;
   }
   return lo <= 0 ? rgb : mix(lo);
@@ -570,7 +575,7 @@ function isHealthy(axis: AxisMark, gate: number, axes?: AxisMark[]): boolean {
  * los ejes no validados entran como «estimado» con la razón atenuada en log (peso ESTIMATED_WEIGHT).
  */
 /** weightFullRatio: T/suelo a partir del cual el peso por tono es 1 (rampa ancha: sin escalón en el anillo). */
-export const LOSS_CURVE = { estimatedWeight: 0.5, maxGapDeg: 60, taperDeg: 30, weightFullRatio: 2.5 };
+export const LOSS_CURVE = { estimatedWeight: 0.5, maxGapDeg: 60, taperDeg: 30, weightFullRatio: 2.5, weightStartRatio: 1.3, smoothDeg: 0, smoothDegSat: 90, satRadius: [0.05, 0.3] as [number, number] };
 function validated(axes: AxisMark[] | undefined): boolean {
   return !!axes?.some((a) => a.thresholdSource === "validation-3afc");
 }
@@ -679,7 +684,7 @@ export function regionInfo(theta: number, radius: number, sectors: Sector[], sof
     const ws = 1 - smoothstep(0, softDeg, outside);
     // Peso solo por tono (punto 1, 26/10): sin techo radial; un color saturado de la zona se corrige igual que uno pálido.
     // Dentro del alcance, el peso sigue a T(θ): 0 donde T ≈ suelo, 1 desde T ≥ 2,5·suelo.
-    const wt = sct.profileT ? smoothstep(1, LOSS_CURVE.weightFullRatio, confusionT(sct.profileT.points, sct.profileT.floor, deg) / sct.profileT.floor) : 1;
+    const wt = sct.profileT ? smoothstep(LOSS_CURVE.weightStartRatio, LOSS_CURVE.weightFullRatio, confusionT(sct.profileT.points, sct.profileT.floor, deg, radius) / sct.profileT.floor) : 1;
     void radius;
     const w = ws * wt;
     if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
@@ -804,7 +809,7 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
     const { w, gain: sideGain } = regionInfo(theta, radius, [c.sector], soft);
     if (w <= 0) continue;
     const p = dot(plane, dirFromTheta(c.line));
-    const tHere = c.sector.profileT ? confusionT(c.sector.profileT.points, floor, (theta * 180) / Math.PI) : c.T;
+    const tHere = c.sector.profileT ? confusionT(c.sector.profileT.points, floor, (theta * 180) / Math.PI, radius) : c.T;
     if (w > lineW) {
       lineW = w;
       line = c.line;
@@ -942,7 +947,62 @@ export function confusionPoints(axes: AxisMark[], floor: number, region: Sector[
 }
 
 /** T absoluto en un ángulo: log(T/floor) interpolado en ángulo entre los puntos vecinos (circular). */
-export function confusionT(points: Array<{ deg: number; ratio: number }>, floor: number, deg: number): number {
+/**
+ * T(θ) suavizada (Lucas, 26/10: «arcoíris»): log(T/suelo) de los puntos se suaviza circularmente con un núcleo
+ * gaussiano de σ = LOSS_CURVE.smoothDeg, muestreado a 1°; sin escalones entre ejes. Una sola curva para mapa,
+ * filtro y simulador.
+ */
+const smoothCache = new WeakMap<object, Map<number, Float64Array>>();
+function smoothLogs(points: Array<{ deg: number; ratio: number }>, sigma: number): Float64Array {
+  let bySigma = smoothCache.get(points);
+  if (!bySigma) {
+    bySigma = new Map();
+    smoothCache.set(points, bySigma);
+  }
+  const hit = bySigma.get(sigma);
+  if (hit) return hit;
+  const raw = new Float64Array(360);
+  for (let i = 0; i < 360; i++) raw[i] = Math.log(rawConfusionT(points, 1, i));
+  const half = Math.ceil(3 * sigma);
+  const kern: number[] = [];
+  let ks = 0;
+  for (let j = -half; j <= half; j++) {
+    const k = Math.exp(-0.5 * (j / sigma) ** 2);
+    kern.push(k);
+    ks += k;
+  }
+  const logs = new Float64Array(360);
+  for (let i = 0; i < 360; i++) {
+    let a = 0;
+    for (let j = -half; j <= half; j++) a += kern[j + half] * raw[(((i + j) % 360) + 360) % 360];
+    logs[i] = Math.max(0, a / ks);
+  }
+  bySigma.set(sigma, logs);
+  return logs;
+}
+
+/**
+ * T(θ) suavizada (Lucas, 26/10: «arcoíris»): log(T/suelo) se suaviza circularmente con un núcleo gaussiano, sin
+ * escalones entre ejes. σ crece con la croma del color (`radius`): smoothDeg cerca del gris (conserva el pico del
+ * eje medido: láminas) y smoothDegSat en los saturados (barras, arcoíris). Sin `radius`: σ = smoothDeg (mapa).
+ */
+export function confusionT(points: Array<{ deg: number; ratio: number }>, floor: number, deg: number, radius = 0): number {
+  if (points.length < 2) return rawConfusionT(points, floor, deg);
+  const d = ((deg % 360) + 360) % 360;
+  const i0 = Math.floor(d) % 360;
+  const f = d - Math.floor(d);
+  const at = (sigma: number) => {
+    if (!(sigma > 0)) return Math.log(rawConfusionT(points, 1, d));
+    const logs = smoothLogs(points, sigma);
+    return logs[i0] * (1 - f) + logs[(i0 + 1) % 360] * f;
+  };
+  const sat = smoothstep(LOSS_CURVE.satRadius[0], LOSS_CURVE.satRadius[1], radius);
+  const lo = at(LOSS_CURVE.smoothDeg);
+  const log = sat > 0 ? lo * (1 - sat) + at(LOSS_CURVE.smoothDegSat) * sat : lo;
+  return floor * Math.exp(log);
+}
+
+function rawConfusionT(points: Array<{ deg: number; ratio: number }>, floor: number, deg: number): number {
   const w360 = (d: number) => ((d % 360) + 360) % 360;
   if (!points.length) return floor;
   if (points.length === 1) return points[0].ratio * floor;
