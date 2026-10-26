@@ -20,7 +20,7 @@ import {
 } from "./space";
 import { deltaE00Linear, labOfLinear } from "./deltaE";
 import type { UmbralProfile } from "./profile";
-import type { EdgeFile } from "./edges";
+import { fileDepth, type EdgeFile } from "./edges";
 
 type Pathway = UmbralProfile["fit"]["pathways"][number];
 type AxisMark = {
@@ -620,8 +620,8 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
       hiDeg: plus.deg,
       minus,
       plus,
-      // Profundidad recortada a floor como mínimo (Colorado, 26/10): nunca por debajo del control.
-      scale: usable?.depth ? Math.max(floor, usable.depth.scale) : axis.threshold,
+      // Profundidad: max(estimación, edgeScale si el pico falló), ≥ floor, techo = umbral del eje (Colorado, 26/10).
+      scale: (usable && fileDepth(usable, floor, axis.threshold)) ?? axis.threshold,
       ...(usable ? { edgeScale: usable.edgeScale } : {}),
       provisional: minus.provisional || plus.provisional,
     });
@@ -798,7 +798,7 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
  * Asistencia adaptativa (Colorado, 26/10): cada color recibe la ganancia mínima k para que su métrica de
  * discriminación con su pareja en la línea de confusión (el color reflejado a través del gris a lo largo de la
  * línea, dentro de la franja) llegue a ADAPTIVE.target (Extremo: targetExtreme). La pareja recibe la misma k.
- * La exigencia escala con lo lejos que está el color del gris: min(1, |p| / (nearFrac · T)), para no pedir separar
+ * La exigencia sube con lo lejos que está el color del gris: smoothstep(0, nearFrac · T, |p|), para no pedir separar
  * colores que ya casi son gris. Si con k = kMax (y los topes de giro, croma, esquinas y gamut) no se llega, se aplica
  * el máximo permitido y el color queda «limitado por tope».
  */
@@ -814,7 +814,8 @@ export function adaptiveColor(rgb: Vec3, axes: AxisMark[], floor: number, extrem
   const points = confusionPoints(axes, floor, region ?? []).points;
   const tLine = Math.max(confusionT(points, floor, (base.line * 180) / Math.PI), confusionT(points, floor, (base.line * 180) / Math.PI + 180));
   const target = extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target;
-  const need = target * Math.min(1, Math.abs(base.p) / (ADAPTIVE.nearFrac * tLine));
+  // Rampa smoothstep de 0 a nearFrac·T cerca del gris (Colorado, 26/10).
+  const need = target * smoothstep(0, ADAPTIVE.nearFrac * tLine, Math.abs(base.p));
   const inGamut = mate.every((v) => v >= 0 && v <= 1);
   if (!inGamut || need <= 1e-6) return { out: base.out, k: 1, limited: false, active: true };
   const metricAt = (k: number): { m: number; out: Vec3 } => {

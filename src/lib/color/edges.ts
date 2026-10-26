@@ -169,6 +169,8 @@ export interface EdgeRun {
   depthAngle: number;
   depthBound: "estimate" | "at-least";
   depthSaw: boolean;
+  /** «Visto» por debajo de la escala del borde pendiente de una segunda respuesta coherente (escala). */
+  depthPending?: number | null;
   trials: EdgeTrial[];
   band: EdgeFile["band"] | null;
   /** jsQuestPlus cargado: activa QUEST+ en el refinamiento. */
@@ -709,9 +711,14 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
   if (run.phase === "depth") {
     let lo = run.depthLo;
     let hi = run.depthHi;
+    // Un «visto» por debajo de la escala del borde solo cuenta con 2 respuestas coherentes a esa escala.
+    if (kind === "seen" && run.scale < run.edgeScale - 1e-9 && run.depthPending !== run.scale && run.depthLeft > 1) {
+      return { ...place({ ...run, depthLeft: run.depthLeft - 1 }, "depth", run.depthAngle, run.scale), depthPending: run.scale };
+    }
     const saw = run.depthSaw || kind === "seen";
     if (kind === "seen") hi = run.scale;
     else lo = run.scale;
+    run = { ...run, depthPending: null };
     const ceiling = Math.max(run.depthHi, run.edgeScale);
     const left = run.depthLeft - 1;
     const stuck = Math.abs(hi - lo) < 0.004 || run.scale >= ceiling - 1e-3;
@@ -771,6 +778,27 @@ function boundOf(side: Side): EdgeBound {
   };
 }
 
+/**
+ * Profundidad (Colorado, 26/10): max(estimación, edgeScale si el pico falló a esa escala), nunca por debajo de floor
+ * y con el umbral de perfil del eje como techo.
+ */
+export function depthScale(estimate: number, failedAt: number, floor: number, ceiling: number): number {
+  const v = Math.max(floor, estimate, failedAt);
+  return ceiling > 0 ? Math.min(ceiling, v) : v;
+}
+
+/** El pico (tono de partida) falló a la escala del borde: último ensayo de pico a esa escala no visto (sin catches). */
+export function peakFailed(trials: Array<{ side?: string; scale: number; kind: string; catch?: boolean }>, edgeScale: number): boolean {
+  const at = trials.filter((t) => t.side === "peak" && !t.catch && Math.abs(t.scale - edgeScale) < 1e-4);
+  return at.length > 0 && at[at.length - 1].kind !== "seen";
+}
+
+/** Profundidad efectiva de un archivo (también los ya guardados), con el umbral del eje del perfil como techo. */
+export function fileDepth(file: EdgeFile, floor: number, axisThreshold: number): number | null {
+  if (!file.depth) return null;
+  return depthScale(file.depth.scale, peakFailed((file as any).trials ?? [], file.edgeScale) ? file.edgeScale : 0, floor, axisThreshold);
+}
+
 export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus: number | null }): EdgeFile {
   const minus = boundOf(run.minus);
   const plus = boundOf(run.plus);
@@ -781,7 +809,14 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
       : {
           angleDeg: round1(run.depthAngle),
           // Nunca por debajo del control (floor): una media entre aciertos bajo el umbral del control no es una profundidad.
-          scale: round4(Math.max(run.floor, run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2)),
+          scale: round4(
+            depthScale(
+              run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2,
+              peakFailed(run.trials, run.edgeScale) ? run.edgeScale : 0,
+              run.floor,
+              run.sourceThreshold,
+            ),
+          ),
           bound: run.depthBound,
           ceiling: round4(ceiling),
         };

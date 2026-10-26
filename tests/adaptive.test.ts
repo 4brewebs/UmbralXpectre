@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseProfile } from "../src/lib/color/profile";
-import { parseEdgeFile } from "../src/lib/color/edges";
+import { depthScale, fileDepth, parseEdgeFile, peakFailed } from "../src/lib/color/edges";
 import { adaptiveColor, measuredRegion, pairMetric } from "../src/lib/color/spectrum";
 import { buildTransformFile } from "../src/lib/color/lut";
 import { lossPoints, ratioAt } from "../src/lib/color/lossmap";
@@ -30,10 +30,15 @@ function plate(role: string): Array<[Vec3, Vec3]> {
 }
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-test("A: la profundidad real del rojizo (0,0084) se recorta a floor en la región", () => {
+test("A: profundidad = max(estimación, edgeScale si el pico falló), techo el umbral del eje, también en archivos guardados", () => {
   assert.equal(real[0].depth!.scale, 0.0084);
+  assert.ok(peakFailed(real[0].trials, real[0].edgeScale));
+  assert.equal(fileDepth(real[0], floor, 0.0568), 0.0268);
+  assert.equal(fileDepth(real[1], floor, 0.0237), 0.0195);
+  assert.equal(depthScale(0.03, 0.04, floor, 0.0237), 0.0237);
+  assert.equal(depthScale(0.005, 0, floor, 0.05), floor);
   const l = measuredRegion(profile.axes, floor, real).find((s) => s.axis.startsWith("l"))!;
-  assert.ok(l.scale >= floor - 1e-12, `${l.scale}`);
+  assert.equal(l.scale, 0.0268);
 });
 
 test("B: la métrica usa la misma T interpolada que «Zonas de confusión» y la lámina l sin filtro da < 1", () => {
