@@ -1,6 +1,6 @@
 import type { UmbralProfile } from "./profile";
 import { LOSS_RAMP, lossPoints } from "./lossmap";
-import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { ADAPTIVE, adaptiveColor, GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -82,6 +82,17 @@ export type TransformFilter = {
   note: string;
   /** RGB bytes, r fastest, then g, then b. Omitted when the filter is identity. */
   bytes?: string;
+  /** Ganancia adaptativa por color (Asistencia/Extremo): factor k sobre la ganancia calibrada y nodos que no llegan a la meta. */
+  adaptive?: {
+    metric: string;
+    target: number;
+    activeNodes: number;
+    kMean: number;
+    kMax: number;
+    limitedNodes: number;
+    /** «limitado por tope» si algún nodo se quedó en el máximo permitido sin llegar a la meta. */
+    status: "limitado por tope" | "meta alcanzada";
+  };
 };
 
 export type TransformFile = {
@@ -124,6 +135,8 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     name: string;
     note: string;
     apply: ((rgb: Vec3) => Vec3) | null;
+    /** Extremo (true) o Asistencia (false): se hornea con adaptiveColor y se resume en `adaptive`. */
+    adaptive?: boolean;
   }> = [
     {
       id: "original",
@@ -142,12 +155,14 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       name: "Asistencia",
       note: texts.assist,
       apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
+      adaptive: false,
     },
     {
       id: "extreme",
       name: "Extremo",
       note: texts.extreme,
       apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
+      adaptive: true,
     },
   ];
   return {
@@ -176,7 +191,41 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
         points: lossPoints(profile, edges).points.map((p) => ({ deg: Math.round(p.deg * 100) / 100, ratio: Math.round(p.ratio * 1000) / 1000 })),
       },
     },
-    filters: specs.map((spec) => bakeFilter(spec, floor)),
+    filters: specs.map((spec) => {
+      if (spec.adaptive == null) return bakeFilter(spec, floor);
+      const extreme = spec.adaptive;
+      const stats = { active: 0, sum: 0, max: 0, limited: 0 };
+      const baked = bakeFilter(
+        {
+          ...spec,
+          apply: (rgb) => {
+            const res = adaptiveColor(rgb, axes, floor, extreme, region);
+            if (res.active) {
+              stats.active++;
+              stats.sum += res.k;
+              stats.max = Math.max(stats.max, res.k);
+              if (res.limited) stats.limited++;
+            }
+            return res.out;
+          },
+        },
+        floor,
+      );
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      return {
+        ...baked,
+        ...(stats.limited ? { note: `${baked.note} Limitado por tope en ${stats.limited} nodos: se aplica el máximo permitido.` } : {}),
+        adaptive: {
+          metric: "|diferencia| / (2 · T(ángulo de la diferencia)), T interpolado en log como «Zonas de confusión»",
+          target: extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target,
+          activeNodes: stats.active,
+          kMean: stats.active ? r2(stats.sum / stats.active) : 0,
+          kMax: r2(stats.max),
+          limitedNodes: stats.limited,
+          status: stats.limited ? "limitado por tope" : "meta alcanzada",
+        },
+      };
+    }),
   };
 }
 

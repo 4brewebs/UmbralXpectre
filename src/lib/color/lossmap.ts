@@ -1,6 +1,6 @@
 import type { UmbralProfile } from "./profile";
 import type { EdgeFile } from "./edges";
-import { measuredRegion } from "./spectrum";
+import { confusionPoints, measuredRegion } from "./spectrum";
 import { luminance, thetaOf, type Vec3 } from "./space";
 
 /**
@@ -19,33 +19,8 @@ const wrap = (d: number) => ((d % 360) + 360) % 360;
 
 export function lossPoints(profile: UmbralProfile, edges: EdgeFile[] = []): { points: Point[]; estimated: Array<[number, number]>; measured: number[] } {
   const control = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
-  const points: Point[] = [];
-  for (const axis of profile.axes) {
-    if (axis.threshold == null || !Number.isFinite(axis.angleDeg)) continue;
-    points.push({ deg: wrap(axis.angleDeg), ratio: Math.max(1, axis.threshold / control) });
-  }
-  const measured = points.map((p) => p.deg);
-  const estimated: Array<[number, number]> = [];
-  for (const sector of measuredRegion(profile.axes, control, edges)) {
-    const axis = profile.axes.find((a) => (a.id ?? a.role) === sector.axis);
-    const peak = Math.max(1, (axis?.threshold ?? control) / control);
-    const file = edges.find((e) => e.cone === axis?.role);
-    for (const [side, dir] of [[sector.minus, -1], [sector.plus, 1]] as const) {
-      if (side.source === "edge") {
-        // En el borde, el fallo se midió hasta la escala de bordes.
-        points.push({ deg: wrap(side.deg), ratio: Math.max(1, (file?.edgeScale ?? control) / control) });
-      } else if (side.source === "toEnd") {
-        // Sigue fallando hasta el eje sano: el pico se mantiene hasta justo antes de él.
-        points.push({ deg: wrap(side.deg - dir * 1), ratio: peak });
-      } else {
-        const lo = dir < 0 ? side.deg : sector.centerDeg;
-        const hi = dir < 0 ? sector.centerDeg : side.deg;
-        estimated.push([wrap(lo), wrap(lo) + (hi - lo)]);
-      }
-    }
-  }
-  points.sort((a, b) => a.deg - b.deg);
-  return { points, estimated, measured };
+  // Misma interpolación que la métrica de discriminación de la asistencia adaptativa.
+  return confusionPoints(profile.axes, control, measuredRegion(profile.axes, control, edges));
 }
 
 /** Interpola log(ratio) en ángulo entre los puntos vecinos (circular). */

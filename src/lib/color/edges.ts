@@ -647,7 +647,7 @@ function beginDepth(run: EdgeRun): EdgeRun {
   const recovered = run.minus.found && run.plus.found && !run.minus.toEnd && !run.plus.toEnd;
   const ceiling = depthCeiling(run.floor, run.sourceThreshold, depthAngle);
   const next = place(
-    { ...run, depthAngle, depthLo: 0, depthHi: ceiling, depthLeft: DEPTH_TRIALS, depthBound: "estimate", band: recovered ? "closed" : "open" },
+    { ...run, depthAngle, depthLo: run.floor, depthHi: ceiling, depthLeft: DEPTH_TRIALS, depthBound: "estimate", band: recovered ? "closed" : "open" },
     "depth",
     depthAngle,
     run.edgeScale,
@@ -780,7 +780,8 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
       ? null
       : {
           angleDeg: round1(run.depthAngle),
-          scale: round4(run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2),
+          // Nunca por debajo del control (floor): una media entre aciertos bajo el umbral del control no es una profundidad.
+          scale: round4(Math.max(run.floor, run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2)),
           bound: run.depthBound,
           ceiling: round4(ceiling),
         };

@@ -538,6 +538,8 @@ export type Sector = {
   minus: SectorSide;
   plus: SectorSide;
   scale: number;
+  /** Escala a la que se midieron los bordes (fallo en el borde). */
+  edgeScale?: number;
   provisional: boolean;
 };
 /** Transición coseno (C1) de 12° (Extremo 14°) en cada extremo, ensanchada al calibrar la ganancia con T/floor ≥ 1,6; los lados provisionales corrigen al 70 %. */
@@ -618,7 +620,9 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
       hiDeg: plus.deg,
       minus,
       plus,
-      scale: usable?.depth?.scale ?? axis.threshold,
+      // Profundidad recortada a floor como mínimo (Colorado, 26/10): nunca por debajo del control.
+      scale: usable?.depth ? Math.max(floor, usable.depth.scale) : axis.threshold,
+      ...(usable ? { edgeScale: usable.edgeScale } : {}),
       provisional: minus.provisional || plus.provisional,
     });
   }
@@ -734,48 +738,168 @@ function lostFraction(T: number, floor: number): number {
  * desplazamientos se mezclan por su máscara (media ponderada), no se suman. Tope de giro 45° (60° Extremo),
  * croma ≤ 2,5×, nunca fuera del gamut y guardia de identidad en las 6 esquinas.
  */
-function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): Vec3 {
-  if (!(floor > 0)) return rgb;
+type DaltonCore = { out: Vec3; line: number | null; p: number; w: number };
+
+/** Daltonización con la ganancia multiplicada por k (k = 1: la calibrada). Los topes (giro, croma, esquinas, gamut) actúan igual. */
+function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region: Sector[] | undefined, k: number): DaltonCore {
+  const none = { out: rgb, line: null, p: 0, w: 0 };
+  if (!(floor > 0)) return none;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
   const radius = norm(plane);
-  if (radius < 1e-4) return rgb;
+  if (radius < 1e-4) return none;
   const list = corrections(axes, floor, region);
-  if (!list.length) return rgb;
+  if (!list.length) return none;
   const theta = thetaOf(plane);
   const soft = extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg;
   let sumW = 0;
   let maxW = 0;
+  let line: number | null = null;
+  let lineP = 0;
+  let lineW = 0;
   const d: Vec3 = [0, 0, 0];
   for (const c of list) {
     const { w, gain: sideGain } = regionInfo(theta, radius, [c.sector], soft);
     if (w <= 0) continue;
     const p = dot(plane, dirFromTheta(c.line));
+    if (w > lineW) {
+      lineW = w;
+      line = c.line;
+      lineP = p;
+    }
     const lost = p * lostFraction(c.T, floor);
-    const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain;
-    const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain;
+    const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain * k;
+    const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain * k;
     const boost = (extreme ? RADIAL_BOOST_EXTREME : RADIAL_BOOST) * sideGain;
     const inj = Math.max(-bound * (1 + boost), Math.min(bound * (1 + boost), lost * gain * (1 + boost)));
     const t = dirFromTheta(c.target);
     // Además del giro, sube el croma (≤ 2,5×) en proporción a lo perdido: con T/floor bajo el giro solo no basta.
-    const radial = boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
+    const radial = k * boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
     d[0] += w * (t[0] * inj + plane[0] * radial);
     d[1] += w * (t[1] * inj + plane[1] * radial);
     d[2] += w * (t[2] * inj + plane[2] * radial);
     sumW += w;
     maxW = Math.max(maxW, w);
   }
-  if (maxW <= 0) return rgb;
+  if (maxW <= 0) return none;
   d[0] /= sumW;
   d[1] /= sumW;
   d[2] /= sumW;
-  if (norm(d) < 1e-9) return rgb;
+  if (norm(d) < 1e-9) return { out: rgb, line, p: lineP, w: maxW };
   const cap = cornerCap(rgb, extreme ? ROT_CAP_EXTREME : ROT_CAP);
   const tS = reachT(y, plane, d, cap, CHROMA_CAP);
   const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
   const att = maxW * gamutAtten(rgb, full);
   const out = mixRgb(rgb, full, att);
-  return limitLabHue(rgb, out, cap);
+  return { out: limitLabHue(rgb, out, cap), line, p: lineP, w: maxW };
+}
+
+/**
+ * Asistencia adaptativa (Colorado, 26/10): cada color recibe la ganancia mínima k para que su métrica de
+ * discriminación con su pareja en la línea de confusión (el color reflejado a través del gris a lo largo de la
+ * línea, dentro de la franja) llegue a ADAPTIVE.target (Extremo: targetExtreme). La pareja recibe la misma k.
+ * La exigencia escala con lo lejos que está el color del gris: min(1, |p| / (nearFrac · T)), para no pedir separar
+ * colores que ya casi son gris. Si con k = kMax (y los topes de giro, croma, esquinas y gamut) no se llega, se aplica
+ * el máximo permitido y el color queda «limitado por tope».
+ */
+export const ADAPTIVE = { target: 1.5, targetExtreme: 2, kMax: 4, kMaxExtreme: 4, nearFrac: 0.5, iters: 14 };
+
+export type AdaptiveResult = { out: Vec3; k: number; limited: boolean; active: boolean };
+
+export function adaptiveColor(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): AdaptiveResult {
+  const base = daltonizeK(rgb, axes, floor, extreme, region, 1);
+  if (base.line == null || base.w <= 0) return { out: base.out, k: 0, limited: false, active: false };
+  const u = dirFromTheta(base.line);
+  const mate: Vec3 = [rgb[0] - 2 * base.p * u[0], rgb[1] - 2 * base.p * u[1], rgb[2] - 2 * base.p * u[2]];
+  const points = confusionPoints(axes, floor, region ?? []).points;
+  const tLine = Math.max(confusionT(points, floor, (base.line * 180) / Math.PI), confusionT(points, floor, (base.line * 180) / Math.PI + 180));
+  const target = extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target;
+  const need = target * Math.min(1, Math.abs(base.p) / (ADAPTIVE.nearFrac * tLine));
+  const inGamut = mate.every((v) => v >= 0 && v <= 1);
+  if (!inGamut || need <= 1e-6) return { out: base.out, k: 1, limited: false, active: true };
+  const metricAt = (k: number): { m: number; out: Vec3 } => {
+    const a = daltonizeK(rgb, axes, floor, extreme, region, k).out;
+    const b = daltonizeK(mate, axes, floor, extreme, region, k).out;
+    return { m: pairMetricPoints(a, b, points, floor), out: a };
+  };
+  const kMax = extreme ? ADAPTIVE.kMaxExtreme : ADAPTIVE.kMax;
+  const top = metricAt(kMax);
+  if (top.m < need) return { out: top.out, k: kMax, limited: true, active: true };
+  if (metricAt(0).m >= need) return { out: rgb, k: 0, limited: false, active: true };
+  let lo = 0;
+  let hi = kMax;
+  for (let i = 0; i < ADAPTIVE.iters; i++) {
+    const mid = (lo + hi) / 2;
+    if (metricAt(mid).m >= need) hi = mid;
+    else lo = mid;
+  }
+  return { out: daltonizeK(rgb, axes, floor, extreme, region, hi).out, k: hi, limited: false, active: true };
+}
+
+function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): Vec3 {
+  return adaptiveColor(rgb, axes, floor, extreme, region).out;
+}
+
+/** Puntos (ángulo, T/floor) del mapa de confusión: ejes medidos y bordes de la región, como «Zonas de confusión». */
+export function confusionPoints(axes: AxisMark[], floor: number, region: Sector[]): { points: Array<{ deg: number; ratio: number }>; estimated: Array<[number, number]>; measured: number[] } {
+  const w360 = (d: number) => ((d % 360) + 360) % 360;
+  const points: Array<{ deg: number; ratio: number }> = [];
+  for (const axis of axes) {
+    if (axis.threshold == null || !Number.isFinite(axis.angleDeg)) continue;
+    points.push({ deg: w360(axis.angleDeg), ratio: Math.max(1, axis.threshold / floor) });
+  }
+  const measured = points.map((p) => p.deg);
+  const estimated: Array<[number, number]> = [];
+  for (const sector of region) {
+    const axis = axes.find((a) => (a.id ?? a.role) === sector.axis);
+    const peak = Math.max(1, (axis?.threshold ?? floor) / floor);
+    for (const [side, dir] of [[sector.minus, -1], [sector.plus, 1]] as const) {
+      if (side.source === "edge") {
+        // En el borde, el fallo se midió hasta la escala de bordes.
+        points.push({ deg: w360(side.deg), ratio: Math.max(1, (sector.edgeScale ?? floor) / floor) });
+      } else if (side.source === "toEnd") {
+        points.push({ deg: w360(side.deg - dir * 1), ratio: peak });
+      } else {
+        const lo = dir < 0 ? side.deg : sector.centerDeg;
+        const hi = dir < 0 ? sector.centerDeg : side.deg;
+        estimated.push([w360(lo), w360(lo) + (hi - lo)]);
+      }
+    }
+  }
+  points.sort((a, b) => a.deg - b.deg);
+  return { points, estimated, measured };
+}
+
+/** T absoluto en un ángulo: log(T/floor) interpolado en ángulo entre los puntos vecinos (circular). */
+export function confusionT(points: Array<{ deg: number; ratio: number }>, floor: number, deg: number): number {
+  const w360 = (d: number) => ((d % 360) + 360) % 360;
+  if (!points.length) return floor;
+  if (points.length === 1) return points[0].ratio * floor;
+  const d = w360(deg);
+  let i = points.findIndex((p) => p.deg > d);
+  if (i < 0) i = 0;
+  const hi = points[i];
+  const lo = points[(i - 1 + points.length) % points.length];
+  const span = w360(hi.deg - lo.deg) || 360;
+  const t = w360(d - lo.deg) / span;
+  return floor * Math.exp(Math.log(lo.ratio) * (1 - t) + Math.log(hi.ratio) * t);
+}
+
+function pairMetricPoints(a: Vec3, b: Vec3, points: Array<{ deg: number; ratio: number }>, floor: number): number {
+  const pa = killPlane(a, luminance(a));
+  const pb = killPlane(b, luminance(b));
+  const diff: Vec3 = [pa[0] - pb[0], pa[1] - pb[1], pa[2] - pb[2]];
+  const len = norm(diff);
+  if (len < 1e-12) return 0;
+  const deg = (thetaOf(diff) * 180) / Math.PI;
+  // La diferencia es una recta: se toma el umbral mayor de sus dos sentidos (conservador).
+  const T = Math.max(confusionT(points, floor, deg), confusionT(points, floor, deg + 180));
+  return len / (2 * T);
+}
+
+/** Métrica de discriminación: |diferencia en el plano isoluminante| / (2 · T(ángulo de la diferencia)). Sin proyectar sobre m. */
+export function pairMetric(a: Vec3, b: Vec3, axes: AxisMark[], floor: number, region: Sector[] = []): number {
+  return pairMetricPoints(a, b, confusionPoints(axes, floor, region).points, floor);
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
