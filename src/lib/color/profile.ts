@@ -63,6 +63,8 @@ export interface UmbralProfile {
     anchorLinear: number;
     procedure: string;
     priorsRole: string;
+    /** Búsqueda del perfil: escalera sí/no (por defecto) o QUEST+ (legado). */
+    search?: "staircase" | "quest+";
   };
   summary: string;
   confidence: "high" | "low";
@@ -123,9 +125,11 @@ export interface UmbralProfile {
       reason?: "gamut-limit";
     };
     thresholdKind: Axis["thresholdKind"];
+    /** Escalera: horquilla final y punto de convergencia (= umbral del perfil, antes de la validación). */
+    staircase?: { lo: number; hi: number; convergence: number; stop: "bisection" | "confirm" };
     /** Solo tras el repaso con pesos personales: el umbral original (pares con la Y estándar). */
     thresholdStandardY?: number | null;
-    thresholdSource?: "review-measured" | "review-unreliable";
+    thresholdSource?: "review-measured" | "review-unreliable" | "validation-3afc";
     closed: boolean;
     trials: number;
     order: number;
@@ -143,7 +147,17 @@ export interface UmbralProfile {
    * de fase 1 las siguen leyendo igual). Los campos v3 son los pesos personales.
    */
   luminance?: LuminanceResult & LuminanceV3;
-  /** Repaso corto de l y m con los pesos personales (`review.ts`). */
+  /** Validación 3AFC de l y m con los pesos personales (`validation.ts`); sustituye al repaso. */
+  validation?: {
+    method: string;
+    pairLuminance: PairLuminance;
+    gamma: number;
+    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; lapse: number; trials: number; ratio: number; label: "confirmado" | "nuevo" }>;
+    /** Razón frente al original fuera de [½, 2]: solo aviso. */
+    warnings?: string[];
+    trials: unknown[];
+  };
+  /** Repaso sí/no (legado, `review.ts`): los perfiles antiguos lo traen. */
   review?: {
     /** La escala s de los pares con pesos personales no se renormaliza respecto a la de la Y estándar. */
     scaleNormalized: false;
@@ -337,6 +351,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       procedure:
         "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
       priorsRole: "Cone-isolation directions only choose where to look first. They are not the output.",
+      search: session.questPlus ? "quest+" : "staircase",
     },
     summary: summarize({
       confidence: scored.confidence,
@@ -402,6 +417,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       closed: isClosed(a),
       trials: a.trials,
       order: index + 1,
+      ...(!a.qpEstimate && a.phase === "done" && a.threshold != null ? { staircase: { lo: r4(a.lo), hi: r4(a.hi), convergence: r4(a.threshold), stop: a.thresholdKind === "upper-bound" ? ("confirm" as const) : ("bisection" as const) } } : {}),
       ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced, ...(a.qpBound ? { deltaE00: r4(a.qpReach ?? a.qpEstimate.deltaE00), atLeast: true, reason: a.qpBound } : {}) } } : {}),
     })),
     trials: orderColorTrials(session.log, session.axes),

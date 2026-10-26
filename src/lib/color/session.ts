@@ -686,7 +686,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   };
 }
 
-/** Tope por sesión (80 con QUEST+, 160 en escalera): lo abierto se cierra como estimación; con QUEST+ queda reanudable. */
+/** Tope por sesión (60 con QUEST+, 160 en escalera): lo abierto se cierra como estimación; con QUEST+ queda reanudable. */
 function applyCap(session: Session, axes: Axis[], trials: number): void {
   const Q = session.questPlus;
   if (trials < (Q ? QP_CALIB.sessionCap : SESSION_CAP)) return;

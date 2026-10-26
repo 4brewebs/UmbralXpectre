@@ -43,7 +43,7 @@ export const QP_CALIB = {
   stopLogWidth: Math.log(1.5),
   maxTrials: 36,
   /** Tope de ensayos por sesión con QUEST+ (Colorado); lo que falte sigue en otra sesión. */
-  sessionCap: 80,
+  sessionCap: 60,
   /**
    * Parada antes en ejes no elevados (Colorado, 6.ª ronda): si el IC entero queda por debajo de 1,6× el control,
    * basta una anchura ln 2,2 con ≥ 8 ensayos. El número exacto no cambia ningún filtro.

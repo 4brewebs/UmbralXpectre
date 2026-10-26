@@ -2,7 +2,7 @@
   import { num } from "@/lib/format";
   import { Check, Copy, Download, RotateCcw } from "@lucide/svelte";
   import { edgeFilename, edgeWindow, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
-  import { buildTransformFile } from "@/lib/color/lut";
+  import { buildFilterTransforms, filterProfile } from "@/lib/color/lut";
   import type { UmbralProfile } from "@/lib/color/profile";
   import ConeCard from "./ConeCard.svelte";
   import Plates from "./Plates.svelte";
@@ -24,6 +24,7 @@
     edgesStale = false,
     onEdgeFile,
     onEdgeImport,
+    onValidate,
   }: {
     profile: UmbralProfile;
     copied: boolean;
@@ -37,12 +38,16 @@
     edgesStale?: boolean;
     onEdgeFile: (file: EdgeFile) => void;
     onEdgeImport?: (file: EdgeFile) => void;
+    /** Validación 3AFC (solo con pesos de brillo medidos en esta pantalla). */
+    onValidate?: () => void;
   } = $props();
 
   type Matches = NonNullable<UmbralProfile["luminance"]>["matches"];
 
   const json = $derived(JSON.stringify(profile, null, 2));
   const edgeList = $derived(Object.values(edgeFiles) as EdgeFile[]);
+  /** Filtros solo desde la validación 3AFC (y bordes); null sin validación. */
+  const filtersBase = $derived(filterProfile(profile));
   const edgeReliability = $derived(sessionReliability(edgeList));
   let baking = $state(false);
   let measuring = $state<ConeId | null>(null);
@@ -62,7 +67,8 @@
     baking = true;
     window.setTimeout(() => {
       try {
-        const file = buildTransformFile(profile, edgeList);
+        const file = buildFilterTransforms(profile, edgeList);
+        if (!file) return;
         const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -189,8 +195,17 @@
         </li>
       {/each}
     </ul>
-    {#if profile.fit.pathways?.length}
-      <ConeCard {profile} edgeFiles={edgeList} />
+    {#if !filtersBase}
+      <section role="alert" class="flex flex-col gap-3 rounded-2xl border border-border p-4" data-testid="filters-need-validation">
+        <p class="text-base leading-relaxed text-fg">Sin validación no hay filtros. Los filtros y los bordes salen solo de la validación «elige el distinto entre 3», no de este perfil.</p>
+        {#if onValidate}
+          <button type="button" onclick={onValidate} class="h-12 rounded-xl bg-accent px-4 text-base font-semibold text-accent-fg">Hacer la validación</button>
+        {:else}
+          <p class="text-sm text-fg">Haz antes la prueba de brillo en esta pantalla; la validación va después.</p>
+        {/if}
+      </section>
+    {:else if filtersBase.fit.pathways?.length}
+      <ConeCard profile={filtersBase} edgeFiles={edgeList} />
     {/if}
     {#if edgeReliability}
       <p class="text-sm text-muted" data-testid="edge-reliability">Fiabilidad de bordes: {edgeReliability.status} · {edgeReliability.catches} controles en {edgeReliability.rounds} {edgeReliability.rounds === 1 ? "ronda" : "rondas"}{edgeReliability.none ? `, ${edgeReliability.none} sin ver` : ""}.</p>
@@ -198,8 +213,10 @@
     {#each edgeList.filter((f) => f.warnings?.length) as f (f.cone)}
       <p role="alert" class="text-sm text-fg" data-testid="edge-imbalance">Bordes de {f.name}: un lado tuvo muy pocos ensayos frente al otro ({f.warnings!.join("; ").replace("side-imbalance: ", "").replace("minus", "lado −").replace("plus", "lado +")}). El borde con menos ensayos es poco seguro.</p>
     {/each}
-    <Plates {profile} edgeFiles={edgeList} />
-    <div id="camara" class="scroll-mt-4"><AssistCamera {profile} edgeFiles={edgeList} /></div>
+    {#if filtersBase}
+      <Plates profile={filtersBase} edgeFiles={edgeList} />
+      <div id="camara" class="scroll-mt-4"><AssistCamera profile={filtersBase} edgeFiles={edgeList} /></div>
+    {/if}
     <p class="text-sm leading-relaxed text-muted">{profile.disclaimer}</p>
     <div class="flex flex-col gap-3 sm:flex-row">
       <button
@@ -216,14 +233,14 @@
     </div>
     <button
       type="button"
-      disabled={baking}
+      disabled={baking || !filtersBase}
       onclick={downloadTransforms}
       class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-border text-base text-fg disabled:opacity-50"
     ><Download class="size-4" aria-hidden="true" />{baking ? "Preparando transformaciones…" : "Descargar JSON transformaciones"}</button>
     {#if edgesStale}
       <p class="text-sm text-muted" data-testid="edges-stale">{STALE_EDGES_NOTE}.</p>
     {/if}
-    {#each elevated as pathway (pathway.id)}
+    {#each filtersBase ? elevated : [] as pathway (pathway.id)}
       {@const cone = pathway.id as ConeId}
       {@const name = cone === "l" ? "rojos" : cone === "m" ? "verdes" : "azules"}
       {@const file = edgeFiles[cone]}

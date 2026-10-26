@@ -15,7 +15,7 @@ import { deltaE00Linear } from "./deltaE";
  * se guarda igual (dato en bruto; su `unreliable` es solo orientativo).
  */
 /** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: con la ventana 1,5× control el β fijo sesga −7,7 % (≥ 3 %), así que se marginaliza β (−2,7 %), regla de Colorado. */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, minTrials: 8, maxTrials: 45, sideImbalance: 1 / 3, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, minTrials: 8, maxTrials: 20, sideImbalance: 1 / 3, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -426,7 +426,7 @@ export function edgeInputFromProfile(
     schema: string;
     createdAt: string;
     fit: { controlAbs?: number | null; controlBounded?: boolean; timesControlKind?: string | null; pathways?: Array<{ id: string; threshold?: number | null; timesControl?: number | null }> };
-    axes: Array<{ id: string; angleDeg: number; threshold: number | null }>;
+    axes: Array<{ id: string; angleDeg: number; threshold: number | null; thresholdSource?: string }>;
     luminance?: { weightsSource?: string; weights?: Vec3 } | null;
   },
   cone: ConeId,
@@ -437,7 +437,8 @@ export function edgeInputFromProfile(
     cone,
     peakDeg: axis?.angleDeg ?? 0,
     floor: profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02,
-    sourceThreshold: pathway?.threshold ?? axis?.threshold ?? 0,
+    // Tras la validación 3AFC se parte de su umbral (el del eje); si no, del de la vía.
+    sourceThreshold: (axis?.thresholdSource === "validation-3afc" ? axis.threshold : null) ?? pathway?.threshold ?? axis?.threshold ?? 0,
     sourceTimes: pathway?.timesControl ?? null,
     profileSchema: profile.schema,
     profileCreatedAt: profile.createdAt,

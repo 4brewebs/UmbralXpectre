@@ -97,7 +97,14 @@ export type TransformFilter = {
 
 export type TransformFile = {
   schema: "umbral.transforms.v1";
-  basedOn: { schema: UmbralProfile["schema"]; createdAt: string };
+  basedOn: {
+    schema: UmbralProfile["schema"];
+    createdAt: string;
+    /** De dónde salen los umbrales: solo la validación 3AFC (y los bordes, si hay). */
+    thresholds?: "validation-3afc";
+    validation?: Array<{ id: string; threshold: number; thresholdStandardY: number }>;
+    edges?: string[];
+  };
   space: string;
   size: number;
   nodes: number;
@@ -316,4 +323,32 @@ export function sampleLut(lut: Uint8Array, r8: number, g8: number, b8: number): 
     out[c] = Math.round(c0 * (1 - tz) + c1 * tz);
   }
   return out;
+}
+
+/**
+ * Perfil para filtros: solo los ejes de la validación 3AFC (sus umbrales ya sustituyen a los del perfil).
+ * Sin validación, null: no hay filtros (los umbrales del perfil sí/no ya no los construyen).
+ */
+export function filterProfile(profile: UmbralProfile): UmbralProfile | null {
+  const v = profile.validation;
+  if (!v?.axes?.length) return null;
+  const ids = new Set(v.axes.map((a) => a.id));
+  const axes = profile.axes.filter((a) => ids.has(a.id) && a.thresholdSource === "validation-3afc");
+  return axes.length ? { ...profile, axes } : null;
+}
+
+/** Transformaciones solo desde la validación 3AFC y los bordes; null sin validación. */
+export function buildFilterTransforms(profile: UmbralProfile, edges: EdgeFile[] = []): TransformFile | null {
+  const base = filterProfile(profile);
+  if (!base) return null;
+  const file = buildTransformFile(base, edges);
+  return {
+    ...file,
+    basedOn: {
+      ...file.basedOn,
+      thresholds: "validation-3afc",
+      validation: base.axes.map((a) => ({ id: a.id, threshold: a.threshold ?? 0, thresholdStandardY: a.thresholdStandardY ?? 0 })),
+      edges: edges.map((e) => e.cone),
+    },
+  };
 }

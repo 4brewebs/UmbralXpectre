@@ -74,7 +74,7 @@ test("sin flag, la sesión no cambia (sin QUEST+)", () => {
   assert.ok(s.axes.every((a) => a.qpLog === undefined));
 });
 
-/** Sesiones QUEST+ encadenadas (tope 80 cada una) hasta que no queda nada que reanudar. */
+/** Sesiones QUEST+ encadenadas (tope QP_CALIB.sessionCap cada una) hasta que no queda nada que reanudar. */
 async function chain(o: { a: number; b: number; tc: number }, seed: number, Q: Awaited<ReturnType<typeof loadQuestPlus>>) {
   let resume = null;
   let total = 0;
@@ -82,7 +82,7 @@ async function chain(o: { a: number; b: number; tc: number }, seed: number, Q: A
   let last: Session | null = null;
   do {
     const s = run(createSession(seed * 100 + sessions, Q, resume), o, 0.1, seed * 100 + sessions);
-    assert.ok(s.log.length <= 80, `sesión de ${s.log.length}`);
+    assert.ok(s.log.length <= QP_CALIB.sessionCap, `sesión de ${s.log.length}`);
     total += s.log.length;
     sessions++;
     // Ida y vuelta por JSON, como en localStorage.
@@ -100,10 +100,10 @@ test("observador simulado: factor del semieje mayor 1 + 4s/(1 − s) con tope ×
   assert.ok(Math.abs(alphaAt(observers.normal, observers.normal.tc) / alphaAt(observers.normal, observers.normal.tc + Math.PI / 2) - 1.5) < 1e-9);
 });
 
-test("calibración QUEST+: tope de 80 y reanudación con el posterior guardado", async () => {
+test("calibración QUEST+: tope de sesión (60) y reanudación con el posterior guardado", async () => {
   const Q = await loadQuestPlus();
   const first = run(createSession(1, Q), observers.protan, 0.1, 1);
-  assert.equal(first.log.length, 80);
+  assert.equal(first.log.length, QP_CALIB.sessionCap);
   const r = qpResumeOf(first, 1)!;
   assert.ok(r.axes.some((a) => a.open));
   const sum = r.axes[0].posterior.probs.reduce((x, y) => x + y, 0);

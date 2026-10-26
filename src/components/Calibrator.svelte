@@ -1,7 +1,7 @@
 <script lang="ts">
   import { BUILD, scopedStorage as ls } from "@/lib/env";
   import { onMount, untrack } from "svelte";
-  import { answer, createSession, parseQpResume, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
+  import { answer, createSession, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
   import type { ConeId, EdgeFile } from "@/lib/color/edges";
   import { attachLuminance, type LuminanceResult } from "@/lib/color/motion";
   import {
@@ -23,11 +23,11 @@
   import MotionTestV3 from "./MotionTestV3.svelte";
   import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
   import { ANCHOR } from "@/lib/color/space";
-  import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
+  import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
-  import ReviewTest from "./ReviewTest.svelte";
-  import { applyReview, createReview, type ReviewState } from "@/lib/color/review";
+  import ValidationTest from "./ValidationTest.svelte";
+  import { applyValidation, createValidation, type ValidationState } from "@/lib/color/validation";
   import { clearEdges, loadEdges, saveEdges } from "@/lib/color/edgestore";
 
   type Phase = "intro" | "run" | "motion" | "review" | "done" | "importar" | "perfiles" | "sesiones";
@@ -131,15 +131,14 @@
     copied = false;
     edgeFiles = {};
     profile = null;
-    // QUEST+ sí/no solo con `?qp=1` (carga perezosa); por defecto, la escalera de siempre.
-    const Q = questPlusEnabled(window.location.search) ? await (await import("@/lib/color/questplus")).loadQuestPlus() : undefined;
-    let resume = null;
-    if (Q) {
-      try {
-        resume = parseQpResume(ls.getItem(QP_RESUME_KEY));
-      } catch {
-        resume = null;
-      }
+    // Perfil: siempre la escalera sí/no de antes de QUEST+ (rasgos a grandes rasgos para la luminancia y el prior
+    // de la validación). QUEST+ queda en luminancia, validación 3AFC y bordes.
+    const Q = undefined;
+    const resume = null;
+    try {
+      ls.removeItem(QP_RESUME_KEY);
+    } catch {
+      /* sin almacenamiento */
     }
     // C1: pares con los pesos personales medidos de la última prueba de luminancia en esta pantalla; si no, Y estándar.
     session = createSession(Date.now(), Q, resume, pairWeightsFrom(stored), lumNoiseAmp(window.location.search));
@@ -167,7 +166,7 @@
         historyEntry("calibration", next.questPlus ? "quest+" : "staircase", ANCHOR, next.log),
       );
       if (next.questPlus) {
-        // QUEST+: lo que el tope de 80 dejó abierto se guarda para seguir en otra sesión.
+        // QUEST+: lo que el tope de 60 dejó abierto se guarda para seguir en otra sesión.
         try {
           if (built.calibrationResume) ls.setItem(QP_RESUME_KEY, JSON.stringify(built.calibrationResume));
           else ls.removeItem(QP_RESUME_KEY);
@@ -186,22 +185,20 @@
     }
   }
 
-  let review = $state.raw<ReviewState | null>(null);
+  let review = $state.raw<ValidationState | null>(null);
   const reviewAlert = $derived.by(() => {
-    const r = profile?.review;
-    if (!r || phase !== "done") return null;
-    const bad = r.unreliable ?? [];
-    if (!bad.length && !r.warnings?.length) return null;
-    return { bad, warnings: r.warnings ?? [], fa: r.catches };
+    const v = profile?.validation;
+    if (!v || phase !== "done") return null;
+    return { axes: v.axes, warnings: v.warnings ?? [] };
   });
 
-  /** Tras la luminancia: repaso corto de l y m solo con pesos medidos en esta pantalla; si no, al resultado. */
+  /** Tras la luminancia: validación 3AFC de l y m solo con pesos medidos en esta pantalla; si no, al resultado. */
   async function afterLuminance(p: UmbralProfile) {
     review = null;
     if (pairWeightsFrom(p)) {
       try {
         const Q = await (await import("@/lib/color/questplus")).loadQuestPlus();
-        review = createReview(p, Q, { seed: Date.now(), lumNoise: lumNoiseAmp(window.location.search) });
+        review = createValidation(p, Q, { seed: Date.now() });
       } catch {
         review = null;
       }
@@ -209,9 +206,9 @@
     phase = review ? "review" : "done";
   }
 
-  function takeReview(state: ReviewState) {
+  function takeReview(state: ValidationState) {
     if (!profile) return;
-    const reviewed = applyReview(profile, state);
+    const reviewed = applyValidation(profile, state);
     persistProfile(reviewed);
     profile = reviewed;
     stored = reviewed;
@@ -302,7 +299,7 @@
       </picture>
     {/if}
     <a href="#/inicio" class="inline-flex items-center gap-1 font-serif text-sm tracking-[0.22em] text-accent uppercase" data-testid="volver-inicio"><span aria-hidden="true">←</span> Umbral Xpectra · Inicio</a>
-    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : phase === "review" ? "Repaso con tu brillo" : phase === "importar" ? "Importar" : phase === "perfiles" ? "Perfil guardado" : phase === "sesiones" ? "Sesiones guardadas" : "Qué separas aquí"}</h1>
+    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : phase === "review" ? "Validación con tu brillo" : phase === "importar" ? "Importar" : phase === "perfiles" ? "Perfil guardado" : phase === "sesiones" ? "Sesiones guardadas" : "Qué separas aquí"}</h1>
   </header>
 
   {#if phase === "intro"}
@@ -341,16 +338,16 @@
   {/if}
 
   {#if phase === "review" && review}
-    <ReviewTest state={review} onDone={takeReview} onSkip={() => { review = null; phase = "done"; }} />
+    <ValidationTest state={review} onDone={takeReview} onSkip={() => { review = null; phase = "done"; }} />
   {/if}
 
   {#if reviewAlert}
-    <section role="alert" class="flex flex-col gap-3 rounded-2xl border border-border p-4" data-testid="review-alert">
-      {#if reviewAlert.bad.length}
-        <p class="text-base leading-relaxed text-fg">Repaso no fiable en {reviewAlert.bad.map((b) => b.id).join(" y ")}: {reviewAlert.bad.some((b) => b.reasons.some((x) => x.startsWith("false-alarms"))) ? `marcaste distintos ${reviewAlert.fa.falseAlarms} de ${reviewAlert.fa.shown} pares iguales` : "el umbral nuevo no se distingue del anterior"}. Se conserva el umbral con el brillo estándar.</p>
-      {/if}
+    <section class="flex flex-col gap-2 rounded-2xl border border-border p-4" data-testid="validation-summary" role={reviewAlert.warnings.length ? "alert" : undefined}>
+      {#each reviewAlert.axes as a (a.id)}
+        <p class="text-base leading-relaxed text-fg">Eje {a.id}: {a.label === "confirmado" ? "confirmado" : "umbral nuevo"} · {a.threshold.toLocaleString("es-ES")} (antes {a.thresholdStandardY.toLocaleString("es-ES")}, IC {a.lo.toLocaleString("es-ES")}–{a.hi.toLocaleString("es-ES")}).</p>
+      {/each}
       {#each reviewAlert.warnings as w (w)}
-        <p class="text-sm text-muted">Aviso: el umbral repasado cambia mucho frente al original ({w.replace("ratio-out-of-range ", "")}).</p>
+        <p class="text-sm text-fg">Aviso: el umbral validado cambia mucho frente al del perfil ({w.replace("ratio-out-of-range ", "eje ")}). Se usa igualmente; repite la prueba si te parece raro.</p>
       {/each}
     </section>
   {/if}
@@ -377,6 +374,7 @@
       onImport={keep}
       onMotion={() => (phase = "motion")}
       onMotionV2={motionV2 ? () => (phase = "motion") : undefined}
+      onValidate={pairWeightsFrom(profile) ? () => { if (profile) void afterLuminance(profile); } : undefined}
       {edgeFiles}
       {edgesStale}
       onEdgeImport={(file) => {
