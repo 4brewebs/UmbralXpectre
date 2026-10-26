@@ -6,7 +6,7 @@ import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/l
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift, MASK_EDGE, protanSimProfile, SAT_MASK } from "../src/lib/color/spectrum";
+import { correctColor, labHueShift, MASK_EDGE, lossMask } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -44,8 +44,8 @@ test("daltonización: #C04040 vs #708030 (misma Y) ≥ 10 ΔE00 en simulación p
   const r = pairReport();
   assert.ok(r.assist >= 10, JSON.stringify(r));
   assert.ok(r.extreme >= r.assist - 1e-9, JSON.stringify(r));
-  // Y: solo el derrame del residuo que no cabe en S (≤ 8 % relativo).
-  assert.ok(Math.abs(r.y[0] - r.y[1]) <= 0.08 * r.y[0] + 1e-7 && Math.abs(r.y[2] - r.y[3]) <= 0.08 * r.y[2] + 1e-7);
+  // Solo croma: la Y no cambia.
+  assert.ok(Math.abs(r.y[0] - r.y[1]) < 1e-7 && Math.abs(r.y[2] - r.y[3]) < 1e-7);
 });
 
 test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (60° Extremo), dentro del gamut", () => {
@@ -65,8 +65,7 @@ test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (
     for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) {
       const o = f(c, profile.axes, floor);
       assert.ok(o.every((v) => v >= -1e-9 && v <= 1 + 1e-9));
-      // Y personal intacta salvo el derrame a luminosidad de la esquina azul/violeta (≤ 8 % relativo).
-      assert.ok(Math.abs(luminance(o) - y) <= 0.08 * y + 1e-7, `${luminance(o)} ${y}`);
+      assert.ok(Math.abs(luminance(o) - y) < 1e-7);
       const p0: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
       const p1: Vec3 = [o[0] - y, o[1] - y, o[2] - y];
       if (Math.hypot(...p0) < 1e-3 || Math.hypot(...p1) < 1e-3) continue;
@@ -107,8 +106,8 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
     if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) assert.deepEqual(correctColor(c, profile.axes, floor), c);
-    // Asistencia/Extremo: máscara por pérdida; por debajo del umbral más bajo (SAT_MASK.t0) el cambio es exactamente 0.
-    if (deltaE00Linear(c, protanSimProfile(c, profile.axes, floor)) <= SAT_MASK.t0) {
+    // Asistencia/Extremo: máscara por pérdida; con w = 0 el cambio es exactamente 0.
+    if (lossMask(c, profile.axes, floor) === 0) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
       assert.deepEqual(extremeColor(c, profile.axes, floor), c);
     }
@@ -120,21 +119,28 @@ test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono
   for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
 });
 
-test("transforms: guarda t0/t1 de la máscara por pérdida y el derrame a Y", () => {
-  const f = buildTransformFile(profile) as { params?: { lossMask: { t0: number; t1: number }; lightSpill: { capRel: number } } };
+test("transforms: guarda t0/t1 de la máscara por pérdida y la limitación conocida (sin derrame a Y)", () => {
+  const f = buildTransformFile(profile) as { params?: { lossMask: { t0: number; t1: number }; notes: string[]; lightSpill?: unknown } };
   assert.deepEqual(f.params?.lossMask, { t0: 14, t1: 20 });
-  assert.equal(f.params?.lightSpill.capRel, 0.08);
+  assert.deepEqual(f.params?.notes, ["esquina azul saturada de la gama: sin corrección"]);
+  assert.equal(f.params?.lightSpill, undefined);
 });
 
-test("Extremo, S = 50 %: el escalón 184→185° (y el máximo por 1°) ≤ 1 ΔE00 con el perfil real 07:21Z", () => {
+test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 1 ΔE00 (Asistencia y Extremo, perfil 07:21Z)", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const hsv = (h: number, s: number): Vec3 => {
     const g = (n: number) => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); };
     return [g(5), g(3), g(1)].map(lin) as Vec3;
   };
-  const step = (h: number) => deltaE00Linear(extremeColor(hsv(h, 0.5), real.axes, real.fit.controlAbs!), extremeColor(hsv(h + 1, 0.5), real.axes, real.fit.controlAbs!));
-  let mx = 0;
-  for (let h = 0; h < 360; h++) mx = Math.max(mx, step(h));
-  console.log(`Extremo S50: 184→185 ${step(184).toFixed(2)} ΔE00, máx/1° ${mx.toFixed(2)}`);
-  assert.ok(step(184) <= 1, `184→185: ${step(184).toFixed(2)}`);
+  const bad: string[] = [];
+  for (const [name, f] of [["asistencia", assistColor], ["extremo", extremeColor]] as const) for (const s of [1, 0.5]) {
+    let worst = -Infinity, at = 0;
+    for (let h = 0; h < 360; h++) {
+      const ex = deltaE00Linear(f(hsv(h, s), real.axes, real.fit.controlAbs!), f(hsv(h + 1, s), real.axes, real.fit.controlAbs!)) - deltaE00Linear(hsv(h, s), hsv(h + 1, s));
+      if (ex > worst) { worst = ex; at = h; }
+    }
+    console.log(`${name} S${s * 100}: exceso máx ${worst.toFixed(2)} ΔE00 en ${at}→${at + 1}°`);
+    if (worst > 1) bad.push(`${name} S${s * 100} ${worst.toFixed(2)} @${at}°`);
+  }
+  assert.deepEqual(bad, []);
 });
