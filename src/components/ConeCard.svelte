@@ -1,17 +1,18 @@
 <script lang="ts">
   import { num } from "@/lib/format";
   import { cssRgb, toSrgb8, ANCHOR, addScaled, dirFromTheta } from "@/lib/color/space";
-  import { colorFor, coneBlurb, coneLead, coneOrder, CONE_MARKS, edgesReady, markLeft, spectrumSamples, type FilterSource } from "@/lib/color/spectrum";
+  import { colorFor, CONE_MARKS, edgesReady, markLeft, spectrumSamples, type FilterSource } from "@/lib/color/spectrum";
   import { hatchMask, hatchRuns, lossMap, lossPeak } from "@/lib/color/lossmap";
   import type { EdgeFile } from "@/lib/color/edges";
   import type { UmbralProfile } from "@/lib/color/profile";
+  import { classify } from "@/lib/color/classify";
 
   let { profile, edgeFiles }: { profile: UmbralProfile; edgeFiles: EdgeFile[] } = $props();
 
   type Rgb = [number, number, number];
-  const pathways = $derived(coneOrder(profile.fit.pathways));
   const control = $derived(profile.fit.controlAbs ?? 0);
-  const ceiling = $derived(Math.max(control, ...pathways.map((p) => p.threshold), 0.001));
+  const kind = $derived(classify(profile, edgeFiles));
+  const ceilingRatio = $derived(Math.max(1, ...kind.groups.map((g) => g.ratio ?? 0)));
   const samples = spectrumSamples();
   const strip = (colors: Array<Rgb>) =>
     `linear-gradient(90deg, ${colors.map((rgb, i) => `${cssRgb(toSrgb8(rgb))} ${(i / (colors.length - 1)) * 100}%`).join(", ")})`;
@@ -89,23 +90,23 @@
 <section class="flex flex-col gap-6 border-t border-border pt-8">
   <div>
     <h2 class="font-serif text-2xl text-fg">Tus conos</h2>
-    <p class="mt-2 text-base leading-relaxed text-fg">{coneLead(pathways)}</p>
+    <p class="mt-2 text-base leading-relaxed text-fg">{kind.text}</p>
+    <p class="mt-1 text-xs text-muted">{kind.disclaimer}</p>
   </div>
   <ul class="flex flex-col gap-5">
-    {#each pathways as pathway (pathway.id)}
-      {@const mark = CONE_MARKS.find((item) => item.id === pathway.id)}
-      {@const yoursWidth = Math.round((pathway.threshold / ceiling) * 100)}
-      {@const expectedAt = Math.round((control / ceiling) * 100)}
-      <li class="flex flex-col gap-2">
+    {#each kind.groups as group (group.id)}
+      {@const width = Math.round(((group.ratio ?? 0) / ceilingRatio) * 100)}
+      {@const expectedAt = Math.round((1 / ceilingRatio) * 100)}
+      <li class="flex flex-col gap-2" data-axis={group.id}>
         <div class="flex items-baseline justify-between gap-3">
-          <span class="text-fg">{mark?.name ?? pathway.hue}</span>
-          <span class="text-sm text-muted">{pathway.kind === "upper-bound" ? `≤ ${num(pathway.threshold, 3)}` : `${num(pathway.threshold, 3)}${pathway.timesControl != null ? ` · ${num(pathway.timesControl, 1)}×` : ""}`}</span>
+          <span class="text-fg">{group.name}</span>
+          <span class="text-sm text-muted">{group.ratio != null ? `${num(group.ratio, 1)}×` : "sin medir"}</span>
         </div>
         <div class="relative h-2 rounded-full bg-surface">
-          <div class="h-full rounded-full bg-fg" style:width={`${yoursWidth}%`}></div>
+          <div class="h-full rounded-full bg-fg" style:width={`${width}%`}></div>
           <div class="absolute top-[-3px] h-3.5 w-px bg-accent" style:left={`${expectedAt}%`}></div>
         </div>
-        <p class="text-sm leading-relaxed text-muted">{coneBlurb(pathway)}</p>
+        <p class="text-sm leading-relaxed text-muted">{group.elevated ? `Hace falta unas ${num(group.ratio ?? 0, 1)} veces más diferencia que en el control en este eje.` : "En esta pantalla lo separas al nivel del control, o mejor."}</p>
       </li>
     {/each}
   </ul>
