@@ -21,7 +21,8 @@
     const stepDeg = untrack(() => stim?.rotationStepDeg ?? 0);
     const plan = wheelPlan(untrack(() => angle), stepDeg, target, reduced, Math.random());
     const timers: number[] = [];
-    phase = plan.fadeMs ? "fade" : phase;
+    // Solo `step` dispara el efecto: fase y ángulo se leen sin seguimiento (si no, cada cambio de fase relanzaba el plan).
+    if (plan.fadeMs) phase = "fade";
     timers.push(
       window.setTimeout(() => {
         if (plan.spinMs) {
@@ -38,7 +39,7 @@
         );
       }, plan.fadeMs),
     );
-    if (angle == null) angle = plan.from;
+    if (untrack(() => angle) == null) angle = plan.from;
     return () => timers.forEach((t) => window.clearTimeout(t));
   });
 
