@@ -1,0 +1,2102 @@
+[
+ {
+  "axisId": "m",
+  "hue": "verdoso",
+  "priorKey": "m",
+  "phase": "descend",
+  "s": 0.07494209688418763,
+  "sNorm": 0.34,
+  "reference": [
+   143,
+   118,
+   128
+  ],
+  "comparison": [
+   111,
+   137,
+   128
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 1,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.03048,
+   -0.003796
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "descend",
+  "s": 0.14253215425805066,
+  "sNorm": 0.62,
+  "reference": [
+   89,
+   137,
+   141
+  ],
+  "comparison": [
+   153,
+   112,
+   107
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 2,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.054001,
+   -0.057118
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "descend",
+  "s": 0.13456350590784663,
+  "sNorm": 0.62,
+  "reference": [
+   91,
+   142,
+   135
+  ],
+  "comparison": [
+   157,
+   115,
+   124
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 3,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.002283,
+   0.014271
+  ]
+ },
+ {
+  "axisId": "m",
+  "hue": "verdoso",
+  "priorKey": "m",
+  "phase": "descend",
+  "s": 0.03967522776221697,
+  "sNorm": 0.18,
+  "reference": [
+   135,
+   123,
+   127
+  ],
+  "comparison": [
+   124,
+   137,
+   133
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 4,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.041613,
+   0.06547
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "descend",
+  "s": 0.07379289033656107,
+  "sNorm": 0.34,
+  "reference": [
+   109,
+   136,
+   132
+  ],
+  "comparison": [
+   144,
+   120,
+   125
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 5,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.015177,
+   -0.018573
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "descend",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   129,
+   129,
+   129
+  ],
+  "comparison": [
+   131,
+   131,
+   131
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 6,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.000399,
+   0.036614
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "descend",
+  "s": 0.13164467534814375,
+  "sNorm": 0.62,
+  "reference": [
+   121,
+   131,
+   84
+  ],
+  "comparison": [
+   137,
+   126,
+   163
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 7,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.070302,
+   0.059383
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "descend",
+  "s": 0.03906682429582645,
+  "sNorm": 0.18000000000000002,
+  "reference": [
+   119,
+   132,
+   130
+  ],
+  "comparison": [
+   134,
+   121,
+   123
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 8,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.021193,
+   -0.066826
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "descend",
+  "s": 0.1651271533928844,
+  "sNorm": 0.62,
+  "reference": [
+   96,
+   131,
+   155
+  ],
+  "comparison": [
+   147,
+   118,
+   78
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 9,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.079214,
+   -0.073807
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "bisect",
+  "s": 0.05642985731619376,
+  "sNorm": 0.26,
+  "reference": [
+   119,
+   139,
+   136
+  ],
+  "comparison": [
+   136,
+   119,
+   121
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 10,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.069825,
+   -0.075989
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "descend",
+  "s": 0.07219224131994981,
+  "sNorm": 0.34,
+  "reference": [
+   127,
+   132,
+   109
+  ],
+  "comparison": [
+   132,
+   127,
+   147
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 11,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.003257,
+   0.016374
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   168,
+   98,
+   98
+  ],
+  "comparison": [
+   168,
+   98,
+   98
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 12,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.078783,
+   -0.078113
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "descend",
+  "s": 0.1779261567881955,
+  "sNorm": 0.85,
+  "reference": [
+   133,
+   133,
+   60
+  ],
+  "comparison": [
+   129,
+   129,
+   174
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 13,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.00764,
+   0.067389
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "descend",
+  "s": 0.07816279427054391,
+  "sNorm": 0.34,
+  "reference": [
+   114,
+   141,
+   143
+  ],
+  "comparison": [
+   141,
+   118,
+   115
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 14,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.079767,
+   -0.062068
+  ]
+ },
+ {
+  "axisId": "m",
+  "hue": "verdoso",
+  "priorKey": "m",
+  "phase": "bisect",
+  "s": 0.057308662323202295,
+  "sNorm": 0.26,
+  "reference": [
+   146,
+   127,
+   134
+  ],
+  "comparison": [
+   117,
+   137,
+   131
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 15,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.072476,
+   0.039613
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "descend",
+  "s": 0.09055360024771081,
+  "sNorm": 0.34,
+  "reference": [
+   111,
+   130,
+   145
+  ],
+  "comparison": [
+   137,
+   121,
+   102
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 16,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.046734,
+   -0.074167
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   132,
+   132,
+   132
+  ],
+  "comparison": [
+   134,
+   134,
+   134
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 17,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.05621,
+   0.079062
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "descend",
+  "s": 0.041380302849111476,
+  "sNorm": 0.18,
+  "reference": [
+   123,
+   136,
+   137
+  ],
+  "comparison": [
+   135,
+   122,
+   121
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 18,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.053576,
+   -0.047541
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "descend",
+  "s": 0.1297814320102132,
+  "sNorm": 0.62,
+  "reference": [
+   137,
+   137,
+   89
+  ],
+  "comparison": [
+   122,
+   122,
+   154
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 19,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.077656,
+   -0.064557
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "descend",
+  "s": 0.047940141307611595,
+  "sNorm": 0.18,
+  "reference": [
+   121,
+   130,
+   138
+  ],
+  "comparison": [
+   140,
+   131,
+   122
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 20,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.010503,
+   0.06633
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "descend",
+  "s": 0.03821942187526754,
+  "sNorm": 0.18000000000000002,
+  "reference": [
+   129,
+   132,
+   120
+  ],
+  "comparison": [
+   129,
+   126,
+   137
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 21,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.016552,
+   -0.012116
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "bisect",
+  "s": 0.047748340806010106,
+  "sNorm": 0.22000000000000003,
+  "reference": [
+   118,
+   135,
+   132
+  ],
+  "comparison": [
+   137,
+   121,
+   124
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 22,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.014595,
+   -0.052105
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   100,
+   141,
+   100
+  ],
+  "comparison": [
+   101,
+   142,
+   101
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 23,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.034887,
+   -0.02042
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "bisect",
+  "s": 0.055205831597608675,
+  "sNorm": 0.26,
+  "reference": [
+   127,
+   132,
+   114
+  ],
+  "comparison": [
+   133,
+   127,
+   144
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 24,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.005549,
+   0.02534
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "descend",
+  "s": 0.07117046271527822,
+  "sNorm": 0.34,
+  "reference": [
+   134,
+   134,
+   110
+  ],
+  "comparison": [
+   125,
+   126,
+   145
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 25,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.04599,
+   -0.033471
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "descend",
+  "s": 0.020690151424555738,
+  "sNorm": 0.09,
+  "reference": [
+   128,
+   134,
+   135
+  ],
+  "comparison": [
+   131,
+   124,
+   124
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 26,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.043716,
+   -0.053307
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "descend",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   133,
+   133,
+   133
+  ],
+  "comparison": [
+   132,
+   132,
+   132
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 27,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.072428,
+   0.046311
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "bisect",
+  "s": 0.04671262673643811,
+  "sNorm": 0.22000000000000003,
+  "reference": [
+   132,
+   135,
+   119
+  ],
+  "comparison": [
+   135,
+   131,
+   144
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 28,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.062048,
+   0.070671
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "descend",
+  "s": 0.037678480261029636,
+  "sNorm": 0.18,
+  "reference": [
+   131,
+   131,
+   120
+  ],
+  "comparison": [
+   130,
+   130,
+   141
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 29,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.011549,
+   0.027249
+  ]
+ },
+ {
+  "axisId": "l",
+  "hue": "rojizo",
+  "priorKey": "l",
+  "phase": "bisect",
+  "s": 0.043407582550918276,
+  "sNorm": 0.2,
+  "reference": [
+   117,
+   132,
+   129
+  ],
+  "comparison": [
+   143,
+   127,
+   130
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 30,
+  "priorsDone": 0,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.03198,
+   0.058965
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   175,
+   103,
+   103
+  ],
+  "comparison": [
+   176,
+   103,
+   103
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 31,
+  "priorsDone": 1,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.010954,
+   0.025394
+  ]
+ },
+ {
+  "axisId": "m",
+  "hue": "verdoso",
+  "priorKey": "m",
+  "phase": "bisect",
+  "s": 0.048491945042709636,
+  "sNorm": 0.22,
+  "reference": [
+   136,
+   120,
+   126
+  ],
+  "comparison": [
+   121,
+   137,
+   132
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 32,
+  "priorsDone": 1,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.05987,
+   0.046458
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "bisect",
+  "s": 0.05442447148815392,
+  "sNorm": 0.26,
+  "reference": [
+   129,
+   129,
+   112
+  ],
+  "comparison": [
+   127,
+   127,
+   142
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 33,
+  "priorsDone": 1,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.011349,
+   -0.014579
+  ]
+ },
+ {
+  "axisId": "s",
+  "hue": "violáceo",
+  "priorKey": "s",
+  "phase": "bisect",
+  "s": 0.04246602430585283,
+  "sNorm": 0.2,
+  "reference": [
+   125,
+   128,
+   115
+  ],
+  "comparison": [
+   130,
+   127,
+   139
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 34,
+  "priorsDone": 1,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.056935,
+   -0.00158
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   125,
+   125,
+   125
+  ],
+  "comparison": [
+   131,
+   131,
+   131
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 35,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.064617,
+   0.032656
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "bisect",
+  "s": 0.031035227136833606,
+  "sNorm": 0.13499999999999998,
+  "reference": [
+   124,
+   134,
+   135
+  ],
+  "comparison": [
+   138,
+   128,
+   127
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 36,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.035868,
+   0.039553
+  ]
+ },
+ {
+  "axisId": "l:+",
+  "hue": "magenta",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.13191949463775027,
+  "sNorm": 0.19000000000000003,
+  "reference": [
+   96,
+   144,
+   123
+  ],
+  "comparison": [
+   153,
+   112,
+   134
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 37,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.012268,
+   -0.012819
+  ]
+ },
+ {
+  "axisId": "s:-",
+  "hue": "violáceo",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.1645047120299448,
+  "sNorm": 0.19,
+  "reference": [
+   106,
+   138,
+   83
+  ],
+  "comparison": [
+   148,
+   117,
+   162
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 38,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.05216,
+   0.032306
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   180,
+   105,
+   105
+  ],
+  "comparison": [
+   175,
+   102,
+   102
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 39,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.071743,
+   0.007981
+  ]
+ },
+ {
+  "axisId": "m",
+  "hue": "verdoso",
+  "priorKey": "m",
+  "phase": "bisect",
+  "s": 0.04408358640246331,
+  "sNorm": 0.2,
+  "reference": [
+   137,
+   122,
+   128
+  ],
+  "comparison": [
+   118,
+   133,
+   128
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 40,
+  "priorsDone": 2,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.037608,
+   -0.00973
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "descend",
+  "s": 0.023970070653805797,
+  "sNorm": 0.09,
+  "reference": [
+   129,
+   134,
+   138
+  ],
+  "comparison": [
+   132,
+   127,
+   123
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 41,
+  "priorsDone": 3,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.062637,
+   -0.009533
+  ]
+ },
+ {
+  "axisId": "m:-",
+  "hue": "cian",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.04190143631072511,
+  "sNorm": 0.19,
+  "reference": [
+   135,
+   122,
+   123
+  ],
+  "comparison": [
+   115,
+   128,
+   128
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 42,
+  "priorsDone": 3,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.049155,
+   -0.077295
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "bisect",
+  "s": 0.04605147587459178,
+  "sNorm": 0.22,
+  "reference": [
+   129,
+   129,
+   115
+  ],
+  "comparison": [
+   131,
+   131,
+   144
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 43,
+  "priorsDone": 3,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.012929,
+   0.042847
+  ]
+ },
+ {
+  "axisId": "red-end",
+  "hue": "rojo extremo",
+  "priorKey": "red-end",
+  "phase": "bisect",
+  "s": 0.03620776499297254,
+  "sNorm": 0.15749999999999997,
+  "reference": [
+   123,
+   134,
+   135
+  ],
+  "comparison": [
+   137,
+   126,
+   125
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 44,
+  "priorsDone": 3,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.028892,
+   -0.003061
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   99,
+   139,
+   99
+  ],
+  "comparison": [
+   106,
+   148,
+   106
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 45,
+  "priorsDone": 4,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.067327,
+   0.074388
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "bisect",
+  "s": 0.035955105980708696,
+  "sNorm": 0.13499999999999998,
+  "reference": [
+   126,
+   133,
+   139
+  ],
+  "comparison": [
+   135,
+   129,
+   122
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 46,
+  "priorsDone": 4,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.032563,
+   0.010359
+  ]
+ },
+ {
+  "axisId": "blue-end",
+  "hue": "azul extremo",
+  "priorKey": "blue-end",
+  "phase": "bisect",
+  "s": 0.04186497806781071,
+  "sNorm": 0.2,
+  "reference": [
+   134,
+   134,
+   121
+  ],
+  "comparison": [
+   131,
+   131,
+   143
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 47,
+  "priorsDone": 4,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.068965,
+   0.052139
+  ]
+ },
+ {
+  "axisId": "m:+",
+  "hue": "verdoso",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.04800925868081006,
+  "sNorm": 0.19,
+  "reference": [
+   140,
+   126,
+   136
+  ],
+  "comparison": [
+   119,
+   134,
+   124
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 48,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.039217,
+   -0.004105
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   128,
+   128,
+   128
+  ],
+  "comparison": [
+   125,
+   125,
+   125
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 49,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.020401,
+   -0.062579
+  ]
+ },
+ {
+  "axisId": "s:-",
+  "hue": "violáceo",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.0822523560149724,
+  "sNorm": 0.095,
+  "reference": [
+   121,
+   136,
+   111
+  ],
+  "comparison": [
+   143,
+   126,
+   150
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 50,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.010488,
+   0.077721
+  ]
+ },
+ {
+  "axisId": "m:-",
+  "hue": "cian",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.020950718155362556,
+  "sNorm": 0.095,
+  "reference": [
+   136,
+   129,
+   129
+  ],
+  "comparison": [
+   123,
+   130,
+   130
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 51,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.028774,
+   -0.018753
+  ]
+ },
+ {
+  "axisId": "blue-end:+",
+  "hue": "azulado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.09538628772782747,
+  "sNorm": 0.19,
+  "reference": [
+   138,
+   126,
+   100
+  ],
+  "comparison": [
+   118,
+   130,
+   150
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 52,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.017814,
+   -0.010612
+  ]
+ },
+ {
+  "axisId": "red-end:-",
+  "hue": "anaranjado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.053103847090050324,
+  "sNorm": 0.16875,
+  "reference": [
+   121,
+   135,
+   142
+  ],
+  "comparison": [
+   135,
+   123,
+   115
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 53,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.04209,
+   -0.049416
+  ]
+ },
+ {
+  "axisId": "s:-",
+  "hue": "violáceo",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.0411261780074862,
+  "sNorm": 0.0475,
+  "reference": [
+   122,
+   129,
+   117
+  ],
+  "comparison": [
+   134,
+   127,
+   139
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 54,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.049611,
+   0.016237
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   179,
+   105,
+   105
+  ],
+  "comparison": [
+   168,
+   98,
+   98
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 55,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.060929,
+   -0.075797
+  ]
+ },
+ {
+  "axisId": "l:+",
+  "hue": "magenta",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.06595974731887513,
+  "sNorm": 0.09500000000000001,
+  "reference": [
+   117,
+   140,
+   130
+  ],
+  "comparison": [
+   147,
+   126,
+   136
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 56,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.063755,
+   0.065807
+  ]
+ },
+ {
+  "axisId": "m:+",
+  "hue": "verdoso",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.02400462934040503,
+  "sNorm": 0.095,
+  "reference": [
+   133,
+   126,
+   131
+  ],
+  "comparison": [
+   124,
+   132,
+   127
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 57,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.016626,
+   -0.006606
+  ]
+ },
+ {
+  "axisId": "control",
+  "hue": "anaranjado",
+  "priorKey": "control",
+  "phase": "bisect",
+  "s": 0.041947623644160145,
+  "sNorm": 0.1575,
+  "reference": [
+   120,
+   128,
+   135
+  ],
+  "comparison": [
+   135,
+   127,
+   119
+  ],
+  "refining": false,
+  "catch": false,
+  "step": 58,
+  "priorsDone": 5,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.045249,
+   -0.001847
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   175,
+   103,
+   103
+  ],
+  "comparison": [
+   178,
+   104,
+   104
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 59,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.015064,
+   0.048185
+  ]
+ },
+ {
+  "axisId": "m:-",
+  "hue": "cian",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.03142607723304383,
+  "sNorm": 0.1425,
+  "reference": [
+   131,
+   122,
+   122
+  ],
+  "comparison": [
+   125,
+   135,
+   135
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 60,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.07138,
+   0.058257
+  ]
+ },
+ {
+  "axisId": "l:+",
+  "hue": "magenta",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.03297987365943757,
+  "sNorm": 0.04750000000000001,
+  "reference": [
+   125,
+   136,
+   130
+  ],
+  "comparison": [
+   139,
+   128,
+   134
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 61,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.05293,
+   0.046331
+  ]
+ },
+ {
+  "axisId": "s:-",
+  "hue": "violáceo",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.0205630890037431,
+  "sNorm": 0.02375,
+  "reference": [
+   128,
+   132,
+   126
+  ],
+  "comparison": [
+   131,
+   127,
+   133
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 62,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.014976,
+   0.001927
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   124,
+   124,
+   196
+  ],
+  "comparison": [
+   118,
+   118,
+   187
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 63,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.030584,
+   -0.068713
+  ]
+ },
+ {
+  "axisId": "m:+",
+  "hue": "verdoso",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.03600694401060754,
+  "sNorm": 0.1425,
+  "reference": [
+   131,
+   120,
+   128
+  ],
+  "comparison": [
+   120,
+   131,
+   123
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 64,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.079436,
+   -0.03543
+  ]
+ },
+ {
+  "axisId": "l:+",
+  "hue": "magenta",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.04946981048915635,
+  "sNorm": 0.07125000000000001,
+  "reference": [
+   115,
+   131,
+   124
+  ],
+  "comparison": [
+   138,
+   122,
+   131
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 65,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.049445,
+   -0.011328
+  ]
+ },
+ {
+  "axisId": "red-end:-",
+  "hue": "anaranjado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.026551923545025162,
+  "sNorm": 0.084375,
+  "reference": [
+   127,
+   135,
+   138
+  ],
+  "comparison": [
+   135,
+   128,
+   125
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 66,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.060411,
+   0.019479
+  ]
+ },
+ {
+  "axisId": "m:+",
+  "hue": "verdoso",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.0420081013457088,
+  "sNorm": 0.16625,
+  "reference": [
+   141,
+   128,
+   137
+  ],
+  "comparison": [
+   123,
+   136,
+   127
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 67,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.062563,
+   0.040899
+  ]
+ },
+ {
+  "axisId": "blue-end:+",
+  "hue": "azulado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.04769314386391373,
+  "sNorm": 0.095,
+  "reference": [
+   138,
+   132,
+   120
+  ],
+  "comparison": [
+   128,
+   134,
+   146
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 68,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.071342,
+   0.072892
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   117,
+   117,
+   186
+  ],
+  "comparison": [
+   126,
+   126,
+   199
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 69,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.078755,
+   0.07587
+  ]
+ },
+ {
+  "axisId": "m:-",
+  "hue": "cian",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.03666375677188447,
+  "sNorm": 0.16624999999999998,
+  "reference": [
+   136,
+   124,
+   125
+  ],
+  "comparison": [
+   122,
+   135,
+   134
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 70,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.018606,
+   0.033245
+  ]
+ },
+ {
+  "axisId": "red-end:-",
+  "hue": "anaranjado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.03982788531753774,
+  "sNorm": 0.1265625,
+  "reference": [
+   121,
+   131,
+   136
+  ],
+  "comparison": [
+   138,
+   129,
+   123
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 71,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.023492,
+   0.031475
+  ]
+ },
+ {
+  "axisId": "blue-end:+",
+  "hue": "azulado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.023846571931956866,
+  "sNorm": 0.0475,
+  "reference": [
+   137,
+   134,
+   127
+  ],
+  "comparison": [
+   128,
+   131,
+   136
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 72,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   0.078815,
+   0.018727
+  ]
+ },
+ {
+  "axisId": "red-end:-",
+  "hue": "anaranjado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.04646586620379403,
+  "sNorm": 0.14765625,
+  "reference": [
+   121,
+   133,
+   139
+  ],
+  "comparison": [
+   138,
+   127,
+   120
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 73,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   0.009857,
+   0.014288
+  ]
+ },
+ {
+  "axisId": "catch",
+  "hue": "igual",
+  "priorKey": "catch",
+  "phase": "bisect",
+  "s": 0,
+  "sNorm": 0,
+  "reference": [
+   128,
+   128,
+   128
+  ],
+  "comparison": [
+   129,
+   129,
+   129
+  ],
+  "refining": false,
+  "catch": true,
+  "step": 74,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "right",
+  "lumEps": [
+   -0.017639,
+   0.007727
+  ]
+ },
+ {
+  "axisId": "blue-end:+",
+  "hue": "azulado",
+  "priorKey": "refine",
+  "phase": "bisect",
+  "s": 0.0357698578979353,
+  "sNorm": 0.07125,
+  "reference": [
+   132,
+   128,
+   119
+  ],
+  "comparison": [
+   126,
+   131,
+   139
+  ],
+  "refining": true,
+  "catch": false,
+  "step": 75,
+  "priorsDone": 6,
+  "priorTotal": 6,
+  "side": "left",
+  "lumEps": [
+   -0.02317,
+   0.012989
+  ]
+ }
+]

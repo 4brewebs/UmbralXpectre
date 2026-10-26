@@ -1,0 +1,2183 @@
+{
+ "schema": "umbral.profile.v3",
+ "disclaimer": "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
+ "createdAt": "<ts>",
+ "build": {
+  "env": "prod",
+  "branch": "local",
+  "commit": "local"
+ },
+ "hardware": {
+  "userAgent": "test",
+  "language": "es",
+  "screen": {
+   "width": 390,
+   "height": 844,
+   "colorDepth": 24,
+   "pixelRatio": 3
+  },
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "gamut": "srgb",
+  "colorScheme": "light",
+  "forcedColors": false,
+  "reducedMotion": false,
+  "maxTouchPoints": 5,
+  "capturedAt": "<ts>"
+ },
+ "method": {
+  "space": "linear sRGB, constant CIE Y, anchor 0.22",
+  "anchorLinear": 0.22,
+  "procedure": "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
+  "priorsRole": "Cone-isolation directions only choose where to look first. They are not the output."
+ },
+ "summary": "Las tres vías quedan medidas. violáceo 0.040. rojizo 0.041. verdoso 0.042. Control 0.039. Ninguna de las tres queda claramente por encima del control. En el extremo de la pantalla, «rojo extremo» 0.038 y «azul extremo» 0.042.",
+ "confidence": "high",
+ "closedAxes": [],
+ "measuredAxes": [
+  "violáceo",
+  "anaranjado",
+  "rojizo",
+  "verdoso",
+  "rojo extremo",
+  "azul extremo",
+  "rojizo · al lado",
+  "magenta · al lado 31.7°",
+  "cian · al lado",
+  "verdoso · al lado",
+  "azulado · al lado",
+  "violáceo · al lado",
+  "anaranjado · al lado",
+  "magenta · al lado 20.6°"
+ ],
+ "fit": {
+  "method": "Peak absolute distance in linear sRGB (unit direction × scale), compared with the control. Gamut fraction is not the rank: a short-gamut axis must not look worse just because it clips sooner.",
+  "severity": 0,
+  "timesControl": 1.1,
+  "timesControlKind": "estimate",
+  "controlBounded": false,
+  "peakAbs": null,
+  "controlAbs": 0.039,
+  "confusionAngleDeg": null,
+  "shiftFromNearestPriorDeg": null,
+  "nearestSearchPrior": null,
+  "confusionDirectionLinearRgb": null,
+  "elevatedCount": 0,
+  "pathways": [
+   {
+    "id": "s",
+    "hue": "violáceo",
+    "threshold": 0.0403,
+    "kind": "estimate",
+    "timesControl": 1,
+    "elevated": false,
+    "sameLineAs": null
+   },
+   {
+    "id": "l",
+    "hue": "rojizo",
+    "threshold": 0.0412,
+    "kind": "estimate",
+    "timesControl": 1.1,
+    "elevated": false,
+    "sameLineAs": null
+   },
+   {
+    "id": "m",
+    "hue": "verdoso",
+    "threshold": 0.0419,
+    "kind": "estimate",
+    "timesControl": 1.1,
+    "elevated": false,
+    "sameLineAs": null
+   }
+  ],
+  "attenuationMatrix": [
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ]
+  ]
+ },
+ "axes": [
+  {
+   "id": "s",
+   "hue": "violáceo",
+   "label": "violáceo",
+   "role": "s",
+   "searchPrior": "S-cone isolation",
+   "parentId": null,
+   "angleDeg": 94.5,
+   "maxScale": 0.2123,
+   "threshold": 0.0403,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 7,
+   "order": 1
+  },
+  {
+   "id": "control",
+   "hue": "anaranjado",
+   "label": "anaranjado",
+   "role": "control",
+   "searchPrior": "control, off the cone axes",
+   "parentId": null,
+   "angleDeg": -37,
+   "maxScale": 0.2663,
+   "threshold": 0.039,
+   "thresholdNorm": 0.146,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 5,
+   "order": 2
+  },
+  {
+   "id": "l",
+   "hue": "rojizo",
+   "label": "rojizo",
+   "role": "l",
+   "searchPrior": "L-cone isolation",
+   "parentId": null,
+   "angleDeg": 11.1,
+   "maxScale": 0.217,
+   "threshold": 0.0412,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 5,
+   "order": 3
+  },
+  {
+   "id": "m",
+   "hue": "verdoso",
+   "label": "verdoso",
+   "role": "m",
+   "searchPrior": "M-cone isolation",
+   "parentId": null,
+   "angleDeg": -156.7,
+   "maxScale": 0.2204,
+   "threshold": 0.0419,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 4
+  },
+  {
+   "id": "red-end",
+   "hue": "rojo extremo",
+   "label": "rojo extremo",
+   "role": "red-end",
+   "searchPrior": "last red this display emits",
+   "parentId": null,
+   "angleDeg": 0,
+   "maxScale": 0.2227,
+   "threshold": 0.0376,
+   "thresholdNorm": 0.169,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 5
+  },
+  {
+   "id": "blue-end",
+   "hue": "azul extremo",
+   "label": "azul extremo",
+   "role": "blue-end",
+   "searchPrior": "first blue this display emits",
+   "parentId": null,
+   "angleDeg": 107.7,
+   "maxScale": 0.2093,
+   "threshold": 0.0419,
+   "thresholdNorm": 0.2,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 5,
+   "order": 6
+  },
+  {
+   "id": "s:-",
+   "hue": "violáceo",
+   "label": "violáceo · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "s",
+   "angleDeg": 73.9,
+   "maxScale": 0.8658,
+   "threshold": 0.0308,
+   "thresholdNorm": 0.036,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 7
+  },
+  {
+   "id": "l:-",
+   "hue": "rojizo",
+   "label": "rojizo · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "l",
+   "angleDeg": -9.5,
+   "maxScale": 0.5097,
+   "threshold": 0.0424,
+   "thresholdNorm": 0.083,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 8
+  },
+  {
+   "id": "l:+",
+   "hue": "magenta",
+   "label": "magenta · al lado 31.7°",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "l",
+   "angleDeg": 31.7,
+   "maxScale": 0.6943,
+   "threshold": 0.0412,
+   "thresholdNorm": 0.059,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 9
+  },
+  {
+   "id": "m:-",
+   "hue": "cian",
+   "label": "cian · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "m",
+   "angleDeg": -177.4,
+   "maxScale": 0.2205,
+   "threshold": 0.0393,
+   "thresholdNorm": 0.178,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 10
+  },
+  {
+   "id": "m:+",
+   "hue": "verdoso",
+   "label": "verdoso · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "m",
+   "angleDeg": -136.1,
+   "maxScale": 0.2527,
+   "threshold": 0.039,
+   "thresholdNorm": 0.154,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 11
+  },
+  {
+   "id": "red-end:-",
+   "hue": "anaranjado",
+   "label": "anaranjado · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "red-end",
+   "angleDeg": -20.6,
+   "maxScale": 0.3615,
+   "threshold": 0.0419,
+   "thresholdNorm": 0.116,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 12
+  },
+  {
+   "id": "red-end:+",
+   "hue": "magenta",
+   "label": "magenta · al lado 20.6°",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "red-end",
+   "angleDeg": 20.6,
+   "maxScale": 0.7097,
+   "threshold": 0.0374,
+   "thresholdNorm": 0.053,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 13
+  },
+  {
+   "id": "blue-end:+",
+   "hue": "azulado",
+   "label": "azulado · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "blue-end",
+   "angleDeg": 128.3,
+   "maxScale": 0.5085,
+   "threshold": 0.0445,
+   "thresholdNorm": 0.087,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 14
+  }
+ ],
+ "trials": [
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.1804806032998745,
+   "sNorm": 0.85,
+   "judgment": "different",
+   "reference": [
+    122,
+    136,
+    59
+   ],
+   "comparison": [
+    136,
+    122,
+    169
+   ],
+   "side": "left",
+   "at": 11,
+   "order": 1
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.13164467534814375,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    124,
+    134,
+    85
+   ],
+   "comparison": [
+    134,
+    124,
+    159
+   ],
+   "side": "left",
+   "at": 29,
+   "order": 2
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.07219224131994981,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    126,
+    132,
+    108
+   ],
+   "comparison": [
+    132,
+    126,
+    147
+   ],
+   "side": "left",
+   "at": 39,
+   "order": 3
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.03821942187526754,
+   "sNorm": 0.18000000000000002,
+   "judgment": "same",
+   "reference": [
+    128,
+    131,
+    118
+   ],
+   "comparison": [
+    131,
+    128,
+    139
+   ],
+   "side": "left",
+   "at": 45,
+   "order": 4
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.055205831597608675,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    127,
+    131,
+    113
+   ],
+   "comparison": [
+    131,
+    127,
+    143
+   ],
+   "side": "left",
+   "at": 49,
+   "order": 5
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.04671262673643811,
+   "sNorm": 0.22000000000000003,
+   "judgment": "different",
+   "reference": [
+    127,
+    131,
+    116
+   ],
+   "comparison": [
+    131,
+    127,
+    141
+   ],
+   "side": "left",
+   "at": 57,
+   "order": 6
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.04246602430585283,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    127,
+    131,
+    117
+   ],
+   "comparison": [
+    131,
+    127,
+    140
+   ],
+   "side": "left",
+   "at": 69,
+   "order": 7
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.09055360024771081,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    113,
+    132,
+    147
+   ],
+   "comparison": [
+    143,
+    127,
+    108
+   ],
+   "side": "right",
+   "at": 10,
+   "order": 8
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.047940141307611595,
+   "sNorm": 0.18,
+   "judgment": "different",
+   "reference": [
+    121,
+    130,
+    139
+   ],
+   "comparison": [
+    137,
+    128,
+    118
+   ],
+   "side": "left",
+   "at": 13,
+   "order": 9
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.023970070653805797,
+   "sNorm": 0.09,
+   "judgment": "same",
+   "reference": [
+    125,
+    130,
+    134
+   ],
+   "comparison": [
+    133,
+    128,
+    124
+   ],
+   "side": "right",
+   "at": 16,
+   "order": 10
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.035955105980708696,
+   "sNorm": 0.13499999999999998,
+   "judgment": "same",
+   "reference": [
+    123,
+    130,
+    136
+   ],
+   "comparison": [
+    135,
+    128,
+    121
+   ],
+   "side": "left",
+   "at": 19,
+   "order": 11
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.041947623644160145,
+   "sNorm": 0.1575,
+   "judgment": "different",
+   "reference": [
+    122,
+    130,
+    138
+   ],
+   "comparison": [
+    136,
+    128,
+    120
+   ],
+   "side": "right",
+   "at": 40,
+   "order": 12
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.07379289033656107,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    108,
+    135,
+    130
+   ],
+   "comparison": [
+    147,
+    123,
+    128
+   ],
+   "side": "right",
+   "at": 14,
+   "order": 13
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.03906682429582645,
+   "sNorm": 0.18000000000000002,
+   "judgment": "same",
+   "reference": [
+    118,
+    132,
+    130
+   ],
+   "comparison": [
+    139,
+    126,
+    128
+   ],
+   "side": "left",
+   "at": 17,
+   "order": 14
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.05642985731619376,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    113,
+    133,
+    130
+   ],
+   "comparison": [
+    143,
+    125,
+    128
+   ],
+   "side": "right",
+   "at": 20,
+   "order": 15
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.047748340806010106,
+   "sNorm": 0.22000000000000003,
+   "judgment": "different",
+   "reference": [
+    116,
+    133,
+    130
+   ],
+   "comparison": [
+    141,
+    125,
+    128
+   ],
+   "side": "right",
+   "at": 24,
+   "order": 16
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.043407582550918276,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    117,
+    132,
+    130
+   ],
+   "comparison": [
+    140,
+    126,
+    128
+   ],
+   "side": "right",
+   "at": 30,
+   "order": 17
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.13665911784763624,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    159,
+    118,
+    134
+   ],
+   "comparison": [
+    85,
+    140,
+    123
+   ],
+   "side": "right",
+   "at": 8,
+   "order": 18
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.07494209688418763,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    147,
+    123,
+    132
+   ],
+   "comparison": [
+    108,
+    135,
+    126
+   ],
+   "side": "left",
+   "at": 15,
+   "order": 19
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.03967522776221697,
+   "sNorm": 0.18,
+   "judgment": "same",
+   "reference": [
+    139,
+    126,
+    131
+   ],
+   "comparison": [
+    118,
+    132,
+    128
+   ],
+   "side": "left",
+   "at": 21,
+   "order": 20
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.057308662323202295,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    143,
+    124,
+    131
+   ],
+   "comparison": [
+    113,
+    134,
+    127
+   ],
+   "side": "right",
+   "at": 26,
+   "order": 21
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.048491945042709636,
+   "sNorm": 0.22,
+   "judgment": "different",
+   "reference": [
+    141,
+    125,
+    131
+   ],
+   "comparison": [
+    116,
+    133,
+    127
+   ],
+   "side": "left",
+   "at": 31,
+   "order": 22
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.04408358640246331,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    140,
+    126,
+    131
+   ],
+   "comparison": [
+    117,
+    133,
+    127
+   ],
+   "side": "right",
+   "at": 34,
+   "order": 23
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.13804924179586758,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    85,
+    138,
+    138
+   ],
+   "comparison": [
+    159,
+    119,
+    119
+   ],
+   "side": "left",
+   "at": 9,
+   "order": 24
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.07570442292031448,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    108,
+    134,
+    134
+   ],
+   "comparison": [
+    147,
+    124,
+    124
+   ],
+   "side": "left",
+   "at": 25,
+   "order": 25
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.04007881213428414,
+   "sNorm": 0.18,
+   "judgment": "different",
+   "reference": [
+    118,
+    132,
+    132
+   ],
+   "comparison": [
+    139,
+    126,
+    126
+   ],
+   "side": "left",
+   "at": 27,
+   "order": 26
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.02003940606714207,
+   "sNorm": 0.09,
+   "judgment": "same",
+   "reference": [
+    124,
+    130,
+    130
+   ],
+   "comparison": [
+    134,
+    128,
+    128
+   ],
+   "side": "right",
+   "at": 66,
+   "order": 27
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.030059109100713105,
+   "sNorm": 0.135,
+   "judgment": "same",
+   "reference": [
+    121,
+    131,
+    131
+   ],
+   "comparison": [
+    136,
+    127,
+    127
+   ],
+   "side": "right",
+   "at": 68,
+   "order": 28
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": 5.551115123125783e-17,
+   "s": 0.03506896061749862,
+   "sNorm": 0.1575,
+   "judgment": "same",
+   "reference": [
+    120,
+    132,
+    132
+   ],
+   "comparison": [
+    138,
+    127,
+    127
+   ],
+   "side": "right",
+   "at": 72,
+   "order": 29
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.8792049419833348,
+   "s": 0.12973801575469435,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    132,
+    132,
+    85
+   ],
+   "comparison": [
+    126,
+    126,
+    159
+   ],
+   "side": "left",
+   "at": 23,
+   "order": 30
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.8792049419833348,
+   "s": 0.07114665380096143,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    131,
+    131,
+    108
+   ],
+   "comparison": [
+    128,
+    128,
+    147
+   ],
+   "side": "left",
+   "at": 35,
+   "order": 31
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.8792049419833348,
+   "s": 0.037665875541685455,
+   "sNorm": 0.18,
+   "judgment": "same",
+   "reference": [
+    130,
+    130,
+    118
+   ],
+   "comparison": [
+    128,
+    128,
+    139
+   ],
+   "side": "right",
+   "at": 44,
+   "order": 32
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.8792049419833348,
+   "s": 0.05440626467132344,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    130,
+    130,
+    113
+   ],
+   "comparison": [
+    128,
+    128,
+    143
+   ],
+   "side": "left",
+   "at": 55,
+   "order": 33
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.8792049419833348,
+   "s": 0.04603607010650444,
+   "sNorm": 0.21999999999999997,
+   "judgment": "different",
+   "reference": [
+    130,
+    130,
+    116
+   ],
+   "comparison": [
+    128,
+    128,
+    141
+   ],
+   "side": "right",
+   "at": 60,
+   "order": 34
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.1645047120299448,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    106,
+    139,
+    80
+   ],
+   "comparison": [
+    148,
+    119,
+    162
+   ],
+   "side": "right",
+   "at": 70,
+   "order": 35
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0822523560149724,
+   "sNorm": 0.095,
+   "judgment": "different",
+   "reference": [
+    118,
+    134,
+    108
+   ],
+   "comparison": [
+    139,
+    124,
+    147
+   ],
+   "side": "left",
+   "at": 77,
+   "order": 36
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0411261780074862,
+   "sNorm": 0.0475,
+   "judgment": "different",
+   "reference": [
+    124,
+    132,
+    119
+   ],
+   "comparison": [
+    134,
+    127,
+    138
+   ],
+   "side": "left",
+   "at": 81,
+   "order": 37
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0205630890037431,
+   "sNorm": 0.02375,
+   "judgment": "same",
+   "reference": [
+    126,
+    130,
+    124
+   ],
+   "comparison": [
+    132,
+    128,
+    134
+   ],
+   "side": "right",
+   "at": 88,
+   "order": 38
+  },
+  {
+   "axisId": "l:-",
+   "hue": "rojizo",
+   "priorKey": "refine",
+   "theta": -0.1661649440272261,
+   "s": 0.09683562054318562,
+   "sNorm": 0.19000000000000003,
+   "judgment": "different",
+   "reference": [
+    103,
+    135,
+    139
+   ],
+   "comparison": [
+    150,
+    123,
+    118
+   ],
+   "side": "left",
+   "at": 33,
+   "order": 39
+  },
+  {
+   "axisId": "l:-",
+   "hue": "rojizo",
+   "priorKey": "refine",
+   "theta": -0.1661649440272261,
+   "s": 0.04841781027159281,
+   "sNorm": 0.09500000000000001,
+   "judgment": "different",
+   "reference": [
+    117,
+    132,
+    134
+   ],
+   "comparison": [
+    140,
+    126,
+    124
+   ],
+   "side": "right",
+   "at": 36,
+   "order": 40
+  },
+  {
+   "axisId": "l:-",
+   "hue": "rojizo",
+   "priorKey": "refine",
+   "theta": -0.1661649440272261,
+   "s": 0.024208905135796405,
+   "sNorm": 0.04750000000000001,
+   "judgment": "same",
+   "reference": [
+    123,
+    131,
+    132
+   ],
+   "comparison": [
+    135,
+    128,
+    126
+   ],
+   "side": "left",
+   "at": 47,
+   "order": 41
+  },
+  {
+   "axisId": "l:-",
+   "hue": "rojizo",
+   "priorKey": "refine",
+   "theta": -0.1661649440272261,
+   "s": 0.03631335770369461,
+   "sNorm": 0.07125000000000001,
+   "judgment": "same",
+   "reference": [
+    120,
+    131,
+    133
+   ],
+   "comparison": [
+    138,
+    127,
+    125
+   ],
+   "side": "left",
+   "at": 51,
+   "order": 42
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.13191949463775027,
+   "sNorm": 0.19000000000000003,
+   "judgment": "different",
+   "reference": [
+    89,
+    139,
+    118
+   ],
+   "comparison": [
+    158,
+    118,
+    139
+   ],
+   "side": "left",
+   "at": 37,
+   "order": 43
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.06595974731887513,
+   "sNorm": 0.09500000000000001,
+   "judgment": "different",
+   "reference": [
+    111,
+    134,
+    124
+   ],
+   "comparison": [
+    144,
+    124,
+    134
+   ],
+   "side": "left",
+   "at": 43,
+   "order": 44
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.03297987365943757,
+   "sNorm": 0.04750000000000001,
+   "judgment": "same",
+   "reference": [
+    121,
+    132,
+    126
+   ],
+   "comparison": [
+    137,
+    126,
+    132
+   ],
+   "side": "right",
+   "at": 50,
+   "order": 45
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.04946981048915635,
+   "sNorm": 0.07125000000000001,
+   "judgment": "different",
+   "reference": [
+    116,
+    133,
+    125
+   ],
+   "comparison": [
+    141,
+    125,
+    133
+   ],
+   "side": "right",
+   "at": 64,
+   "order": 46
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.04190143631072511,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    139,
+    126,
+    127
+   ],
+   "comparison": [
+    118,
+    132,
+    131
+   ],
+   "side": "right",
+   "at": 46,
+   "order": 47
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.020950718155362556,
+   "sNorm": 0.095,
+   "judgment": "same",
+   "reference": [
+    134,
+    128,
+    128
+   ],
+   "comparison": [
+    124,
+    131,
+    130
+   ],
+   "side": "left",
+   "at": 53,
+   "order": 48
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.03142607723304383,
+   "sNorm": 0.1425,
+   "judgment": "same",
+   "reference": [
+    137,
+    127,
+    127
+   ],
+   "comparison": [
+    121,
+    131,
+    131
+   ],
+   "side": "left",
+   "at": 59,
+   "order": 49
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.03666375677188447,
+   "sNorm": 0.16624999999999998,
+   "judgment": "same",
+   "reference": [
+    138,
+    127,
+    127
+   ],
+   "comparison": [
+    119,
+    132,
+    131
+   ],
+   "side": "left",
+   "at": 65,
+   "order": 50
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.04800925868081006,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    139,
+    125,
+    135
+   ],
+   "comparison": [
+    118,
+    133,
+    123
+   ],
+   "side": "left",
+   "at": 41,
+   "order": 51
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.02400462934040503,
+   "sNorm": 0.095,
+   "judgment": "same",
+   "reference": [
+    134,
+    127,
+    132
+   ],
+   "comparison": [
+    124,
+    131,
+    126
+   ],
+   "side": "right",
+   "at": 52,
+   "order": 52
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.03600694401060754,
+   "sNorm": 0.1425,
+   "judgment": "same",
+   "reference": [
+    137,
+    126,
+    134
+   ],
+   "comparison": [
+    121,
+    132,
+    124
+   ],
+   "side": "right",
+   "at": 56,
+   "order": 53
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.0420081013457088,
+   "sNorm": 0.16625,
+   "judgment": "different",
+   "reference": [
+    138,
+    126,
+    135
+   ],
+   "comparison": [
+    119,
+    132,
+    123
+   ],
+   "side": "left",
+   "at": 61,
+   "order": 54
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.35999999999999993,
+   "s": 0.061007130502476734,
+   "sNorm": 0.16874999999999998,
+   "judgment": "different",
+   "reference": [
+    115,
+    132,
+    138
+   ],
+   "comparison": [
+    142,
+    126,
+    119
+   ],
+   "side": "right",
+   "at": 78,
+   "order": 55
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.35999999999999993,
+   "s": 0.030503565251238367,
+   "sNorm": 0.08437499999999999,
+   "judgment": "same",
+   "reference": [
+    122,
+    131,
+    134
+   ],
+   "comparison": [
+    136,
+    128,
+    124
+   ],
+   "side": "right",
+   "at": 80,
+   "order": 56
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.35999999999999993,
+   "s": 0.04575534787685755,
+   "sNorm": 0.12656249999999997,
+   "judgment": "different",
+   "reference": [
+    119,
+    131,
+    136
+   ],
+   "comparison": [
+    139,
+    127,
+    122
+   ],
+   "side": "left",
+   "at": 85,
+   "order": 57
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.35999999999999993,
+   "s": 0.03812945656404795,
+   "sNorm": 0.10546874999999997,
+   "judgment": "same",
+   "reference": [
+    121,
+    131,
+    135
+   ],
+   "comparison": [
+    137,
+    127,
+    123
+   ],
+   "side": "left",
+   "at": 87,
+   "order": 58
+  },
+  {
+   "axisId": "red-end:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.36000000000000004,
+   "s": 0.11976828534904635,
+   "sNorm": 0.16874999999999998,
+   "judgment": "different",
+   "reference": [
+    92,
+    138,
+    126
+   ],
+   "comparison": [
+    156,
+    119,
+    132
+   ],
+   "side": "right",
+   "at": 74,
+   "order": 59
+  },
+  {
+   "axisId": "red-end:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.36000000000000004,
+   "s": 0.059884142674523175,
+   "sNorm": 0.08437499999999999,
+   "judgment": "different",
+   "reference": [
+    112,
+    134,
+    127
+   ],
+   "comparison": [
+    144,
+    124,
+    131
+   ],
+   "side": "right",
+   "at": 76,
+   "order": 60
+  },
+  {
+   "axisId": "red-end:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.36000000000000004,
+   "s": 0.029942071337261587,
+   "sNorm": 0.042187499999999996,
+   "judgment": "same",
+   "reference": [
+    121,
+    131,
+    128
+   ],
+   "comparison": [
+    137,
+    127,
+    130
+   ],
+   "side": "right",
+   "at": 84,
+   "order": 61
+  },
+  {
+   "axisId": "red-end:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.36000000000000004,
+   "s": 0.04491310700589238,
+   "sNorm": 0.06328125,
+   "judgment": "different",
+   "reference": [
+    117,
+    133,
+    128
+   ],
+   "comparison": [
+    140,
+    125,
+    130
+   ],
+   "side": "right",
+   "at": 86,
+   "order": 62
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.239204941983335,
+   "s": 0.10169542885480037,
+   "sNorm": 0.19999999999999998,
+   "judgment": "different",
+   "reference": [
+    140,
+    128,
+    100
+   ],
+   "comparison": [
+    117,
+    130,
+    152
+   ],
+   "side": "right",
+   "at": 62,
+   "order": 63
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.239204941983335,
+   "s": 0.05084771442740019,
+   "sNorm": 0.09999999999999999,
+   "judgment": "different",
+   "reference": [
+    135,
+    129,
+    116
+   ],
+   "comparison": [
+    123,
+    130,
+    141
+   ],
+   "side": "left",
+   "at": 71,
+   "order": 64
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.239204941983335,
+   "s": 0.025423857213700093,
+   "sNorm": 0.049999999999999996,
+   "judgment": "same",
+   "reference": [
+    132,
+    129,
+    123
+   ],
+   "comparison": [
+    126,
+    129,
+    135
+   ],
+   "side": "left",
+   "at": 75,
+   "order": 65
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.239204941983335,
+   "s": 0.03813578582055014,
+   "sNorm": 0.075,
+   "judgment": "same",
+   "reference": [
+    133,
+    129,
+    119
+   ],
+   "comparison": [
+    125,
+    129,
+    138
+   ],
+   "side": "right",
+   "at": 82,
+   "order": 66
+  }
+ ],
+ "catches": {
+  "same": 16,
+  "missed": 0,
+  "trials": [
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "left",
+    "at": 7,
+    "order": 1
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 12,
+    "order": 2
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 18,
+    "order": 3
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 22,
+    "order": 4
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 28,
+    "order": 5
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 32,
+    "order": 6
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     193,
+     103,
+     103
+    ],
+    "comparison": [
+     193,
+     103,
+     103
+    ],
+    "side": "right",
+    "at": 38,
+    "order": 7
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 42,
+    "order": 8
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     102,
+     138,
+     102
+    ],
+    "comparison": [
+     102,
+     138,
+     102
+    ],
+    "side": "right",
+    "at": 48,
+    "order": 9
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     102,
+     138,
+     102
+    ],
+    "comparison": [
+     102,
+     138,
+     102
+    ],
+    "side": "right",
+    "at": 54,
+    "order": 10
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     193,
+     103,
+     103
+    ],
+    "comparison": [
+     193,
+     103,
+     103
+    ],
+    "side": "right",
+    "at": 58,
+    "order": 11
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     193,
+     103,
+     103
+    ],
+    "comparison": [
+     193,
+     103,
+     103
+    ],
+    "side": "left",
+    "at": 63,
+    "order": 12
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "left",
+    "at": 67,
+    "order": 13
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     122,
+     122,
+     193
+    ],
+    "comparison": [
+     122,
+     122,
+     193
+    ],
+    "side": "left",
+    "at": 73,
+    "order": 14
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     102,
+     138,
+     102
+    ],
+    "comparison": [
+     102,
+     138,
+     102
+    ],
+    "side": "left",
+    "at": 79,
+    "order": 15
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "left",
+    "at": 83,
+    "order": 16
+   }
+  ]
+ },
+ "pairLuminance": {
+  "source": "standard",
+  "weights": [
+   0.2126729,
+   0.7151522,
+   0.072175
+  ]
+ },
+ "luminance": {
+  "method": "",
+  "temporalHz": 1,
+  "count": 0,
+  "sampleCount": 0,
+  "matches": [],
+  "reading": "No hay franjas de brillo.",
+  "weights": [
+   0.21267,
+   0.71515,
+   0.07217
+  ],
+  "weightsSource": "standard",
+  "predicted": null,
+  "type": "normal",
+  "refreshHz": null,
+  "cyclesPerDeg": null,
+  "checks": null,
+  "calibratedWith": "standard-Y",
+  "measuredMatches": [],
+  "legacyMatches": false
+ }
+}
