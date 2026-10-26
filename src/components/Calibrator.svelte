@@ -1,6 +1,6 @@
 <script lang="ts">
   import { BUILD, scopedStorage as ls } from "@/lib/env";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { answer, createSession, parseQpResume, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
   import type { ConeId, EdgeFile } from "@/lib/color/edges";
   import { attachLuminance, type LuminanceResult } from "@/lib/color/motion";
@@ -8,19 +8,21 @@
     PROFILE_STORAGE_KEY,
     RETIRED_PROFILE_KEYS,
     buildProfile,
-    parseProfile,
     readHardware,
     type UmbralProfile,
     measuredLumWeights,
   } from "@/lib/color/profile";
   import { lumNoiseEnabled } from "@/lib/color/space";
   import Intro from "./Intro.svelte";
+  import SavedPages from "./SavedPages.svelte";
+  import { loadStored } from "@/lib/stored";
+  import type { Route } from "@/lib/router";
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
   import MotionTestV2 from "./MotionTestV2.svelte";
   import MotionTestV3 from "./MotionTestV3.svelte";
   import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
-  import { ANCHOR } from "@/lib/color/space";
+  import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
   import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
@@ -28,29 +30,19 @@
   import { applyReview, createReview, type ReviewState } from "@/lib/color/review";
   import { clearEdges, loadEdges, saveEdges } from "@/lib/color/edgestore";
 
-  type Phase = "intro" | "run" | "motion" | "review" | "done";
+  type Phase = "intro" | "run" | "motion" | "review" | "done" | "importar" | "perfiles" | "sesiones";
 
-  function loadStored(): UmbralProfile | null {
-    if (typeof window === "undefined") return null;
-    try {
-      const current = ls.getItem(PROFILE_STORAGE_KEY);
-      if (current) {
-        const parsed = parseProfile(current);
-        if (parsed) {
-          RETIRED_PROFILE_KEYS.forEach((key) => ls.removeItem(key));
-          return parsed;
-        }
-      }
-      for (const key of RETIRED_PROFILE_KEYS) {
-        const previous = ls.getItem(key);
-        const parsed = previous ? parseProfile(previous) : null;
-        if (parsed) return parsed;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
+  let { route, go }: { route: Route; go: (r: Route) => void } = $props();
+
+  /** Fase ↔ ruta. `#/camara` es el resultado con la cámara a la vista. */
+  const PHASE_OF: Record<Exclude<Route, "inicio">, Phase> = {
+    nuevo: "intro", perfil: "run", movimiento: "motion", repaso: "review", resultado: "done", camara: "done",
+    importar: "importar", perfiles: "perfiles", sesiones: "sesiones",
+  };
+  const ROUTE_OF: Record<Phase, Route> = {
+    intro: "nuevo", run: "perfil", motion: "movimiento", review: "repaso", done: "resultado",
+    importar: "importar", perfiles: "perfiles", sesiones: "sesiones",
+  };
 
   function persistProfile(profile: UmbralProfile) {
     ls.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
@@ -59,6 +51,9 @@
 
   // $state.raw: los objetos se reemplazan enteros, como con useState.
   let phase = $state<Phase>("intro");
+  /** Fundido de la portada negra al gris de anclaje antes del primer ensayo (≈1,2 s). */
+  let fading = $state(false);
+  const FADE_MS = 1200;
   let session = $state.raw<Session | null>(null);
   let profile = $state.raw<UmbralProfile | null>(null);
   let stored = $state.raw<UmbralProfile | null>(null);
@@ -81,7 +76,45 @@
       motionUi = "legacy";
     }
     stored = loadStored();
+    enter(route);
   });
+
+  // La ruta manda: al cambiar el hash se entra en su fase; al cambiar la fase dentro, se actualiza el hash.
+  let mounted = false;
+  $effect(() => {
+    const r = route;
+    if (mounted) untrack(() => enter(r));
+  });
+  $effect(() => {
+    const p = phase;
+    untrack(() => {
+      if (!mounted) return;
+      const want = ROUTE_OF[p];
+      if (want !== route && !(route === "camara" && p === "done")) go(want);
+    });
+  });
+
+  function enter(r: Route) {
+    mounted = true;
+    if (r === "inicio") return;
+    const target = PHASE_OF[r];
+    if (target === phase && (target !== "run" || session)) return;
+    if (target === "run") {
+      void start();
+      return;
+    }
+    if (target === "review" && !review) {
+      // Sin repaso en curso no hay nada que repasar: al resultado.
+      if (stored) keep(stored);
+      return;
+    }
+    if ((target === "done" || target === "motion") && !profile) {
+      if (!stored) return; // la guarda del router ya lo evita
+      keep(stored);
+    }
+    phase = target;
+    if (r === "camara") queueMicrotask(() => setTimeout(() => document.getElementById("camara")?.scrollIntoView({ block: "start" }), 50));
+  }
 
   function pairWeightsFrom(saved: UmbralProfile | null) {
     const w = measuredLumWeights(saved);
@@ -110,7 +143,9 @@
     }
     // C1: pares con los pesos personales medidos de la última prueba de luminancia en esta pantalla; si no, Y estándar.
     session = createSession(Date.now(), Q, resume, pairWeightsFrom(stored), lumNoiseEnabled(window.location.search));
+    fading = true;
     phase = "run";
+    setTimeout(() => (fading = false), FADE_MS);
   }
 
   /** Sesión del historial con el montaje de esta pantalla (misma heurística que movimiento v2). */
@@ -247,17 +282,42 @@
   }
 </script>
 
+{#if fading}
+  <div class="fundido" style:--gris={cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]))} style:--dur={`${FADE_MS}ms`} data-testid="fundido" aria-hidden="true"></div>
+{/if}
+
 <main class="mx-auto flex min-h-screen w-full max-w-xl flex-col px-5 py-8 sm:py-14">
   <header class="mb-8">
-    <p class="font-serif text-sm tracking-[0.22em] text-accent uppercase">Umbral</p>
-    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : phase === "review" ? "Repaso con tu brillo" : "Qué separas aquí"}</h1>
+    {#if phase === "intro" || phase === "importar" || phase === "perfiles" || phase === "sesiones"}
+      <picture>
+        <source srcset="{import.meta.env.BASE_URL}marca/cabecera.webp" type="image/webp" />
+        <img src="{import.meta.env.BASE_URL}marca/cabecera.jpg" alt="Umbral Xpectra" width="1600" height="349" class="mb-5 w-full rounded-xl opacity-70" />
+      </picture>
+    {/if}
+    <a href="#/inicio" class="inline-flex items-center gap-1 font-serif text-sm tracking-[0.22em] text-accent uppercase" data-testid="volver-inicio"><span aria-hidden="true">←</span> Umbral Xpectra · Inicio</a>
+    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : phase === "review" ? "Repaso con tu brillo" : phase === "importar" ? "Importar" : phase === "perfiles" ? "Perfil guardado" : phase === "sesiones" ? "Sesiones guardadas" : "Qué separas aquí"}</h1>
   </header>
 
   {#if phase === "intro"}
-    <Intro {stored} onStart={start} onView={() => stored && keep(stored)} onImport={keep} />
+    <Intro {stored} onStart={() => void start()} onView={() => stored && keep(stored)} onImport={keep} />
   {/if}
 
-  {#if phase === "run" && session}
+  {#if phase === "importar" || phase === "perfiles" || phase === "sesiones"}
+    <SavedPages
+      mode={phase}
+      {stored}
+      onProfile={keep}
+      onEdges={(file) => {
+        setEdges({ ...edgeFiles, [file.cone]: file });
+        edgesStale = false;
+        if (stored && !profile) keep(stored);
+        else phase = "done";
+      }}
+      {go}
+    />
+  {/if}
+
+  {#if phase === "run" && session && !fading}
     <Trial {session} onChoose={choose} />
   {/if}
 
@@ -318,3 +378,22 @@
     />
   {/if}
 </main>
+
+<style>
+  /* Negro de la portada → gris de anclaje del test, a pantalla completa, antes del primer ensayo. */
+  .fundido {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: var(--gris);
+    animation: fundido var(--dur) linear both;
+  }
+  @keyframes fundido {
+    from {
+      background: #000;
+    }
+    to {
+      background: var(--gris);
+    }
+  }
+</style>

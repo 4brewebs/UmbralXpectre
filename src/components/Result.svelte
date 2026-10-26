@@ -193,7 +193,7 @@
       <p class="text-sm text-muted" data-testid="edge-reliability">Fiabilidad de bordes: {edgeReliability.status} · {edgeReliability.catches} controles en {edgeReliability.rounds} {edgeReliability.rounds === 1 ? "ronda" : "rondas"}{edgeReliability.none ? `, ${edgeReliability.none} sin ver` : ""}.</p>
     {/if}
     <Plates {profile} edgeFiles={edgeList} />
-    <AssistCamera {profile} edgeFiles={edgeList} />
+    <div id="camara" class="scroll-mt-4"><AssistCamera {profile} edgeFiles={edgeList} /></div>
     <p class="text-sm leading-relaxed text-muted">{profile.disclaimer}</p>
     <div class="flex flex-col gap-3 sm:flex-row">
       <button
