@@ -1,6 +1,6 @@
 import type { UmbralProfile } from "./profile";
 import { LOSS_RAMP, lossPoints } from "./lossmap";
-import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -118,6 +118,7 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
   const luma = lumaFromProfile(profile);
   const axes = profile.axes;
   const region = measuredRegion(axes, floor, edges);
+  const texts = filterTexts(axes, floor, region);
   const specs: Array<{
     id: TransformFilter["id"];
     name: string;
@@ -133,19 +134,19 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     {
       id: "simulate",
       name: "Simulador",
-      note: "Encoge solo la coordenada que no separas y vierte el rojo perdido hacia el cono que sí lo recoge. Aplica el brillo medido. Fuera de la banda no toca.",
+      note: texts.simulate,
       apply: (rgb) => paintYours(rgb, axes, floor, luma),
     },
     {
       id: "assist",
       name: "Asistencia",
-      note: "Mueve un poco la banda hacia el rojo o el verde que ya separas, sin cambiar un pálido por uno vivo.",
+      note: texts.assist,
       apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
     },
     {
       id: "extreme",
       name: "Extremo",
-      note: "La misma dirección que la asistencia, ampliada hasta el borde del gamut, para separar los píxeles de la banda.",
+      note: texts.extreme,
       apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
     },
   ];

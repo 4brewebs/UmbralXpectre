@@ -1,4 +1,4 @@
-import { ANCHOR, addScaled, dirFromTheta, maxScale, toSrgb8, type Vec3 } from "./space";
+import { ANCHOR, addScaled, dirFromTheta, hueName, maxScale, toSrgb8, type Vec3 } from "./space";
 import { createQuestPlus, detect3, grid, type JsQuest, type QuestPlus } from "./questplus";
 import { deltaE00Linear } from "./deltaE";
 
@@ -255,14 +255,25 @@ export function classify(picked: number[], none: boolean, oddIndex: number): Ans
 }
 
 /**
- * Last angle this display still paints as that hue.
- * Red ends where rojizo becomes orange or magenta. Green ends where verdoso becomes cyan or yellow.
- * Blue ends where the violet–blue run becomes magenta or cyan. Past these there is no more of that color to test.
+ * Tramo fino de la búsqueda, derivado del perfil (Colorado, generalización 26/10): desde el pico medido se
+ * camina en pasos de 1° mientras la pantalla siga pintando el mismo nombre de tono (hueName a escala 0,1),
+ * hasta ±SECTOR_SPAN. Ya no hay ventanas fijas por cono; `cone` solo se conserva por compatibilidad.
  */
-export function sectorOf(cone: ConeId): { lo: number; hi: number } {
-  if (cone === "l") return { lo: -18, hi: 14 };
-  if (cone === "m") return { lo: -160, hi: -82 };
-  return { lo: 50, hi: 152 };
+const SECTOR_SPAN = 80;
+export function sectorOf(_cone: ConeId, peak: number): { lo: number; hi: number } {
+  // Violáceo y azulado son un mismo tramo azul (la pantalla no tiene otro azul que probar entre ellos).
+  const family = (n: string) => (n === "violáceo" || n === "azulado" ? "azul" : n);
+  const name = (deg: number) => family(hueName(addScaled([ANCHOR, ANCHOR, ANCHOR], dirFromTheta((deg * Math.PI) / 180), 0.1)));
+  const at = name(peak);
+  const walk = (sign: 1 | -1) => {
+    let last = peak;
+    for (let d = 1; d <= SECTOR_SPAN; d++) {
+      if (name(peak + sign * d) !== at) break;
+      last = peak + sign * d;
+    }
+    return last;
+  };
+  return { lo: walk(-1), hi: walk(1) };
 }
 
 function snap(deg: number): number {
@@ -667,13 +678,13 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
       // Visto aún a la escala mínima: sin banda medible (no es «none»).
       return { ...run, phase: "done", band: "unmeasurable", edgeConfirm: null };
     }
-    const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone).lo);
+    const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone, run.peak).lo);
     return place({ ...run, minus: { ...blankSide("minus", run.peak), cursor: first } }, "minus", first, run.edgeScale);
   }
   if (run.phase === "minus" || run.phase === "plus") {
     const current = run.phase === "minus" ? run.minus : run.plus;
     const bounds = searchBounds(run);
-    const sector = sectorOf(run.cone);
+    const sector = sectorOf(run.cone, run.peak);
     const limit = run.phase === "minus" ? bounds.lo : bounds.hi;
     const sectorEnd = run.phase === "minus" ? sector.lo : sector.hi;
     const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus ? { Q: run.questPlus, scale: run.edgeScale } : undefined, raw, sectorEnd);

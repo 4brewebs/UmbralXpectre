@@ -33,13 +33,14 @@ test("Bordes usa la región medida: un rojo saturado (fuera de la escala de fall
 test("con un lado cerrado: ese lado llega al borde; el abierto (toEnd) llega al primer eje sano", () => {
   const oneSide = {
     ...open,
-    minus: { found: true, toEnd: false, angleDeg: -10, insideDeg: -10, outsideDeg: -14 },
-    confirmed: { minus: -10, plus: 14 },
+    minus: { found: true, toEnd: false, angleDeg: -8, insideDeg: -8, outsideDeg: -12 },
+    confirmed: { minus: -8, plus: 14 },
   };
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const [sec] = measuredRegion(profile.axes, floor, [oneSide]).filter((s) => s.axis === "l");
   assert.equal(sec.minus.source, "edge");
-  assert.ok(Math.abs(sec.loDeg + 10) < 1e-9, `${sec.loDeg}`);
+  // borde en −8° (el eje sano «refine» en −9,5° lo limitaría si el borde estuviera más allá)
+  assert.ok(Math.abs(sec.loDeg + 8) < 1e-9, `${sec.loDeg}`);
   assert.equal(sec.plus.source, "toEnd");
   assert.ok(Math.abs((((sec.hiDeg - sec.plus.healthyDeg! + 540) % 360) - 180)) < 1e-9, `${sec.hiDeg} vs ${sec.plus.healthyDeg}`);
 });

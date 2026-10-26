@@ -18,7 +18,7 @@ function run(lo: number, hi: number, seenPeak = false): EdgeRun {
 test("la búsqueda pasa del sector y para en el límite del gamut a Y constante", () => {
   const r = startRun(base);
   const b = searchBounds(r);
-  const sector = sectorOf("l");
+  const sector = sectorOf("l", r.peak);
   assert.ok(b.hi > sector.hi && b.lo < sector.lo, JSON.stringify(b));
   assert.ok(b.hi - b.lo < 170);
 });
@@ -26,7 +26,7 @@ test("la búsqueda pasa del sector y para en el límite del gamut a Y constante"
 test("borde real más allá del sector: se encuentra (found)", () => {
   const f = edgeFile(run(-30, 40));
   assert.equal(f.plus.result, "found");
-  assert.ok((f.plus.angleDeg ?? 0) > sectorOf("l").hi, `${f.plus.angleDeg}`);
+  assert.ok((f.plus.angleDeg ?? 0) > sectorOf("l", 11.1).hi, `${f.plus.angleDeg}`);
   assert.equal(f.minus.result, "found");
 });
 

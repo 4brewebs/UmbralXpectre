@@ -159,7 +159,7 @@ test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 
   assert.deepEqual(bad, []);
 });
 
-test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia; ≤ +1,5 en Extremo (transición de 10°, Colorado acepta +1,0–1,5)", () => {
+test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia; ≤ +1,5 en Extremo (transición de 12–14°, Colorado acepta +1,0–1,5)", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const fl = real.fit.controlAbs!;
   const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((x: { file: unknown }) => x.file);

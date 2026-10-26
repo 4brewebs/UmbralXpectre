@@ -203,18 +203,14 @@ export const MASK_EDGE = (35 * Math.PI) / 180;
 /** Inyección en S acotada: como mucho esta fracción del croma del píxel (Extremo, la segunda). */
 /** Tope de croma de salida (radio en el plano) frente al de entrada. */
 const CHROMA_CAP = 2.5;
-const S_BOUND = 0.6;
-const S_BOUND_EXTREME = 1.1;
-/** Tono CIELAB de #FF0000 y entorno en el que el rojo puro conserva su tono (puede perder saturación). */
-const RED_LAB_HUE = Math.atan2(labOfLinear([1, 0, 0])[2], labOfLinear([1, 0, 0])[1]);
-const RED_GUARD = (40 * Math.PI) / 180;
-const DALTON_GAIN = 1;
-const DALTON_GAIN_EXTREME = 2.4;
+const S_BOUND = 1;
+const S_BOUND_EXTREME = 1.7;
+const DALTON_GAIN = 2;
+const DALTON_GAIN_EXTREME = 4;
 const ASSIST_TURN = 0.7;
 const EXTREME_GAIN = 5.5;
 const ALIAS_LEAK = 1;
 const ASSIST_LUMA = 0.35;
-const RED_FAMILY = new Set(["rojizo", "anaranjado", "amarillento", "magenta"]);
 
 type Family = "l" | "m" | "s";
 type Band = { mid: number; T: number; both: boolean };
@@ -226,8 +222,6 @@ type FilterModel = {
   blue: number | null;
   /** Línea de confusión de la daltonización: la banda del cono más débil (o la peor). */
   confusion: Band | null;
-  /** Ángulo (plano) del extremo S al que va el lado rojizo; el verdoso va al opuesto. */
-  sDir: number | null;
 };
 
 const modelCache = new WeakMap<AxisMark[], FilterModel>();
@@ -240,16 +234,6 @@ function rad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-function hueAt(angle: number): string {
-  return hueName(addScaled([ANCHOR, ANCHOR, ANCHOR], dirFromTheta(angle), 0.25));
-}
-
-/** Face the red card of a confusion line. The other card is the opposite ray, not a second hole. */
-function redFacing(angle: number): number {
-  if (!RED_FAMILY.has(hueAt(angle)) && RED_FAMILY.has(hueAt(angle + Math.PI))) return angle + Math.PI;
-  return angle;
-}
-
 function lobeWeight(theta: number, band: Band): number {
   const d = band.both ? lineGap(theta, band.mid) : angDist(theta, band.mid);
   if (d >= BAND_HALF) return 0;
@@ -258,29 +242,23 @@ function lobeWeight(theta: number, band: Band): number {
 }
 
 /**
- * Eje S de referencia para la daltonización. Vale el eje S o el azul extremo (referencia de pantalla) si los separa
- * bien; LAND_MAX adaptativo: el candidato más cercano a la perpendicular de la línea de confusión, si queda dentro
- * del tope de giro (45°). Si no, la propia perpendicular. Signo: hacia el lado azul (S+).
+ * Vía que recoge lo perdido en la simulación (derivada del perfil, no fija por cono): el eje de cono medido
+ * (l, m, s; no el propio) más cercano a la carta opuesta del eje que falla.
  */
-function sTarget(axes: AxisMark[], mid: number, gate: number): number {
-  const perp0 = mid + Math.PI / 2;
-  const blueSide = (a: number) => {
-    const v = dirFromTheta(a);
-    return v[2] - (v[0] + v[1]) / 2;
-  };
-  const perp = blueSide(perp0) >= 0 ? perp0 : perp0 + Math.PI;
+function catcherFor(axes: AxisMark[], weakAngle: number, weakRole: string | null): number | null {
+  const opposite = weakAngle + Math.PI;
   let best: number | null = null;
-  let bestD = ROT_CAP;
+  let bestD = Infinity;
   for (const axis of axes) {
-    if (axis.role !== "s" && axis.role !== "blue-end") continue;
-    if (axis.threshold == null || !(axis.threshold > 0) || axis.threshold > gate || !Number.isFinite(axis.angleDeg)) continue;
-    const d = angDist(perp, rad(axis.angleDeg));
+    if (isReference(axis) || axis.role === weakRole || !(axis.role === "l" || axis.role === "m" || axis.role === "s")) continue;
+    if (!Number.isFinite(axis.angleDeg)) continue;
+    const d = angDist(opposite, rad(axis.angleDeg));
     if (d < bestD) {
       bestD = d;
       best = rad(axis.angleDeg);
     }
   }
-  return best ?? perp;
+  return best;
 }
 
 function roleAngle(axes: AxisMark[], role: string): number | null {
@@ -315,14 +293,15 @@ function filterModel(axes: AxisMark[], floor: number): FilterModel {
     const parent = bad.reduce((a, b) => ((a.threshold ?? 0) > (b.threshold ?? 0) ? a : b)).parentId;
     if (parent === "l" || parent === "m" || parent === "s") weak = parent;
   }
-  const catcher = weak === "l" ? roleAngle(axes, "m") : weak === "m" ? roleAngle(axes, "l") : weak === "s" ? roleAngle(axes, "m") : null;
+  const weakAxis = weak ? axes.find((axis) => axis.role === weak && !isReference(axis)) : undefined;
+  const catcher = weakAxis ? catcherFor(axes, rad(weakAxis.angleDeg), weak) : null;
   const blueAxis = axes.find((axis) => axis.role === "s" && !isReference(axis));
   const blue =
     blueAxis && blueAxis.thresholdKind !== "upper-bound" && (blueAxis.threshold ?? 0) > gate ? null : roleAngle(axes, "s");
   const bands: Band[] = bad.map((axis) => {
     const both = axis.role === "l" || axis.role === "m" || axis.role === "s";
     const raw = rad(axis.angleDeg);
-    const mid = both ? redFacing(raw) : raw;
+    const mid = raw;
     return {
       mid,
       T: axis.threshold ?? gate,
@@ -332,7 +311,7 @@ function filterModel(axes: AxisMark[], floor: number): FilterModel {
   const confusion = bands.length
     ? bands.reduce((x, y) => (x.both !== y.both ? (x.both ? x : y) : x.T >= y.T ? x : y))
     : null;
-  const model = { floor, bands, weak, catcher, blue, confusion, sDir: confusion ? sTarget(axes, confusion.mid, gate) : null };
+  const model = { floor, bands, weak, catcher, blue, confusion };
   modelCache.set(axes, model);
   return model;
 }
@@ -401,7 +380,8 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
   const seen = Math.min(1, floor / hit.band.T);
   const pSim = p * (1 - hit.w * (1 - seen));
   const lost = p - pSim;
-  const spill = model.weak === "m" ? Math.max(-lost, 0) : model.weak === "s" ? Math.abs(lost) : Math.max(lost, 0);
+  // Solo la carta medida (el rayo del eje que falla) vierte hacia la vía que lo recoge; igual para l, m y s.
+  const spill = Math.max(lost, 0);
   const alias = model.catcher == null ? null : dirFromTheta(model.catcher);
   const leak = alias == null ? 0 : spill * ALIAS_LEAK;
   const plane2: Vec3 = [
@@ -489,12 +469,17 @@ function mixRgb(a: Vec3, b: Vec3, w: number): Vec3 {
   return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w];
 }
 
-/** Cerca del tono de #FF0000 el tope de giro baja a 0: el rojo puro conserva su tono. */
-function redGuard(rgb: Vec3): number {
-  const { h, c } = labHue(rgb);
-  if (c < 1) return 1;
-  const d = angDist(h, RED_LAB_HUE);
-  return d >= RED_GUARD ? 1 : (d / RED_GUARD) ** 2;
+/** Las 6 esquinas saturadas de la pantalla (R, G, B, C, M, Y). */
+const CORNERS: Vec3[] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 0]];
+/** Giro máximo en una esquina (Asistencia) y distancia (RGB lineal) a la que el tope vuelve a ser el normal. */
+export const CORNER_GUARD = { capDeg: 10, radius: 0.35 };
+/** Tope de giro con guardia de identidad en las 6 esquinas: ≤ 10° en la esquina, transición C1 hasta el tope normal. */
+function cornerCap(rgb: Vec3, cap: number): number {
+  const corner = rad(CORNER_GUARD.capDeg);
+  if (cap <= corner) return cap;
+  let d = Infinity;
+  for (const c of CORNERS) d = Math.min(d, Math.hypot(rgb[0] - c[0], rgb[1] - c[1], rgb[2] - c[2]));
+  return corner + (cap - corner) * smoothstep(0, CORNER_GUARD.radius, d);
 }
 
 export function smoothstep(a: number, b: number, x: number): number {
@@ -524,7 +509,7 @@ function gamutAtten(a: Vec3, b: Vec3): number {
 
 /** Notas del filtro (principio «solo lo medido», 26-10-2026). Las dos limitaciones previas se retiran: ver texto. */
 export const KNOWN_LIMITATIONS = [
-  "máscara solo con datos medidos: por lado, borde encontrado → hasta el borde; toEnd → hasta el primer eje sano; sin explorar → punto medio hacia el eje sano (provisional, 70 %); por debajo de la escala de fallo medida; fuera, cambio 0 (coseno 6°)",
+  "máscara solo con datos medidos: por lado, borde encontrado → hasta el borde; toEnd → hasta el primer eje sano; sin explorar → punto medio hacia el eje sano (provisional, 70 %); por debajo de la escala de fallo medida; fuera, cambio 0 (coseno 12°, Extremo 14°)",
   "la simulación («Tu visión») es solo ilustración; no decide qué se modifica",
   "colores fuera de la región medida (p. ej. saturados) sin corrección hasta que se mida fallo ahí",
   "retirada «esquina azul saturada de la gama: sin corrección»: queda fuera de la región medida, cambio 0 por diseño (no es zona medida, no una limitación del filtro)",
@@ -555,19 +540,23 @@ export type Sector = {
   scale: number;
   provisional: boolean;
 };
-/** Transición coseno (C1) de 6° en cada extremo; los lados provisionales corrigen al 70 %. */
+/** Transición coseno (C1) de 12° (Extremo 14°) en cada extremo, ensanchada al calibrar la ganancia con T/floor ≥ 1,6; los lados provisionales corrigen al 70 %. */
 /** Extremo usa una transición más ancha (Colorado, 26/10): su desplazamiento es mayor y el escalón crece con él. */
-export const REGION = { edgeSoftDeg: 6, edgeSoftDegExtreme: 10, scaleSoft: 0.5, provisionalGain: 0.7 };
+export const REGION = { edgeSoftDeg: 12, edgeSoftDegExtreme: 14, scaleSoft: 0.5, provisionalGain: 0.7 };
 
 const wrapDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 
-/** Primer eje sano medido en esa dirección (control, s o blue-end no elevados): distancia angular (°) > 0. */
+/** Eje medido sano: cualquier eje (control, l, m, s, red-end, blue-end o vecino) con umbral ≤ gate o cota «o menos». */
+function isHealthy(axis: AxisMark, gate: number): boolean {
+  if (!Number.isFinite(axis.angleDeg) || axis.threshold == null || !(axis.threshold > 0)) return false;
+  return axis.thresholdKind === "upper-bound" || axis.threshold <= gate;
+}
+
+/** Primer eje sano medido en esa dirección (cualquier eje medido no elevado): distancia angular (°) > 0. */
 function healthyReach(axes: AxisMark[], gate: number, from: number, dir: 1 | -1): { dist: number; deg: number } | null {
   let best: { dist: number; deg: number } | null = null;
   for (const axis of axes) {
-    if (!(axis.role === "control" || axis.role === "s" || axis.role === "blue-end")) continue;
-    const healthy = axis.thresholdKind === "upper-bound" || (axis.threshold != null && axis.threshold <= gate);
-    if (!healthy) continue;
+    if (!isHealthy(axis, gate)) continue;
     const dist = ((((axis.angleDeg - from) * dir) % 360) + 360) % 360;
     if (dist > 1e-6 && (!best || dist < best.dist)) best = { dist, deg: axis.angleDeg };
   }
@@ -663,33 +652,130 @@ function defaultRegion(axes: AxisMark[], floor: number): Sector[] {
   return sectors;
 }
 
+/** Corrección de un eje elevado: su propia línea, su vía objetivo y su sector (Colorado, generalización 26/10). */
+export type Correction = {
+  sector: Sector;
+  axisId: string;
+  role: string;
+  /** Rayo medido del eje que falla (rad); el signo de la proyección sobre él decide el lado. */
+  line: number;
+  T: number;
+  /** Dirección (rad) de la inyección para la carta medida; la opuesta va al otro extremo. */
+  target: number;
+  /** Eje sano elegido (id) o «perpendicular» si ninguno cae en ±45° de la perpendicular. */
+  targetId: string;
+  targetRole: string | null;
+  margin: number | null;
+};
+
+/**
+ * Objetivo: la vía sana medida con más margen (gate / umbral) dentro de ±45° (como línea) de la perpendicular a la
+ * línea de confusión; si ninguna cae ahí, la perpendicular. Sin ninguna vía sana medida, no se corrige (null).
+ */
+function pickTarget(axes: AxisMark[], line: number, gate: number): Pick<Correction, "target" | "targetId" | "targetRole" | "margin"> | null {
+  const healthy = axes.filter((axis) => isHealthy(axis, gate));
+  if (!healthy.length) return null;
+  const perp = line + Math.PI / 2;
+  let best: AxisMark | null = null;
+  let bestMargin = -Infinity;
+  let bestGap = Infinity;
+  for (const axis of healthy) {
+    const gap = lineGap(rad(axis.angleDeg), perp);
+    if (gap > ROT_CAP + 1e-9) continue;
+    const margin = gate / (axis.threshold as number);
+    if (margin > bestMargin + 1e-9 || (Math.abs(margin - bestMargin) <= 1e-9 && gap < bestGap)) {
+      best = axis;
+      bestMargin = margin;
+      bestGap = gap;
+    }
+  }
+  let target = best ? rad(best.angleDeg) : perp;
+  // Orientación fija respecto a la perpendicular: la carta medida (p > 0) va a +objetivo, la opuesta a −objetivo.
+  if (Math.cos(target - perp) < 0) target += Math.PI;
+  return best
+    ? { target, targetId: best.id ?? best.role ?? "?", targetRole: best.role ?? null, margin: bestMargin }
+    : { target, targetId: "perpendicular", targetRole: null, margin: null };
+}
+
+const correctionCache = new WeakMap<object, Correction[]>();
+export function corrections(axes: AxisMark[], floor: number, region?: Sector[]): Correction[] {
+  const sectors = region ?? defaultRegion(axes, floor);
+  const cached = correctionCache.get(sectors);
+  if (cached) return cached;
+  const gate = floor * GATE;
+  const out: Correction[] = [];
+  for (const sector of sectors) {
+    const axis = axes.find((item) => (item.id ?? item.role) === sector.axis);
+    if (!axis || axis.threshold == null) continue;
+    const line = rad(sector.centerDeg);
+    const pick = pickTarget(axes, line, gate);
+    if (!pick) continue;
+    out.push({ sector, axisId: sector.axis, role: axis.role ?? sector.axis, line, T: axis.threshold, ...pick });
+  }
+  correctionCache.set(sectors, out);
+  return out;
+}
+
+/**
+ * Fracción de la proyección que se reinyecta. Calibrada para que con T/floor = 1,6 (el umbral de entrada) la
+ * simulación del perfil ya separe los pares del sector a ≥ 1,5× el control (≥ 2× en Extremo).
+ */
+/** Subida de croma junto al giro (Asistencia / Extremo). */
+export const RADIAL_BOOST = 0.8;
+export const RADIAL_BOOST_EXTREME = 0.5;
+export const LOSS_FLOOR = 1;
+function lostFraction(T: number, floor: number): number {
+  return Math.max(LOSS_FLOOR, 1 - floor / T);
+}
+
+/**
+ * Daltonización generalizada: cada eje elevado tiene su línea, su objetivo y su sector. Lo perdido en la línea
+ * (p · fracción) se inyecta hacia la vía objetivo con el signo de la proyección. Si los sectores se solapan, los
+ * desplazamientos se mezclan por su máscara (media ponderada), no se suman. Tope de giro 45° (60° Extremo),
+ * croma ≤ 2,5×, nunca fuera del gamut y guardia de identidad en las 6 esquinas.
+ */
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
   const radius = norm(plane);
   if (radius < 1e-4) return rgb;
-  const model = filterModel(axes, floor);
-  const band = model.confusion;
-  if (!band || model.sDir == null) return rgb;
-  const { w: mask, gain: sideGain } = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor), extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg);
-  if (mask <= 0) return rgb;
-  const { p } = splitPlane(plane, band.mid);
-  const seen = Math.min(1, floor / band.T);
-  const lost = p * (1 - seen);
-  if (Math.abs(lost) < 1e-6) return rgb;
-  const s = dirFromTheta(model.sDir);
-  const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain;
-  const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain;
-  // Signo de Fidaner uniforme: rojizo (lost > 0) → S+, verdoso → S−.
-  const inj = Math.max(-bound, Math.min(bound, lost * gain));
-  const d: Vec3 = [s[0] * inj, s[1] * inj, s[2] * inj];
-  const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
+  const list = corrections(axes, floor, region);
+  if (!list.length) return rgb;
+  const theta = thetaOf(plane);
+  const soft = extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg;
+  let sumW = 0;
+  let maxW = 0;
+  const d: Vec3 = [0, 0, 0];
+  for (const c of list) {
+    const { w, gain: sideGain } = regionInfo(theta, radius, [c.sector], soft);
+    if (w <= 0) continue;
+    const p = dot(plane, dirFromTheta(c.line));
+    const lost = p * lostFraction(c.T, floor);
+    const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain;
+    const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain;
+    const boost = (extreme ? RADIAL_BOOST_EXTREME : RADIAL_BOOST) * sideGain;
+    const inj = Math.max(-bound * (1 + boost), Math.min(bound * (1 + boost), lost * gain * (1 + boost)));
+    const t = dirFromTheta(c.target);
+    // Además del giro, sube el croma (≤ 2,5×) en proporción a lo perdido: con T/floor bajo el giro solo no basta.
+    const radial = boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
+    d[0] += w * (t[0] * inj + plane[0] * radial);
+    d[1] += w * (t[1] * inj + plane[1] * radial);
+    d[2] += w * (t[2] * inj + plane[2] * radial);
+    sumW += w;
+    maxW = Math.max(maxW, w);
+  }
+  if (maxW <= 0) return rgb;
+  d[0] /= sumW;
+  d[1] /= sumW;
+  d[2] /= sumW;
+  if (norm(d) < 1e-9) return rgb;
+  const cap = cornerCap(rgb, extreme ? ROT_CAP_EXTREME : ROT_CAP);
   const tS = reachT(y, plane, d, cap, CHROMA_CAP);
   const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
-  const att = mask * gamutAtten(rgb, full);
+  const att = maxW * gamutAtten(rgb, full);
   const out = mixRgb(rgb, full, att);
-  return limitLabHue(rgb, out, cap * redGuard(rgb));
+  return limitLabHue(rgb, out, cap);
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
@@ -853,16 +939,15 @@ function edgePaint(rgb: Vec3, profile: UmbralProfile, files: EdgeFile[], kind: P
   const mid = (best.notch.loIn + best.notch.hiIn) / 2;
   const { u, p, n } = splitPlane(plane, mid);
   const { keep, lost } = knee(p, best.T, floor, best.w);
-  const order = best.notch.cone === "m" ? (["l", "s"] as const) : best.notch.cone === "s" ? (["m", "l"] as const) : (["m", "s"] as const);
-  let catcher: number | null = null;
-  for (const role of order) {
-    const angle = roleAngle(profile.axes, role);
-    if (angle == null || blocked(angle)) continue;
-    catcher = angle;
-    break;
-  }
-  const spill =
-    best.notch.cone === "m" ? Math.max(-lost, 0) : best.notch.cone === "s" ? Math.abs(lost) : Math.max(lost, 0);
+  // Vía que recoge lo perdido, derivada del perfil: los ejes de cono medidos (no el propio, no bloqueados),
+  // ordenados por cercanía a la carta opuesta del notch.
+  const order = profile.axes
+    .filter((axis) => !isReference(axis) && (axis.role === "l" || axis.role === "m" || axis.role === "s") && axis.role !== best.notch.cone && Number.isFinite(axis.angleDeg))
+    .map((axis) => rad(axis.angleDeg))
+    .sort((a, b) => angDist(mid + Math.PI, a) - angDist(mid + Math.PI, b));
+  const catcher = order.find((angle) => !blocked(angle)) ?? null;
+  // Solo la carta medida (el lado del notch) vierte, igual para l, m y s.
+  const spill = Math.max(lost, 0);
   const alias = catcher == null ? null : dirFromTheta(catcher);
   const leak = alias == null ? 0 : spill * ALIAS_LEAK;
   const plane2: Vec3 = [
@@ -892,18 +977,46 @@ export function colorFor(
   return assistColor(rgb, profile.axes, floor, luma, region);
 }
 
+const axisName = (axes: AxisMark[], id: string | null, role: string | null) => {
+  const a = axes.find((x) => (x.id ?? x.role) === id) ?? axes.find((x) => x.role === role);
+  return (a as { label?: string } | undefined)?.label ?? a?.role ?? id ?? "?";
+};
+
+/**
+ * Textos de los filtros generados desde (vía elevada, vía objetivo) — sustituyen a los fijos «rojo/verde».
+ * Sin vía sana medida, no hay corrección: solo mapa.
+ */
+export function filterTexts(axes: AxisMark[], floor: number, region?: Sector[]): { simulate: string; assist: string; extreme: string; pairs: Array<{ elevated: string; target: string }> } {
+  const sectors = region ?? defaultRegion(axes, floor);
+  const cs = corrections(axes, floor, sectors);
+  const pairs = cs.map((c) => ({ elevated: axisName(axes, c.axisId, c.role), target: c.targetId === "perpendicular" ? "la perpendicular" : axisName(axes, c.targetId, c.targetRole) }));
+  const weak = sectors.map((s) => {
+    const axis = axes.find((x) => (x.id ?? x.role) === s.axis);
+    const catcher = axis ? catcherFor(axes, rad(axis.angleDeg), axis.role ?? null) : null;
+    const cAxis = catcher == null ? null : axes.find((x) => !isReference(x) && Math.abs(rad(x.angleDeg) - catcher) < 1e-9);
+    return { name: axisName(axes, s.axis, axis?.role ?? null), catcher: cAxis ? axisName(axes, cAxis.id ?? null, cAxis.role ?? null) : null };
+  });
+  const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} y ${xs[xs.length - 1]}`);
+  const simulate = weak.length
+    ? `Encoge solo la dirección que no separas (${list(weak.map((w) => w.name))}) y vierte lo perdido hacia ${list(weak.map((w) => w.catcher ?? "el eje opuesto"))}, que sí lo recoge. Aplica el brillo medido. Fuera de la banda no toca.`
+    : "Sin eje elevado medido: no cambia ningún color.";
+  const assist = pairs.length
+    ? `Mueve un poco ${pairs.map((p) => `la banda ${p.elevated} hacia ${p.target === "la perpendicular" ? p.target : `el ${p.target}`}`).join("; ")}, que sí separas, sin cambiar un pálido por uno vivo.`
+    : sectors.length
+      ? "Sin vía sana medida a la que llevar la banda: no corrige, solo el mapa."
+      : "Sin eje elevado medido: no cambia ningún color.";
+  const extreme = pairs.length ? "La misma dirección que la asistencia, ampliada hasta el borde del gamut, para separar los píxeles de la banda." : assist;
+  return { simulate, assist, extreme, pairs };
+}
+
 export function coneBlurb(pathway: Pathway): string {
   if (pathway.kind === "upper-bound" || !pathway.elevated) {
     return "En esta pantalla los separas al nivel del control, o mejor. Esta vía no queda afectada.";
   }
   const times = pathway.timesControl ?? pathway.threshold;
   if (times >= 5) {
-    const where =
-      pathway.id === "l"
-        ? "El rojo no desaparece: se monta sobre el verde en un ángulo estrecho."
-        : pathway.id === "m"
-          ? "El verde no desaparece: se monta sobre el rojo en un ángulo estrecho."
-          : "El azul no desaparece: el fallo está en un ángulo estrecho.";
+    const name = CONE_MARKS.find((m) => m.id === pathway.id)?.name.toLowerCase() ?? pathway.id;
+    const where = `El tono no desaparece: la vía de los ${name} se monta sobre la vecina en un ángulo estrecho.`;
     return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control, en esa dirección. ${where}`;
   }
   return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control. Queda afectada, sin cerrarse del todo.`;
