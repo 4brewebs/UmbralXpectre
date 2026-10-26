@@ -123,6 +123,9 @@ export interface UmbralProfile {
       reason?: "gamut-limit";
     };
     thresholdKind: Axis["thresholdKind"];
+    /** Solo tras el repaso con pesos personales: el umbral original (pares con la Y estándar). */
+    thresholdStandardY?: number | null;
+    thresholdSource?: "review-measured";
     closed: boolean;
     trials: number;
     order: number;
@@ -140,6 +143,17 @@ export interface UmbralProfile {
    * de fase 1 las siguen leyendo igual). Los campos v3 son los pesos personales.
    */
   luminance?: LuminanceResult & LuminanceV3;
+  /** Repaso corto de l y m con los pesos personales (`review.ts`). */
+  review?: {
+    /** La escala s de los pares con pesos personales no se renormaliza respecto a la de la Y estándar. */
+    scaleNormalized: false;
+    method: string;
+    pairLuminance: PairLuminance;
+    lumNoise?: LumNoise;
+    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; trials: number }>;
+    catches: { shown: number; falseAlarms: number };
+    trials: unknown[];
+  };
 }
 
 /** Igualación de la prueba de movimiento v2 (Anstis-Cavanagh), en el formato que lee lumweights. */
@@ -435,6 +449,32 @@ function orderCatchTrials(log: TrialRecord[]): Array<TrialRecord & { order: numb
 }
 
 const LINE_NOTE = 1.6;
+
+/** Recalcula T y las vías (`fit`) desde `axes[].threshold` (tras el repaso). El resumen de texto no cambia. */
+export function refitProfile(profile: UmbralProfile): UmbralProfile {
+  const scored = scoreCones(
+    profile.axes
+      .filter((a) => a.threshold != null)
+      .map((a) => ({ id: a.id, hue: a.label ?? a.hue, role: a.role, parentId: a.parentId, angleRad: (a.angleDeg * Math.PI) / 180, threshold: a.threshold, thresholdKind: a.thresholdKind, maxScale: a.maxScale, searchPrior: a.searchPrior })),
+  );
+  return {
+    ...profile,
+    fit: {
+      ...profile.fit,
+      severity: scored.severity,
+      timesControl: scored.timesControl,
+      timesControlKind: scored.timesControlKind,
+      peakAbs: scored.peakAbs,
+      confusionAngleDeg: scored.confusionAngleDeg,
+      shiftFromNearestPriorDeg: scored.shift,
+      nearestSearchPrior: scored.nearestPrior,
+      confusionDirectionLinearRgb: scored.confusionDir ? round3(scored.confusionDir) : null,
+      elevatedCount: scored.elevatedCount,
+      pathways: scored.pathways,
+      attenuationMatrix: scored.matrix,
+    },
+  };
+}
 
 /** Pure red and pure blue, and the probes spawned from them, stay out of the three-cone reading. */
 function isReferenceAxis(axis: { role: string; parentId?: string | null }): boolean {

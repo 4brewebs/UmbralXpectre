@@ -45,7 +45,7 @@
         <div class="h-full rounded-full" style:background={neutral} role="img" aria-label="Pausa gris"></div>
       {/if}
     </div>
-    <p class="text-center text-sm text-muted">Misma luminosidad y misma saturación. Si solo notas el salto, son iguales.</p>
+    <p class="text-center text-sm text-muted">Si solo notas el salto, son iguales.</p>
     <p class="text-center text-xs text-muted">Fíjate en el color, no en el brillo.</p>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <button type="button" disabled={!ready} onclick={() => onChoose("same")} class="h-14 rounded-2xl border border-border bg-surface text-base font-medium text-fg disabled:opacity-40">Iguales</button>

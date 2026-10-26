@@ -24,9 +24,11 @@
   import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
+  import ReviewTest from "./ReviewTest.svelte";
+  import { applyReview, createReview, type ReviewState } from "@/lib/color/review";
   import { clearEdges, loadEdges, saveEdges } from "@/lib/color/edgestore";
 
-  type Phase = "intro" | "run" | "motion" | "done";
+  type Phase = "intro" | "run" | "motion" | "review" | "done";
 
   function loadStored(): UmbralProfile | null {
     if (typeof window === "undefined") return null;
@@ -149,6 +151,32 @@
     }
   }
 
+  let review = $state.raw<ReviewState | null>(null);
+
+  /** Tras la luminancia: repaso corto de l y m solo con pesos medidos en esta pantalla; si no, al resultado. */
+  async function afterLuminance(p: UmbralProfile) {
+    review = null;
+    if (pairWeightsFrom(p)) {
+      try {
+        const Q = await (await import("@/lib/color/questplus")).loadQuestPlus();
+        review = createReview(p, Q, { seed: Date.now(), lumNoise: lumNoiseEnabled(window.location.search) });
+      } catch {
+        review = null;
+      }
+    }
+    phase = review ? "review" : "done";
+  }
+
+  function takeReview(state: ReviewState) {
+    if (!profile) return;
+    const reviewed = applyReview(profile, state);
+    persistProfile(reviewed);
+    profile = reviewed;
+    stored = reviewed;
+    review = null;
+    phase = "done";
+  }
+
   function takeLuminance(result: LuminanceResult) {
     if (!profile) return;
     const attached = attachLuminance(profile, result);
@@ -159,7 +187,7 @@
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
-    phase = "done";
+    void afterLuminance(enriched);
   }
 
   function takeMotionV2(state: MotionV2State, meta: MotionV2Meta) {
@@ -168,7 +196,7 @@
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
-    phase = "done";
+    void afterLuminance(enriched);
   }
 
   // Pesos medidos en otro dispositivo: aviso con «usar igualmente» o «repetir la prueba».
@@ -222,7 +250,7 @@
 <main class="mx-auto flex min-h-screen w-full max-w-xl flex-col px-5 py-8 sm:py-14">
   <header class="mb-8">
     <p class="font-serif text-sm tracking-[0.22em] text-accent uppercase">Umbral</p>
-    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : "Qué separas aquí"}</h1>
+    <h1 class="mt-2 font-serif text-4xl leading-tight text-fg sm:text-5xl">{phase === "done" ? "Perfil de esta pantalla" : phase === "motion" ? "Hacia dónde caminan" : phase === "review" ? "Repaso con tu brillo" : "Qué separas aquí"}</h1>
   </header>
 
   {#if phase === "intro"}
@@ -243,6 +271,10 @@
 
   {#if phase === "motion" && profile && motionUi === "v2"}
     <MotionTestV2 {profile} onDone={takeMotionV2} onStop={() => (phase = "done")} />
+  {/if}
+
+  {#if phase === "review" && review}
+    <ReviewTest state={review} onDone={takeReview} onSkip={() => { review = null; phase = "done"; }} />
   {/if}
 
   {#if deviceWarning && profile}
