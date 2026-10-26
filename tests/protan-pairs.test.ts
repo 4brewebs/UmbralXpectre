@@ -44,7 +44,7 @@ export function protanTable() {
   return { rows, median: { before: med(col("before")), assist: med(col("assist")), extreme: med(col("extreme")) }, min: { before: Math.min(...col("before")), assist: Math.min(...col("assist")), extreme: Math.min(...col("extreme")) } };
 }
 
-test("protán simulado (perfil 07:21Z): 5 pares, ninguno < 5 ΔE00 tras la asistencia y mejora clara", { todo: "FALLA (perfil real 07:21Z, máscara por pérdida 12/18): violeta/azul 2,87 ΔE00. ambos quedan bajo t0 (w = 0, sin cambio); con t0 = 2 sí se tocan, pero la inyección con signo en S lleva la B de los dos al mismo valor (violeta S+, azul S−) y la diferencia sigue en ~2,8" }, () => {
+test("protán simulado (perfil 07:21Z): 5 pares, ninguno < 5 ΔE00 tras la asistencia y mejora clara", { todo: "FALLA (perfil real 07:21Z, máscara por pérdida 12/18 + derrame a Y 8 %): violeta/azul 2,87 ΔE00; su pérdida es 4,65/5,76 ΔE00 < t0 = 12, w = 0 y no se tocan" }, () => {
   const t = protanTable();
   console.log("par | original | asistencia | extremo");
   for (const r of t.rows) console.log(`${r.name} (${r.ha}/${r.hb}) | ${r.before.toFixed(2)} | ${r.assist.toFixed(2)} | ${r.extreme.toFixed(2)}`);

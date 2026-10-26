@@ -63,7 +63,8 @@ test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (
     for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) {
       const o = f(c, profile.axes, floor);
       assert.ok(o.every((v) => v >= -1e-9 && v <= 1 + 1e-9));
-      assert.ok(Math.abs(luminance(o) - y) < 1e-7);
+      // Y personal intacta salvo el derrame a luminosidad de la esquina azul/violeta (≤ 8 % relativo).
+      assert.ok(Math.abs(luminance(o) - y) <= 0.08 * y + 1e-7, `${luminance(o)} ${y}`);
       const p0: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
       const p1: Vec3 = [o[0] - y, o[1] - y, o[2] - y];
       if (Math.hypot(...p0) < 1e-3 || Math.hypot(...p1) < 1e-3) continue;
@@ -115,4 +116,10 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
 test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono)", () => {
   const near: Vec3 = [0.75, 0.05, 0.05];
   for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
+});
+
+test("transforms: guarda t0/t1 de la máscara por pérdida y el derrame a Y", () => {
+  const f = buildTransformFile(profile) as { params?: { lossMask: { t0: number; t1: number }; lightSpill: { capRel: number } } };
+  assert.deepEqual(f.params?.lossMask, { t0: 12, t1: 18 });
+  assert.equal(f.params?.lightSpill.capRel, 0.08);
 });

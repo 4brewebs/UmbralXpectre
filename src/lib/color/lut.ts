@@ -1,5 +1,5 @@
 import type { UmbralProfile } from "./profile";
-import { assistColor, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { GAMUT_SOFT, L_SPILL, LOSS_MASK, assistColor, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -92,6 +92,8 @@ export type TransformFile = {
   order: string;
   floor: number;
   gate: number;
+  /** Parámetros de Asistencia/Extremo con los que se hornearon los nodos (ausente en archivos anteriores). */
+  params?: { lossMask: { t0: number; t1: number }; gamutSoft: number; lightSpill: { capRel: number; dir: 1 | -1 } };
   filters: TransformFilter[];
 };
 
@@ -151,6 +153,7 @@ export function buildTransformFile(profile: UmbralProfile): TransformFile {
     order: "Índice ((b * size + g) * size + r). r es el eje rápido. Tres bytes RGB por nodo.",
     floor: Math.round(floor * 10000) / 10000,
     gate: GATE,
+    params: { lossMask: { t0: LOSS_MASK.t0, t1: LOSS_MASK.t1 }, gamutSoft: GAMUT_SOFT, lightSpill: { capRel: L_SPILL.capRel, dir: L_SPILL.dir } },
     filters: specs.map((spec) => bakeFilter(spec, floor)),
   };
 }

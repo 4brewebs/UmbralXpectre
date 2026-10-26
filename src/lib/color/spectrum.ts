@@ -568,17 +568,33 @@ export function lossMask(rgb: Vec3, axes: AxisMark[], floor: number): number {
   return smoothstep(LOSS_MASK.t0, LOSS_MASK.t1, deltaE00Linear(rgb, protanSimProfile(rgb, axes, floor)));
 }
 
-const GAMUT_SOFT = 0.15;
-/** Margen del canal más justo en la dirección en que se mueve (1 − c si sube, c si baja). */
-function gamutRoom(a: Vec3, b: Vec3): number {
-  let m = 1;
+/** Anchura de la atenuación en la pared del gamut (margen del canal que se mueve). */
+export const GAMUT_SOFT = 0.3;
+/**
+ * Atenuación C1 en la pared del gamut (Colorado, 4.ª ronda): producto por canal de smoothstep(0, GAMUT_SOFT, margen),
+ * y cada factor entra según cuánto se mueve ese canal (smoothstep de |d_i|/máx|d|), sin min() ni tramos lineales.
+ */
+function gamutAtten(a: Vec3, b: Vec3): number {
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const dm = Math.max(Math.abs(d[0]), Math.abs(d[1]), Math.abs(d[2]));
+  if (dm < 1e-9) return 1;
+  let w = 1;
   for (let i = 0; i < 3; i++) {
-    const d = b[i] - a[i];
-    if (Math.abs(d) < 1e-6) continue;
-    m = Math.min(m, d > 0 ? 1 - a[i] : a[i]);
+    const up = smoothstep(-0.25, 0.25, d[i] / dm); // 1 si sube, 0 si baja; C1 al cruzar 0
+    const room = up * (1 - a[i]) + (1 - up) * a[i];
+    const moving = smoothstep(0, 0.25, Math.abs(d[i]) / dm);
+    w *= 1 - moving * (1 - smoothstep(0, GAMUT_SOFT, room));
   }
-  return m;
+  return w;
 }
+
+/**
+ * Derrame a luminosidad (Colorado, 4.ª ronda): la parte de la inyección en S que no cabe en el gamut pasa a Y, con
+ * signo uniforme (rojizo → más claro, verdoso → más oscuro), tope ±8 % de Y relativo, saturación suave (tanh).
+ * Solo en la esquina azul/violeta: peso por coseno entre el croma del píxel y la dirección S+.
+ */
+// `dir` = +1: signo de Colorado (rojizo más claro). Con −1 el par violeta/azul mejora (ver informe 4.ª ronda).
+export const L_SPILL = { capRel: 0.08, cornerLo: 0.2, cornerHi: 0.6, dir: 1 as 1 | -1 };
 
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
@@ -598,18 +614,29 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const s = dirFromTheta(model.sDir);
   const gain = extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN;
   const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius;
+  // Signo de Fidaner uniforme: rojizo (lost > 0) → S+, verdoso → S−.
   const inj = Math.max(-bound, Math.min(bound, lost * gain));
   const d: Vec3 = [s[0] * inj, s[1] * inj, s[2] * inj];
   const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
-  // Continuo en la entrada: si se sale del cubo se encoge el croma hacia la misma Y (sin recorte de canal);
-  // el giro lo acotan el tope de plano y el de CIELAB después.
-  const full = capPlaneTurn(y, plane, [plane[0] + d[0], plane[1] + d[1], plane[2] + d[2]], cap);
-  // Pared del gamut: si un canal que tendría que subir (o bajar) ya está en 1 (o 0) reachT da 0, y a 0,01 de la
-  // pared ya da el desplazamiento casi entero (borde duro a HSV 180° en S = 50 %). Se suaviza con el margen libre
-  // de los canales que se mueven.
-  const room = gamutRoom(rgb, full);
-  // La máscara mezcla el resultado completo con el original: el cambio va a 0 sin saltos.
-  return limitLabHue(rgb, mixRgb(rgb, full, mask * smoothstep(0, GAMUT_SOFT, room)), cap * redGuard(rgb));
+  const tS = reachT(y, plane, d, cap);
+  const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
+  const att = mask * gamutAtten(rgb, full);
+  let out = mixRgb(rgb, full, att);
+  // Lo que no cupo en S (por gamut o tope), a Y con el signo de lost.
+  const rest = Math.abs(inj) * (1 - tS * gamutAtten(rgb, full));
+  const corner = smoothstep(L_SPILL.cornerLo, L_SPILL.cornerHi, dot(plane, s) / radius);
+  if (rest > 0 && corner > 0) {
+    const sign = (lost > 0 ? 1 : -1) * L_SPILL.dir;
+    const capY = L_SPILL.capRel * y;
+    // Hueco hasta la pared al sumar gris (sube o baja todos los canales por igual).
+    const gap = sign > 0 ? 1 - Math.max(out[0], out[1], out[2]) : Math.min(out[0], out[1], out[2]);
+    const lim = Math.max(0, Math.min(capY, gap));
+    if (lim > 0) {
+      const dY = sign * lim * Math.tanh(rest / lim) * corner * mask;
+      out = [out[0] + dY, out[1] + dY, out[2] + dY];
+    }
+  }
+  return limitLabHue(rgb, out, cap * redGuard(rgb));
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
