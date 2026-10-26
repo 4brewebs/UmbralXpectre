@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { num } from "@/lib/format";
   import { cssRgb, toSrgb8, ANCHOR, addScaled, dirFromTheta } from "@/lib/color/space";
   import { colorFor, coneBlurb, coneLead, coneOrder, CONE_MARKS, edgesReady, markLeft, spectrumSamples, type FilterSource } from "@/lib/color/spectrum";
   import { hatchMask, hatchRuns, lossMap, lossPeak } from "@/lib/color/lossmap";
@@ -25,7 +26,7 @@
     `linear-gradient(90deg, ${loss.map((s, i) => `rgb(${s.grey} ${s.grey} ${s.grey}) ${(i / (loss.length - 1)) * 100}%`).join(", ")})`,
   );
   const hatch = $derived(hatchRuns(loss).length ? hatchMask(loss) : "");
-  const peakLabel = $derived(`Zonas de confusión · máx. ${lossPeak(profile, edgeFiles).toFixed(1).replace(".", ",")}×`);
+  const peakLabel = $derived(`Zonas de confusión · máx. ${num(lossPeak(profile, edgeFiles), 1)}×`);
   const assisted = $derived(paint("assist"));
 
   function worstMeasured(profile: UmbralProfile) {
@@ -98,7 +99,7 @@
       <li class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between gap-3">
           <span class="text-fg">{mark?.name ?? pathway.hue}</span>
-          <span class="text-sm text-muted">{pathway.kind === "upper-bound" ? `≤ ${pathway.threshold.toFixed(3)}` : `${pathway.threshold.toFixed(3)}${pathway.timesControl != null ? ` · ${pathway.timesControl.toFixed(1)}×` : ""}`}</span>
+          <span class="text-sm text-muted">{pathway.kind === "upper-bound" ? `≤ ${num(pathway.threshold, 3)}` : `${num(pathway.threshold, 3)}${pathway.timesControl != null ? ` · ${num(pathway.timesControl, 1)}×` : ""}`}</span>
         </div>
         <div class="relative h-2 rounded-full bg-surface">
           <div class="h-full rounded-full bg-fg" style:width={`${yoursWidth}%`}></div>

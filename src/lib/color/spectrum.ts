@@ -1,3 +1,4 @@
+import { num } from "../format";
 /**
  * Visible-spectrum strip for the result card.
  * Wavelengths are only a map. The heights come from this screen's thresholds.
@@ -903,9 +904,9 @@ export function coneBlurb(pathway: Pathway): string {
         : pathway.id === "m"
           ? "El verde no desaparece: se monta sobre el rojo en un ángulo estrecho."
           : "El azul no desaparece: el fallo está en un ángulo estrecho.";
-    return `Hace falta unas ${times.toFixed(1)} veces más diferencia que en el control, en esa dirección. ${where}`;
+    return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control, en esa dirección. ${where}`;
   }
-  return `Hace falta unas ${times.toFixed(1)} veces más diferencia que en el control. Queda afectada, sin cerrarse del todo.`;
+  return `Hace falta unas ${num(times, 1)} veces más diferencia que en el control. Queda afectada, sin cerrarse del todo.`;
 }
 
 export function coneLead(pathways: Pathway[]): string {

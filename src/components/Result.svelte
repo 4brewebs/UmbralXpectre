@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { num } from "@/lib/format";
   import { Check, Copy, Download, RotateCcw } from "@lucide/svelte";
   import { edgeFilename, edgeWindow, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
   import { buildTransformFile } from "@/lib/color/lut";
@@ -104,7 +105,7 @@
         {@const place = match.kind === "cruce" ? "Franja" : match.kind === "extremo" ? "Dentro" : match.kind === "control" ? "Regla" : "Eje"}
         {@const against = match.kind === "control" ? "gris" : match.referenceHue}
         {@const taken = match.trials === 1 ? "1 muestra" : `${match.trials} muestras`}
-        {@const fan = match.span === "range" ? `${match.low.toFixed(2)}–${match.high.toFixed(2)}× · abanico ${match.width.toFixed(2)} · ${taken}` : `un corte · ${match.gain.toFixed(2)}× · ${taken}`}
+        {@const fan = match.span === "range" ? `${num(match.low, 2)}–${num(match.high, 2)}× · abanico ${num(match.width, 2)} · ${taken}` : `un corte · ${num(match.gain, 2)}× · ${taken}`}
         <li class="flex flex-col gap-0.5 text-sm">
           <span class="text-fg">{place} · {match.hue} frente a {against}</span>
           <span class="text-muted">{fan}</span>
@@ -139,10 +140,10 @@
       {@const lum = profile.luminance}
       <section class="rounded-2xl border border-border p-4 text-sm text-fg" data-testid="weights-v2">
         <p class="font-semibold">Pesos de brillo medidos (prueba v2)</p>
-        <p class="mt-1 text-muted">R {lum.weights[0].toFixed(3)} · G {lum.weights[1].toFixed(3)} · B {lum.weights[2].toFixed(3)} (estándar 0.213 · 0.715 · 0.072)</p>
+        <p class="mt-1 text-muted">R {num(lum.weights[0], 3)} · G {num(lum.weights[1], 3)} · B {num(lum.weights[2], 3)} (estándar 0,213 · 0,715 · 0,072)</p>
         <p class="mt-1 text-muted">Confianza {lum.checks?.confidence === "high" ? "alta" : "baja"}{lum.checks?.withinNoise ? " · dentro del ruido de Y estándar" : ""} · {lum.measuredMatches.length} colores · refresco {lum.refreshHz ?? "—"} Hz. Aún no cambia los filtros (fase 2).</p>
         {#each lum.measuredMatches.filter((m) => m.atLeast) as m (m.id)}
-          <p class="mt-1 text-muted">{m.hue}: {m.atLeastSide === -1 ? "como mucho" : "al menos"} {m.efficiency.toFixed(2)}× (tope de contraste; cota, no igualación).</p>
+          <p class="mt-1 text-muted">{m.hue}: {m.atLeastSide === -1 ? "como mucho" : "al menos"} {num(m.efficiency, 2)}× (tope de contraste; cota, no igualación).</p>
         {/each}
       </section>
     {/if}
@@ -153,7 +154,7 @@
       {@render stat("Confianza", profile.confidence === "high" ? "Alta" : "Baja")}
       {@render stat(
         "Sobre el control",
-        profile.fit.timesControl == null ? "—" : `${profile.fit.timesControlKind === "at-least" ? "≥ " : ""}${profile.fit.timesControl.toFixed(1)}×`,
+        profile.fit.timesControl == null ? "—" : `${profile.fit.timesControlKind === "at-least" ? "≥ " : ""}${num(profile.fit.timesControl, 1)}×`,
       )}
       {@render stat("Líneas altas", profile.fit.elevatedCount == null ? "—" : String(profile.fit.elevatedCount))}
       {@render stat(
@@ -172,7 +173,7 @@
         <li class="flex flex-col gap-1">
           <div class="flex items-baseline justify-between gap-3 text-sm">
             <span class="text-fg">{axis.label ?? axis.hue}</span>
-            <span class="text-muted">{axis.thresholdKind === "upper-bound" ? "fino" : axis.closed ? "bajo" : "medido"}{axis.threshold != null ? ` · ${axis.threshold.toFixed(3)}` : ""}{axis.thresholdKind === "upper-bound" ? " o menos" : ""}</span>
+            <span class="text-muted">{axis.thresholdKind === "upper-bound" ? "fino" : axis.closed ? "bajo" : "medido"}{axis.threshold != null ? ` · ${num(axis.threshold, 3)}` : ""}{axis.thresholdKind === "upper-bound" ? " o menos" : ""}</span>
           </div>
           <div class="h-2 overflow-hidden rounded-full bg-surface">
             <div class="h-full bg-fg" style:width={`${width}%`}></div>
