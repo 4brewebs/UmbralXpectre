@@ -100,7 +100,7 @@
       <li class="flex flex-col gap-2" data-axis={group.id}>
         <div class="flex items-baseline justify-between gap-3">
           <span class="text-fg">{group.name}</span>
-          <span class="text-sm text-muted">{group.ratio != null ? `${num(group.ratio, 1)}×` : "sin medir"}</span>
+          <span class="text-sm text-muted">{group.ratio != null ? `${num(group.ratio, 1)}×${group.unvalidated ? " (sin validar)" : ""}` : "sin medir"}</span>
         </div>
         <div class="relative h-2 rounded-full bg-surface">
           <div class="h-full rounded-full bg-fg" style:width={`${width}%`}></div>

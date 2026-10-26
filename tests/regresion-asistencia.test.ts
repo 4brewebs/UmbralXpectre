@@ -80,3 +80,13 @@ test("regresión Asistencia (72c787e): giro de tono CIELAB ≤ 45° en todos los
 
 /** true mientras el punto 3 no llegue a ΔE00 medio ≥ 5 (Lucas: PENDIENTE sin assert hasta entonces). */
 const PENDING_LOSS_MEAN = true;
+
+test("punto 5: etiqueta azul–amarillo con los ejes medidos; sin validar se marca", async () => {
+  const { classify } = await import("../src/lib/color/classify");
+  const by = classify(base, edges).groups.find((g) => g.id === "blue-yellow")!;
+  // s 0,0054 / control validado 0,0035 → 1,5×, no validado.
+  assert.ok(by.ratio != null && Math.abs(by.ratio - 0.0054 / 0.0035) < 1e-9, String(by.ratio));
+  assert.equal(by.unvalidated, true);
+  const rg = classify(base, edges).groups.find((g) => g.id === "red-green")!;
+  assert.equal(rg.unvalidated, false);
+});

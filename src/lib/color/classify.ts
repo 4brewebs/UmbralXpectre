@@ -12,7 +12,8 @@ import type { EdgeFile } from "./edges";
 import type { UmbralProfile } from "./profile";
 
 export type AxisGroupId = "red-green" | "blue-yellow";
-export type AxisGroup = { id: AxisGroupId; name: string; worst: number | null; ratio: number | null; elevated: boolean; members: string[] };
+/** `unvalidated`: en un perfil con validación 3AFC, el peor eje del grupo no se validó (cifra «sin validar»). */
+export type AxisGroup = { id: AxisGroupId; name: string; worst: number | null; ratio: number | null; elevated: boolean; members: string[]; unvalidated: boolean };
 export type Compatible = "none" | "protan" | "deutan" | "tritan" | "red-green-undetermined" | "mixed";
 export type Classification = {
   groups: AxisGroup[];
@@ -100,7 +101,10 @@ export function classify(profile: UmbralProfile, edges: EdgeFile[] = []): Classi
     const worstEst = estimates.length ? Math.max(...estimates.map((a) => a.threshold as number)) : null;
     const ratio = worst != null && floor ? worst / floor : null;
     const elevated = worstEst != null && floor != null && worstEst > floor * CLASSIFY.gate;
-    return { id: g.id, name: g.name, worst, ratio, elevated, members: members.map((a) => a.id ?? a.role ?? "?") };
+    const hasValidation = profile.axes.some((a) => a.thresholdSource === "validation-3afc");
+    const worstAxis = worst == null ? null : members.find((a) => a.threshold === worst);
+    const unvalidated = hasValidation && worstAxis != null && worstAxis.thresholdSource !== "validation-3afc";
+    return { id: g.id, name: g.name, worst, ratio, elevated, members: members.map((a) => a.id ?? a.role ?? "?"), unvalidated };
   });
   const rg = groups[0].elevated;
   const by = groups[1].elevated;
@@ -130,7 +134,7 @@ export function classify(profile: UmbralProfile, edges: EdgeFile[] = []): Classi
     }
   }
   const compatible: Compatible = rg && by ? "mixed" : by ? "tritan" : rg ? (rgType ?? "red-green-undetermined") : "none";
-  const fmt = (g: AxisGroup) => `${g.name.toLowerCase()} (${g.ratio != null ? g.ratio.toFixed(1).replace(".", ",") : "?"}× el control)`;
+  const fmt = (g: AxisGroup) => `${g.name.toLowerCase()} (${g.ratio != null ? g.ratio.toFixed(1).replace(".", ",") : "?"}× el control${g.unvalidated ? ", sin validar" : ""})`;
   const rgLabel = rgType === "protan" ? "compatible con tipo protán" : rgType === "deutan" ? "compatible con tipo deután" : "tipo sin determinar";
   const text =
     compatible === "none"
