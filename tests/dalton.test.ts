@@ -5,7 +5,7 @@ import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/l
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift } from "../src/lib/color/spectrum";
+import { correctColor, labHueShift, MASK_EDGE } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -102,8 +102,9 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     }
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
-    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= (30 * Math.PI) / 180) {
+    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
+      assert.deepEqual(correctColor(c, profile.axes, floor), c);
       assert.deepEqual(extremeColor(c, profile.axes, floor), c);
     }
   }

@@ -195,9 +195,12 @@ const GATE = 1.6;
 const BAND_HALF = (10 * Math.PI) / 180;
 /** Tope duro de giro de tono de la asistencia del perfil (60° en Extremo). */
 const ROT_CAP = (45 * Math.PI) / 180;
+/** Tope de giro del mapa intermedio en la línea de confusión (se estrecha con la máscara). */
+const MAP_CAP = (30 * Math.PI) / 180;
 const ROT_CAP_EXTREME = (60 * Math.PI) / 180;
 /** Máscara de la daltonización: distancia (plano) a la línea de confusión a la que el cambio ya es exactamente 0. */
-const DALTON_MASK_HALF = (30 * Math.PI) / 180;
+const MASK_CORE = (8 * Math.PI) / 180;
+export const MASK_EDGE = (35 * Math.PI) / 180;
 /** Inyección en S acotada: como mucho esta fracción del croma del píxel (Extremo, la segunda). */
 const S_BOUND = 0.6;
 const S_BOUND_EXTREME = 1;
@@ -417,22 +420,30 @@ export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
-  if (norm(plane) < 1e-4) return rgb;
+  const radius = norm(plane);
+  if (radius < 1e-4) return rgb;
   const model = filterModel(axes, floor);
-  if (model.blue == null) return rgb;
-  const hit = activeBand(thetaOf(plane), model);
-  if (!hit) return rgb;
-  const { u, p, n } = splitPlane(plane, hit.band.mid);
-  const seen = Math.min(1, floor / hit.band.T);
-  const pKeep = p * (1 - hit.w * (1 - seen));
-  const unseen = (p - pKeep) * (hit.band.T / floor);
+  if (model.blue == null || !model.confusion) return rgb;
+  // Misma máscara suave que la asistencia, sobre la línea de confusión (antes: banda dura de ±10° por eje,
+  // con saltos entre bandas y recorte del plano hacia el blanco).
+  const band = model.confusion;
+  // Mapa intermedio: coseno elevado desde la propia línea (sin núcleo plano) y tope de giro que también se
+  // estrecha con la máscara; así no hay bloques (cian blanquecino ~170°, violeta ~320°).
+  const mask = bandMask(thetaOf(plane), band.mid, 0, MASK_EDGE);
+  if (mask <= 0) return rgb;
+  const { u, p } = splitPlane(plane, band.mid);
+  const seen = Math.min(1, floor / band.T);
+  const drop = p * (1 - seen);
+  const unseen = Math.min(Math.abs(drop) * (band.T / floor), S_BOUND * radius);
   const blue = dirFromTheta(model.blue);
-  const plane2: Vec3 = [
-    n[0] + u[0] * pKeep + blue[0] * Math.abs(unseen),
-    n[1] + u[1] * pKeep + blue[1] * Math.abs(unseen),
-    n[2] + u[2] * pKeep + blue[2] * Math.abs(unseen),
-  ];
-  return limitLabHue(rgb, planeColor(y, plane2), ROT_CAP * redGuard(rgb));
+  // Con signo, como la asistencia: la carta rojiza va hacia S+ y la verdosa hacia S−.
+  const sgn = drop >= 0 ? 1 : -1;
+  const disp: Vec3 = [-u[0] * drop + blue[0] * unseen * sgn, -u[1] * drop + blue[1] * unseen * sgn, -u[2] * drop + blue[2] * unseen * sgn];
+  // Conserva el croma del píxel: es un giro hacia azul, no un paso hacia el gris (antes: bloque blanquecino).
+  const raw: Vec3 = [plane[0] + disp[0], plane[1] + disp[1], plane[2] + disp[2]];
+  const k = radius / (norm(raw) || 1);
+  const full = capPlaneTurn(y, plane, [raw[0] * k, raw[1] * k, raw[2] * k], MAP_CAP * mask);
+  return limitLabHue(rgb, mixRgb(rgb, full, mask), MAP_CAP * redGuard(rgb));
 }
 
 /**
@@ -472,12 +483,51 @@ function limitLabHue(rgb: Vec3, out: Vec3, cap: number): Vec3 {
   return lo <= 0 ? rgb : mix(lo);
 }
 
-/** Peso de la máscara: 1 en la línea de confusión, 0 exacto a DALTON_MASK_HALF o más. */
-function daltonMask(theta: number, mid: number): number {
+/**
+ * Máscara suave por distancia (plano) a la línea de confusión (Colorado, 8.ª ronda): 1 hasta 8°, borde coseno
+ * elevado (C¹, sin saltos) hasta 35° y 0 exacto a partir de ahí.
+ */
+export function bandMask(theta: number, mid: number, core = MASK_CORE, edge = MASK_EDGE): number {
   const d = lineGap(theta, mid);
-  if (d >= DALTON_MASK_HALF) return 0;
-  const c = Math.cos((Math.PI * 0.5 * d) / DALTON_MASK_HALF);
-  return c * c;
+  if (d <= core) return 1;
+  if (d >= edge) return 0;
+  return 0.5 * (1 + Math.cos((Math.PI * (d - core)) / (edge - core)));
+}
+
+/**
+ * Lleva el plano hacia el destino a la misma Y: el desplazamiento se acorta lo justo para quedar dentro del cubo
+ * y con giro (plano) ≤ cap. El acortamiento es proporcional al hueco al gamut: continuo, sin blanquear.
+ */
+function capPlaneTurn(y: number, plane: Vec3, target: Vec3, cap: number): Vec3 {
+  // Desplazamiento acortado (no croma encogido): dentro del cubo y con giro ≤ cap. Sin blanquear.
+  const disp: Vec3 = [target[0] - plane[0], target[1] - plane[1], target[2] - plane[2]];
+  const t = reachT(y, plane, disp, cap);
+  return [y + plane[0] + disp[0] * t, y + plane[1] + disp[1] * t, y + plane[2] + disp[2] * t];
+}
+
+/** Mayor t ∈ [0, 1] con y + plane + disp·t dentro del cubo y giro (plano) ≤ cap. Proporcional al hueco al gamut. */
+function reachT(y: number, plane: Vec3, disp: Vec3, cap: number): number {
+  const radius = norm(plane);
+  const ok = (t: number): boolean => {
+    const q: Vec3 = [plane[0] + disp[0] * t, plane[1] + disp[1] * t, plane[2] + disp[2] * t];
+    const c = dot(q, plane) / (norm(q) * radius || 1);
+    if (Math.acos(Math.max(-1, Math.min(1, c))) > cap + 1e-9) return false;
+    return q.every((v) => y + v >= -1e-9 && y + v <= 1 + 1e-9);
+  };
+  if (ok(1)) return 1;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (ok(mid)) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+
+function mixRgb(a: Vec3, b: Vec3, w: number): Vec3 {
+  return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w];
 }
 
 /** Cerca del tono de #FF0000 el tope de giro baja a 0: el rojo puro conserva su tono. */
@@ -497,11 +547,11 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const mask = daltonMask(thetaOf(plane), band.mid);
+  const mask = bandMask(thetaOf(plane), band.mid);
   if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
-  const lost = p * (1 - seen) * mask;
+  const lost = p * (1 - seen);
   if (Math.abs(lost) < 1e-6) return rgb;
   const s = dirFromTheta(model.sDir);
   const gain = extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN;
@@ -509,27 +559,11 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const inj = Math.max(-bound, Math.min(bound, lost * gain));
   const d: Vec3 = [s[0] * inj, s[1] * inj, s[2] * inj];
   const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
-  const at = (t: number): Vec3 => [plane[0] + d[0] * t, plane[1] + d[1] * t, plane[2] + d[2] * t];
-  const ok = (t: number): boolean => {
-    const q = at(t);
-    const c = dot(q, plane) / (norm(q) * radius || 1);
-    if (Math.acos(Math.max(-1, Math.min(1, c))) > cap) return false;
-    return q.every((v) => y + v >= -1e-9 && y + v <= 1 + 1e-9);
-  };
-  let t = 1;
-  if (!ok(1)) {
-    let lo = 0;
-    let hi = 1;
-    for (let i = 0; i < 30; i++) {
-      const mid = (lo + hi) / 2;
-      if (ok(mid)) lo = mid;
-      else hi = mid;
-    }
-    t = lo;
-  }
-  if (t <= 0) return rgb;
-  const q = at(t);
-  return limitLabHue(rgb, [y + q[0], y + q[1], y + q[2]], cap * redGuard(rgb));
+  // Continuo en la entrada: si se sale del cubo se encoge el croma hacia la misma Y (sin recorte de canal);
+  // el giro lo acotan el tope de plano y el de CIELAB después.
+  const full = capPlaneTurn(y, plane, [plane[0] + d[0], plane[1] + d[1], plane[2] + d[2]], cap);
+  // La máscara mezcla el resultado completo con el original: el cambio va a 0 sin saltos.
+  return limitLabHue(rgb, mixRgb(rgb, full, mask), cap * redGuard(rgb));
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
@@ -572,7 +606,7 @@ export function sideOpen(side: EdgeFile["minus"]): boolean {
 export function edgeNotches(files: EdgeFile[]): Notch[] {
   const notches: Notch[] = [];
   for (const file of files) {
-    if (file.band === "none") continue;
+    if (file.band === "none" || file.band === "unmeasurable") continue;
     const minusEnd = file.minus.toEnd === true;
     const plusEnd = file.plus.toEnd === true;
     if (!minusEnd && !plusEnd && (file.band !== "closed" || !file.minus.found || !file.plus.found)) continue;
