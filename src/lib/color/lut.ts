@@ -60,21 +60,15 @@ export function buildFilterLuts(
   source: FilterSource = "profile",
   files: EdgeFile[] = [],
 ): Record<FilterKind, Uint8Array> {
-  if (source === "profile") {
-    return {
-      assist: buildFilterLut(profile, "assist"),
-      simulate: buildFilterLut(profile, "simulate"),
-      extreme: buildFilterLut(profile, "extreme"),
-    };
-  }
+  // La cámara sigue la fuente elegida: Perfil nunca ve los bordes.
   const kinds: FilterKind[] = ["assist", "simulate", "extreme"];
   const out = {} as Record<FilterKind, Uint8Array>;
-  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, "edges", files));
+  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, source, source === "edges" ? files : []));
   return out;
 }
 
 export type TransformFilter = {
-  id: "original" | "simulate" | "assist" | "extreme";
+  id: "original" | "simulate" | "assist-profile" | "extreme-profile" | "assist-edges" | "extreme-edges";
   name: string;
   /** `identity` leaves every color. `srgb8-base64` is the baked map. */
   encoding: "identity" | "srgb8-base64";
@@ -108,6 +102,7 @@ export type TransformFile = {
   params?: {
     mask: "región medida";
     region: Sector[];
+    regionProfile: Sector[];
     provisional: boolean;
     regionSoft: { edgeDeg: number; edgeDegExtreme: number; scaleTimes: number; provisionalGain: number };
     gamutSoft: number;
@@ -128,7 +123,10 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const luma = lumaFromProfile(profile);
   const axes = profile.axes;
+  // Dos pares separados: Perfil (solo el perfil) y Bordes (con los bordes; sin bordes utilizables = Perfil).
+  const regionProfile = measuredRegion(axes, floor, []);
   const region = measuredRegion(axes, floor, edges);
+  const textsProfile = filterTexts(axes, floor, regionProfile);
   const texts = filterTexts(axes, floor, region);
   const specs: Array<{
     id: TransformFilter["id"];
@@ -137,6 +135,7 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     apply: ((rgb: Vec3) => Vec3) | null;
     /** Extremo (true) o Asistencia (false): se hornea con adaptiveColor y se resume en `adaptive`. */
     adaptive?: boolean;
+    region?: Sector[];
   }> = [
     {
       id: "original",
@@ -151,18 +150,36 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       apply: (rgb) => paintYours(rgb, axes, floor, luma),
     },
     {
-      id: "assist",
-      name: "Asistencia",
+      id: "assist-profile",
+      name: "Asistencia (Perfil)",
+      note: textsProfile.assist,
+      apply: (rgb) => assistColor(rgb, axes, floor, luma, regionProfile),
+      adaptive: false,
+      region: regionProfile,
+    },
+    {
+      id: "extreme-profile",
+      name: "Extremo (Perfil)",
+      note: textsProfile.extreme,
+      apply: (rgb) => extremeColor(rgb, axes, floor, luma, regionProfile),
+      adaptive: true,
+      region: regionProfile,
+    },
+    {
+      id: "assist-edges",
+      name: "Asistencia (Bordes)",
       note: texts.assist,
       apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
       adaptive: false,
+      region,
     },
     {
-      id: "extreme",
-      name: "Extremo",
+      id: "extreme-edges",
+      name: "Extremo (Bordes)",
       note: texts.extreme,
       apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
       adaptive: true,
+      region,
     },
   ];
   return {
@@ -176,7 +193,9 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     gate: GATE,
     params: {
       mask: "región medida",
+      /** Región de los filtros *-edges; los *-profile usan regionProfile. */
       region,
+      regionProfile,
       provisional: region.some((sector) => sector.provisional),
       regionSoft: { edgeDeg: REGION.edgeSoftDeg, edgeDegExtreme: REGION.edgeSoftDegExtreme, scaleTimes: 1 + REGION.scaleSoft, provisionalGain: REGION.provisionalGain },
       gamutSoft: GAMUT_SOFT,
@@ -194,12 +213,13 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     filters: specs.map((spec) => {
       if (spec.adaptive == null) return bakeFilter(spec, floor);
       const extreme = spec.adaptive;
+      const specRegion = spec.region ?? region;
       const stats = { active: 0, sum: 0, max: 0, limited: 0 };
       const baked = bakeFilter(
         {
           ...spec,
           apply: (rgb) => {
-            const res = adaptiveColor(rgb, axes, floor, extreme, region);
+            const res = adaptiveColor(rgb, axes, floor, extreme, specRegion);
             if (res.active) {
               stats.active++;
               stats.sum += res.k;

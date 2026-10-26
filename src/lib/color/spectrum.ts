@@ -489,6 +489,8 @@ export function smoothstep(a: number, b: number, x: number): number {
 
 /** Anchura de la atenuación en la pared del gamut (margen del canal que se mueve). */
 export const GAMUT_SOFT = 0.3;
+/** La pared blanda nunca es más ancha que GAMUT_SOFT_MOVE veces el desplazamiento del canal. */
+export const GAMUT_SOFT_MOVE = 3;
 /**
  * Atenuación C1 en la pared del gamut (Colorado, 4.ª ronda): producto por canal de smoothstep(0, GAMUT_SOFT, margen),
  * y cada factor entra según cuánto se mueve ese canal (smoothstep de |d_i|/máx|d|), sin min() ni tramos lineales.
@@ -502,7 +504,10 @@ function gamutAtten(a: Vec3, b: Vec3): number {
     const up = smoothstep(-0.25, 0.25, d[i] / dm); // 1 si sube, 0 si baja; C1 al cruzar 0
     const room = up * (1 - a[i]) + (1 - up) * a[i];
     const moving = smoothstep(0, 0.25, Math.abs(d[i]) / dm);
-    w *= 1 - moving * (1 - smoothstep(0, GAMUT_SOFT, room));
+    // Pared blanda proporcional a lo que se mueve el canal (≤ GAMUT_SOFT): un canal a 0,2 que baja 0,014 no está
+    // cerca de la pared; antes se atenuaba igual que uno a punto de recortar (Lucas, 26/10).
+    const soft = Math.min(GAMUT_SOFT, GAMUT_SOFT_MOVE * Math.abs(d[i]));
+    w *= 1 - moving * (1 - smoothstep(0, soft, room));
   }
   return w;
 }
@@ -746,7 +751,7 @@ function lostFraction(T: number, floor: number): number {
 type DaltonCore = { out: Vec3; line: number | null; p: number; w: number };
 
 /** Daltonización con la ganancia multiplicada por k (k = 1: la calibrada). Los topes (giro, croma, esquinas, gamut) actúan igual. */
-function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region: Sector[] | undefined, k: number): DaltonCore {
+function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region: Sector[] | undefined, k: number, kr: number = k): DaltonCore {
   const none = { out: rgb, line: null, p: 0, w: 0 };
   if (!(floor > 0)) return none;
   const y = luminance(rgb);
@@ -759,19 +764,17 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
   const soft = extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg;
   let sumW = 0;
   let maxW = 0;
-  let line: number | null = null;
-  let lineP = 0;
-  let lineW = 0;
+  // Línea de confusión: mezcla suave de las líneas por su peso de máscara (media en ángulo doble, porque una línea
+  // no tiene sentido), no la de más peso: quedarse con una saltaba al cruzar el solape de dos sectores (bug, 26/10).
+  let cx = 0;
+  let cy = 0;
   const d: Vec3 = [0, 0, 0];
   for (const c of list) {
     const { w, gain: sideGain } = regionInfo(theta, radius, [c.sector], soft);
     if (w <= 0) continue;
     const p = dot(plane, dirFromTheta(c.line));
-    if (w > lineW) {
-      lineW = w;
-      line = c.line;
-      lineP = p;
-    }
+    cx += w * Math.cos(2 * c.line);
+    cy += w * Math.sin(2 * c.line);
     const lost = p * lostFraction(c.T, floor);
     const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain * k;
     const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain * k;
@@ -779,7 +782,7 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
     const inj = Math.max(-bound * (1 + boost), Math.min(bound * (1 + boost), lost * gain * (1 + boost)));
     const t = dirFromTheta(c.target);
     // Además del giro, sube el croma (≤ 2,5×) en proporción a lo perdido: con T/floor bajo el giro solo no basta.
-    const radial = k * boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
+    const radial = kr * boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
     d[0] += w * (t[0] * inj + plane[0] * radial);
     d[1] += w * (t[1] * inj + plane[1] * radial);
     d[2] += w * (t[2] * inj + plane[2] * radial);
@@ -787,6 +790,8 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
     maxW = Math.max(maxW, w);
   }
   if (maxW <= 0) return none;
+  const line = Math.atan2(cy, cx) / 2;
+  const lineP = dot(plane, dirFromTheta(line));
   d[0] /= sumW;
   d[1] /= sumW;
   d[2] /= sumW;
@@ -812,7 +817,7 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
  * con kMax 4, 8, 20 o 100 la proporción no cambia. Frenan el giro (45°/60°) y el croma (≤ 2,5×): el destino blue-end
  * está a ~95° de m y la diferencia sigue en tonos de T alto. Se deja así (Colorado, 26/10) y el JSON lo marca.
  */
-export const ADAPTIVE = { target: 1.5, targetExtreme: 2, kMax: 4, kMaxExtreme: 4, nearFrac: 0.5, iters: 14 };
+export const ADAPTIVE = { target: 1.5, targetExtreme: 2, kMax: 4, kMaxExtreme: 4, krMax: 12, chromaDeficit: 0.3, chromaStep: false, mateFade: 0.03, nearFrac: 0.5, iters: 14 };
 
 export type AdaptiveResult = { out: Vec3; k: number; limited: boolean; active: boolean };
 
@@ -821,30 +826,52 @@ export function adaptiveColor(rgb: Vec3, axes: AxisMark[], floor: number, extrem
   if (base.line == null || base.w <= 0) return { out: base.out, k: 0, limited: false, active: false };
   const u = dirFromTheta(base.line);
   const mate: Vec3 = [rgb[0] - 2 * base.p * u[0], rgb[1] - 2 * base.p * u[1], rgb[2] - 2 * base.p * u[2]];
-  const points = confusionPoints(axes, floor, region ?? []).points;
-  const tLine = Math.max(confusionT(points, floor, (base.line * 180) / Math.PI), confusionT(points, floor, (base.line * 180) / Math.PI + 180));
+  // T solo de los ejes del perfil (log): los bordes marcan la franja, nunca entran en T (Colorado, 26/10).
+  const points = confusionPoints(axes, floor, []).points;
+  const tLine = lineT(points, floor, (base.line * 180) / Math.PI);
   const target = extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target;
   // Rampa smoothstep de 0 a nearFrac·T cerca del gris (Colorado, 26/10).
   const need = target * smoothstep(0, ADAPTIVE.nearFrac * tLine, Math.abs(base.p));
-  const inGamut = mate.every((v) => v >= 0 && v <= 1);
-  if (!inGamut || need <= 1e-6) return { out: base.out, k: 1, limited: false, active: true };
-  const metricAt = (k: number): { m: number; out: Vec3 } => {
-    const a = daltonizeK(rgb, axes, floor, extreme, region, k).out;
-    const b = daltonizeK(mate, axes, floor, extreme, region, k).out;
-    return { m: pairMetricPoints(a, b, points, floor), out: a };
+  // Pareja reflejada en el borde del gamut: fundido, no corte (26/10). fade = smoothstep(0, mateFade, margen de la
+  // pareja); la ganancia va de la calibrada (k = 1) a la adaptativa con fade.
+  const margin = Math.min(...mate.map((v) => Math.min(v, 1 - v)));
+  const fade = smoothstep(0, ADAPTIVE.mateFade, margin);
+  if (fade <= 0 || need <= 1e-6) return { out: base.out, k: 1, limited: false, active: true };
+  const metricAt = (k: number, kr: number = k): { m: number } => {
+    const a = daltonizeK(rgb, axes, floor, extreme, region, k, kr).out;
+    const b = daltonizeK(mate, axes, floor, extreme, region, k, kr).out;
+    return { m: pairMetricPoints(a, b, points, floor, [rgb, mate]) };
   };
   const kMax = extreme ? ADAPTIVE.kMaxExtreme : ADAPTIVE.kMax;
+  let kRot: number;
+  let kr: number;
+  let limited = false;
   const top = metricAt(kMax);
-  if (top.m < need) return { out: top.out, k: kMax, limited: true, active: true };
-  if (metricAt(0).m >= need) return { out: rgb, k: 0, limited: false, active: true };
-  let lo = 0;
-  let hi = kMax;
-  for (let i = 0; i < ADAPTIVE.iters; i++) {
-    const mid = (lo + hi) / 2;
-    if (metricAt(mid).m >= need) hi = mid;
-    else lo = mid;
+  if (top.m < need) {
+    // Segundo paso continuo (Lucas, 26/10): s ∈ [0, 1] pasa sin saltos del giro completo (k = kMax) a solo croma
+    // (giro 0, kr = krMax, dentro del tope 2,5×). s sale del déficit del primer paso, no de buscar en s (la métrica no
+    // es monótona en s y elegir «el primero que llega» salta entre ramas): s = smoothstep(0, chromaDeficit, déficit).
+    const sv = ADAPTIVE.chromaStep ? smoothstep(0, ADAPTIVE.chromaDeficit, (need - top.m) / need) : 0;
+    kRot = kMax * (1 - sv);
+    kr = kMax + (ADAPTIVE.krMax - kMax) * sv;
+    limited = metricAt(kRot, kr).m < need;
+  } else if (metricAt(0).m >= need) {
+    kRot = 0;
+    kr = 0;
+  } else {
+    let lo = 0;
+    let hi = kMax;
+    for (let i = 0; i < ADAPTIVE.iters; i++) {
+      const mid = (lo + hi) / 2;
+      if (metricAt(mid).m >= need) hi = mid;
+      else lo = mid;
+    }
+    kRot = hi;
+    kr = hi;
   }
-  return { out: daltonizeK(rgb, axes, floor, extreme, region, hi).out, k: hi, limited: false, active: true };
+  const kf = 1 + fade * (kRot - 1);
+  const krf = 1 + fade * (kr - 1);
+  return { out: daltonizeK(rgb, axes, floor, extreme, region, kf, krf).out, k: kf, limited: limited && fade >= 1, active: true };
 }
 
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean, region?: Sector[]): Vec3 {
@@ -896,21 +923,38 @@ export function confusionT(points: Array<{ deg: number; ratio: number }>, floor:
   return floor * Math.exp(Math.log(lo.ratio) * (1 - t) + Math.log(hi.ratio) * t);
 }
 
-function pairMetricPoints(a: Vec3, b: Vec3, points: Array<{ deg: number; ratio: number }>, floor: number): number {
+/**
+ * T de una línea (dos sentidos): el mayor de T(θ) y T(θ+180°) (conservador). La asimetría se mantiene hasta que
+ * C1 (pares que no son isoluminantes para Lucas) diga otra cosa: ver TODO.md.
+ */
+function lineT(points: Array<{ deg: number; ratio: number }>, floor: number, deg: number): number {
+  return Math.max(confusionT(points, floor, deg), confusionT(points, floor, deg + 180));
+}
+
+function planeDiff(a: Vec3, b: Vec3): Vec3 {
   const pa = killPlane(a, luminance(a));
   const pb = killPlane(b, luminance(b));
-  const diff: Vec3 = [pa[0] - pb[0], pa[1] - pb[1], pa[2] - pb[2]];
-  const len = norm(diff);
+  return [pa[0] - pb[0], pa[1] - pb[1], pa[2] - pb[2]];
+}
+
+/** |diferencia filtrada| / (2 · T), con T en el ángulo de la diferencia ANTES del filtro (`before`; sin él, la propia pareja). */
+function pairMetricPoints(a: Vec3, b: Vec3, points: Array<{ deg: number; ratio: number }>, floor: number, before?: [Vec3, Vec3]): number {
+  const len = norm(planeDiff(a, b));
   if (len < 1e-12) return 0;
-  const deg = (thetaOf(diff) * 180) / Math.PI;
-  // La diferencia es una recta: se toma el umbral mayor de sus dos sentidos (conservador).
-  const T = Math.max(confusionT(points, floor, deg), confusionT(points, floor, deg + 180));
+  const ref = before ? planeDiff(before[0], before[1]) : planeDiff(a, b);
+  if (norm(ref) < 1e-12) return 0;
+  // Girar la diferencia hacia tonos de T bajo no cuenta como separación: T se fija antes del filtro.
+  const deg = (thetaOf(ref) * 180) / Math.PI;
+  const T = lineT(points, floor, deg);
   return len / (2 * T);
 }
 
-/** Métrica de discriminación: |diferencia en el plano isoluminante| / (2 · T(ángulo de la diferencia)). Sin proyectar sobre m. */
-export function pairMetric(a: Vec3, b: Vec3, axes: AxisMark[], floor: number, region: Sector[] = []): number {
-  return pairMetricPoints(a, b, confusionPoints(axes, floor, region).points, floor);
+/**
+ * Métrica de discriminación: |diferencia filtrada en el plano isoluminante| / (2 · T), con T del perfil (solo ejes,
+ * log) en el ángulo de la diferencia antes del filtro (`before`; si falta, la pareja ya es la original). Sin proyectar sobre m.
+ */
+export function pairMetric(a: Vec3, b: Vec3, axes: AxisMark[], floor: number, before?: [Vec3, Vec3]): number {
+  return pairMetricPoints(a, b, confusionPoints(axes, floor, []).points, floor, before);
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {
@@ -1106,8 +1150,8 @@ export function colorFor(
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const luma = lumaFromProfile(profile);
   if (kind === "simulate") return paintYours(rgb, profile.axes, floor, luma);
-  // Perfil y Bordes usan la misma región medida (reglas por lado): siempre hay filtro.
-  const region = measuredRegion(profile.axes, floor, files);
+  // Modos separados (Colorado, 26/10): Perfil solo del perfil; Bordes con los bordes (sin bordes utilizables = Perfil).
+  const region = measuredRegion(profile.axes, floor, source === "edges" ? files : []);
   if (kind === "extreme") return extremeColor(rgb, profile.axes, floor, luma, region);
   return assistColor(rgb, profile.axes, floor, luma, region);
 }

@@ -79,8 +79,8 @@ test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (
 test("perfil de Lucas 21:40Z: Asistencia y Extremo cambian nodos (solo en la región medida)", () => {
   const t = buildTransformFile(profile);
   const changed = (id: string) => t.filters.find((f) => f.id === id)!.changed;
-  assert.ok(changed("assist") > 0, `${changed("assist")}`);
-  assert.ok(changed("extreme") > 0, `${changed("extreme")}`);
+  assert.ok(changed("assist-profile") > 0, `${changed("assist-profile")}`);
+  assert.ok(changed("extreme-profile") > 0, `${changed("extreme-profile")}`);
 });
 
 test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (objetivo 30 %)", () => {
@@ -92,7 +92,7 @@ test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤
   const t = buildTransformFile(profile);
   const changed = (id: string) => t.filters.find((x) => x.id === id)!.changed;
   assert.equal(t.nodes, 35937);
-  assert.ok(changed("assist") <= 0.32 * 35937, `${changed("assist")}`);
+  assert.ok(changed("assist-profile") <= 0.32 * 35937, `${changed("assist-profile")}`);
 });
 
 test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de la máscara el cambio es exactamente 0", () => {

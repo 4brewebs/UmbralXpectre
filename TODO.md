@@ -16,6 +16,10 @@ cada push a `main` despliega en Pages.
 
 - [ ] **Barra de Asistencia idéntica al original.** El barrido es a saturación plena y la región medida es de croma baja, así que la barra no cambia y parece que la asistencia no hace nada. Próxima ronda: pintar las barras a un croma dentro de la escala medida, o añadir una segunda fila de croma baja.
 
+- [ ] **T de una línea en la métrica (26/10):** la métrica de discriminación y la exigencia adaptativa usan el mayor de T(θ) y T(θ+180°) (`lineT` en `spectrum.ts`). La asimetría se mantiene hasta que C1 (pares que no son isoluminantes para Lucas) diga otra cosa.
+- [x] **Adaptativa, plan B (26/10):** pared de gamut proporcional al movimiento del canal (`GAMUT_SOFT_MOVE` 3), línea de confusión mezclada por pesos (antes la de más peso: bug), pareja reflejada con fundido en el borde del gamut (`mateFade` 0,03). El paso de croma continuo existe (`ADAPTIVE.chromaStep`) pero está apagado: subía el escalón a 2,1–2,5 ΔE00/°. Escalón con bordes 13:33/13:36: Perfil 1,16 / 1,08, Bordes 1,33 / 1,48 (asistencia / extremo); el ≤ 1 en asistencia no se alcanza. Lámina l: 1,42 (Perfil) / 1,32 (Bordes), «limitado por tope», figura ≥ 3 ΔE00.
+- [x] **Lámina m en modo Bordes ≈ 0,85 en Asistencia (aceptado, 26/10):** consecuencia de «tocar solo lo medido»: con los bordes 13:33/13:36 el fondo cae fuera de la región medida y casi no se mueve (0,8 ΔE00). Perfil da 1,21. Tests: «lámina m en Bordes» y C (cada par llega o queda «limitado por tope»).
+
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
 - [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).
