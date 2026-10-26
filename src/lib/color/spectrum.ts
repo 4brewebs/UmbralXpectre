@@ -211,7 +211,6 @@ const DALTON_GAIN = 2;
 const DALTON_GAIN_EXTREME = 4;
 const ASSIST_TURN = 0.7;
 const EXTREME_GAIN = 5.5;
-const ALIAS_LEAK = 1;
 const ASSIST_LUMA = 0.35;
 
 type Family = "l" | "m" | "s";
@@ -391,16 +390,9 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
   // Misma T(θ) que el mapa y el filtro, en el tono del color (punto 2, 26/10).
   const seen = Math.min(1, floor / confusionT(simPoints(axes, floor), floor, (thetaOf(plane) * 180) / Math.PI));
   const pSim = p * (1 - hit.w * (1 - seen));
-  const lost = p - pSim;
-  // Solo la carta medida (el rayo del eje que falla) vierte hacia la vía que lo recoge; igual para l, m y s.
-  const spill = Math.max(lost, 0);
-  const alias = model.catcher == null ? null : dirFromTheta(model.catcher);
-  const leak = alias == null ? 0 : spill * ALIAS_LEAK;
-  const plane2: Vec3 = [
-    n[0] + u[0] * pSim + (alias ? alias[0] * leak : 0),
-    n[1] + u[1] * pSim + (alias ? alias[1] * leak : 0),
-    n[2] + u[2] * pSim + (alias ? alias[2] * leak : 0),
-  ];
+  // Punto 4 (26/10): solo encoge la componente en la línea de confusión (factor suelo/T(θ)); sin derrame hacia la
+  // vía que la recogía (llevaba rojos y magentas al verde).
+  const plane2: Vec3 = [n[0] + u[0] * pSim, n[1] + u[1] * pSim, n[2] + u[2] * pSim];
   const y2 = y / (1 + (lumaGainAt(thetaOf(plane), luma) - 1) * hit.w);
   return planeColor(y2, plane2);
 }
@@ -1089,17 +1081,6 @@ function notchSample(rawTheta: number, notch: Notch): { w: number; T: number } {
   return { w: 1, T: notch.tInner };
 }
 
-/** Keep everything past the measured threshold. Only the slice below it is reduced. */
-function knee(p: number, T: number, floor: number, w: number): { keep: number; lost: number } {
-  const sign = p >= 0 ? 1 : -1;
-  const mag = Math.abs(p);
-  const slice = Math.min(mag, Math.max(T, floor));
-  const excess = mag - slice;
-  const seen = Math.min(1, floor / Math.max(T, 1e-6));
-  const keptSlice = slice * (1 - w * (1 - seen));
-  return { keep: sign * (keptSlice + excess), lost: sign * (slice - keptSlice) };
-}
-
 function edgePaint(rgb: Vec3, profile: UmbralProfile, files: EdgeFile[], kind: PaintedKind): Vec3 {
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const notches = edgeNotches(files);
@@ -1149,23 +1130,10 @@ function edgePaint(rgb: Vec3, profile: UmbralProfile, files: EdgeFile[], kind: P
   }
   const mid = (best.notch.loIn + best.notch.hiIn) / 2;
   const { u, p, n } = splitPlane(plane, mid);
-  const { keep, lost } = knee(p, best.T, floor, best.w);
-  // Vía que recoge lo perdido, derivada del perfil: los ejes de cono medidos (no el propio, no bloqueados),
-  // ordenados por cercanía a la carta opuesta del notch.
-  const order = profile.axes
-    .filter((axis) => !isReference(axis) && (axis.role === "l" || axis.role === "m" || axis.role === "s") && axis.role !== best.notch.cone && Number.isFinite(axis.angleDeg))
-    .map((axis) => rad(axis.angleDeg))
-    .sort((a, b) => angDist(mid + Math.PI, a) - angDist(mid + Math.PI, b));
-  const catcher = order.find((angle) => !blocked(angle)) ?? null;
-  // Solo la carta medida (el lado del notch) vierte, igual para l, m y s.
-  const spill = Math.max(lost, 0);
-  const alias = catcher == null ? null : dirFromTheta(catcher);
-  const leak = alias == null ? 0 : spill * ALIAS_LEAK;
-  const plane2: Vec3 = [
-    n[0] + u[0] * keep + (alias ? alias[0] * leak : 0),
-    n[1] + u[1] * keep + (alias ? alias[1] * leak : 0),
-    n[2] + u[2] * keep + (alias ? alias[2] * leak : 0),
-  ];
+  // Punto 4 (26/10): el mismo factor suelo/T a todo |p| (no solo al tramo bajo el umbral) y sin derrame.
+  const seen = Math.min(1, floor / Math.max(best.T, 1e-6));
+  const keep = p * (1 - best.w * (1 - seen));
+  const plane2: Vec3 = [n[0] + u[0] * keep, n[1] + u[1] * keep, n[2] + u[2] * keep];
   const y2 = y / (1 + (lumaGainAt(theta, luma) - 1) * best.w);
   return planeColor(y2, plane2);
 }

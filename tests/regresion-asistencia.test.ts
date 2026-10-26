@@ -90,3 +90,20 @@ test("punto 5: etiqueta azul–amarillo con los ejes medidos; sin validar se mar
   const rg = classify(base, edges).groups.find((g) => g.id === "red-green")!;
   assert.equal(rg.unvalidated, false);
 });
+
+test("punto 4: simulador (Perfil y Bordes) solo encoge la componente en la línea l: |p| no crece ni cambia de signo (sin derrame)", async () => {
+  const { colorFor } = await import("../src/lib/color/spectrum");
+  const l = dirFromTheta((base.axes.find((a) => a.id === "l")!.angleDeg * Math.PI) / 180);
+  let worst = 0;
+  for (const source of ["profile", "edges"] as const) for (let h = -40; h <= 40; h += 2) for (const r of [0.05, 0.12, 0.2]) {
+    const d = dirFromTheta((h * Math.PI) / 180);
+    const c: Vec3 = [0.3 + d[0] * r, 0.3 + d[1] * r, 0.3 + d[2] * r];
+    const o = colorFor("simulate", c, base, source, edges);
+    const pc = [c[0] - luminance(c), c[1] - luminance(c), c[2] - luminance(c)], po = [o[0] - luminance(o), o[1] - luminance(o), o[2] - luminance(o)];
+    const pr = (v: number[]) => v[0] * l[0] + v[1] * l[1] + v[2] * l[2];
+    // |p| no crece y no cambia de signo: lo perdido no se vierte a otro tono.
+    assert.ok(Math.abs(pr(po)) <= Math.abs(pr(pc)) + 1e-9 && pr(po) * pr(pc) >= 0, `${source} h=${h} r=${r}`);
+    worst = Math.max(worst, deltaE00Linear(c, o));
+  }
+  console.log(`simulador: ΔE00 máx en ±40° de l = ${worst.toFixed(2)}`);
+});
