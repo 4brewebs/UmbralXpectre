@@ -29,4 +29,10 @@ test("movimiento v2 guarda la huella en la luminancia y en la sesión del histor
   const out = attachMotionV2(p, state, { refreshHz: 89.3, temporalHz: 11, cyclesPerDeg: 1, device });
   assert.equal(out.luminance?.device?.key, device.key);
   assert.equal(out.history?.sessions.at(-1)?.device?.key, device.key);
+  // Colorado, ítem 4: refreshHz se guarda por sesión (en la huella de cada sesión), no solo el último.
+  assert.equal(out.history?.sessions.at(-1)?.device?.refreshHz, 89.3);
+  const out2 = attachMotionV2(out, state, { refreshHz: 59.9, temporalHz: 7.5, cyclesPerDeg: 1, device: fingerprint(phone, 59.9) });
+  const hz = out2.history!.sessions.filter((x) => x.device).slice(-2).map((x) => x.device!.refreshHz);
+  assert.deepEqual(hz, [89.3, 59.9]);
+  assert.equal(out2.luminance?.refreshHz, 59.9);
 });
