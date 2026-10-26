@@ -55,17 +55,30 @@ test("pico visto: no se cierra; baja la escala y repite, sin lados «unexplored�
   assert.notEqual(f.plus.result, "unexplored");
 });
 
-test("escala de Bordes: entre 2× control y 0,8× umbral del eje; si no cabe, no se ofrece", async () => {
-  const { edgeWindow } = await import("../src/lib/color/edges");
-  // Perfil de Lucas 21:40Z: control 0,0059; rojos 0,0229; verdes 0,016.
-  const red = edgeWindow(11.1, 0.0229, 0.0059);
-  assert.ok(red.offered && red.scale >= 2 * 0.0059 - 1e-9 && red.scale <= 0.8 * 0.0229 + 1e-9, JSON.stringify(red));
-  const green = edgeWindow(-156.7, 0.016, 0.0059);
-  assert.ok(green.offered && green.scale >= 0.0118 - 1e-9 && green.scale <= 0.0128 + 1e-9, JSON.stringify(green));
-  assert.equal(edgeWindow(11.1, 0.02, 0.0059 * 1.4).offered, false);
-  const r = startRun({ ...base, floor: 0.0059 });
-  assert.ok(Math.abs(r.edgeScale - red.scale) < 1e-9);
-  assert.equal(edgeFile(r).offeredBecause, "2× control < 0.8× axis");
+test("escala de Bordes desde el perfil basedOn (07:21Z): 1,5× control a 0,8× eje; si no cabe, no se ofrece", async () => {
+  const fs = await import("node:fs");
+  const { edgeWindow, edgeInputFromProfile } = await import("../src/lib/color/edges");
+  const p = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z-sintetico.json", import.meta.url), "utf8"));
+  const red = startRun(edgeInputFromProfile(p, "l"));
+  const green = startRun(edgeInputFromProfile(p, "m"));
+  // Siempre el perfil del que parte: basedOn y umbrales del propio perfil.
+  assert.equal(edgeFile(red).basedOn.createdAt, p.createdAt);
+  assert.equal(red.sourceThreshold, 0.0568);
+  assert.equal(green.sourceThreshold, 0.0237);
+  assert.ok(Math.abs(red.scaleWindow!.lo - 0.01575) < 1e-9 && Math.abs(red.scaleWindow!.hi - 0.04544) < 1e-9);
+  assert.ok(Math.abs(red.edgeScale - 0.0267) < 5e-4, `${red.edgeScale}`);
+  assert.ok(Math.abs(green.scaleWindow!.hi - 0.01896) < 1e-9);
+  assert.ok(Math.abs(green.edgeScale - 0.0173) < 5e-4, `${green.edgeScale}`);
+  assert.equal(edgeWindow(11.1, 0.02, 0.0105 * 1.4).offered, false);
+  assert.equal(edgeFile(red).offeredBecause, "1.5× control < 0.8× axis");
+});
+
+test("pico visto aun a la escala mínima: «unmeasurable» (sin banda medible), no «none»", () => {
+  let r = startRun({ ...base, floor: 0.0059 });
+  for (let i = 0; i < 100 && r.phase !== "done"; i++) r = applyAnswer(r, { picked: [r.oddIndex], none: false });
+  const f = edgeFile(r);
+  assert.equal(f.band, "unmeasurable");
+  assert.equal(f.depth, null);
 });
 
 test("verde: un notch que cruza −180° pinta igual en el ángulo equivalente", async () => {

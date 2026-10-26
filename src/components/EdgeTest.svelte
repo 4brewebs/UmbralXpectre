@@ -3,7 +3,7 @@
   import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
   import { questPlusEnabled } from "@/lib/color/motion2";
-  import { applyAnswer, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
+  import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
 
@@ -37,19 +37,7 @@
   // Inicial, como useState(() => startRun(...)); EdgeTest se monta con {#key cone}.
   let run = $state.raw<EdgeRun>(
     untrack(() => {
-      const pathway = profile.fit.pathways.find((item) => item.id === cone);
-      const axis = profile.axes.find((item) => item.id === cone);
-      return startRun({
-      cone,
-      peakDeg: axis?.angleDeg ?? 0,
-      floor: profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02,
-      sourceThreshold: pathway?.threshold ?? axis?.threshold ?? 0,
-      sourceTimes: pathway?.timesControl ?? null,
-      profileSchema: profile.schema,
-      profileCreatedAt: profile.createdAt,
-      // Control acotado en el último peldaño: no es un suelo medido (Colorado).
-      controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
-      });
+      return startRun(edgeInputFromProfile(profile, cone));
     }),
   );
 
@@ -142,6 +130,9 @@
 
   {#if run.phase === "done" && run.band === "none"}
     <p class="text-lg leading-relaxed text-fg">A este contraste separas el tono de partida. No hay tramo que marcar.</p>
+  {/if}
+  {#if run.phase === "done" && run.band === "unmeasurable"}
+    <p class="text-lg leading-relaxed text-fg">Sin banda medible: se ve el tono de partida incluso al contraste más bajo.</p>
   {/if}
 
   {#if showDiscs}

@@ -14,8 +14,8 @@ import { deltaE00Linear } from "./deltaE";
  * sesión (`sessionReliability`): < 5 catch ⇒ «indeterminada», > 25 % «ninguno» ⇒ no fiable. `reliability` por ronda
  * se guarda igual (dato en bruto; su `unreliable` es solo orientativo).
  */
-/** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
+/** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: con la ventana 1,5× control el β fijo sesga −7,7 % (≥ 3 %), así que se marginaliza β (−2,7 %), regla de Colorado. */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -76,14 +76,15 @@ export interface EdgeFile {
   basedOn: { schema: string; createdAt: string };
   cone: ConeId;
   name: EdgeName;
-  offeredBecause: "estimate >= 1.6× control" | "2× control < 0.8× axis";
+  offeredBecause: "estimate >= 1.6× control" | "1.5× control < 0.8× axis";
   floor: number;
   edgeScale: number;
   startAngleDeg: number;
   sourceThreshold: number;
   sourceTimes: number | null;
   /** `closed` means both sides reached a repeated miss and a repeated hit. The angles are trials, not midpoints. */
-  band: "none" | "open" | "closed";
+  /** «unmeasurable»: el pico se vio incluso a la escala mínima (sin banda medible); distinto de «none». */
+  band: "none" | "open" | "closed" | "unmeasurable";
   minus: EdgeBound;
   plus: EdgeBound;
   depth: { angleDeg: number; scale: number; bound: "estimate" | "at-least"; ceiling: number } | null;
@@ -318,11 +319,11 @@ function atEnd(cursor: number, limit: number): boolean {
   return Math.abs(cursor - limit) < 0.05;
 }
 
-/** Ventana de escala de Bordes (Colorado, 7.ª ronda): ≥ 2× el umbral del control y ≤ 0,8× el umbral del eje. */
-export const EDGE_SCALE = { timesControl: 2, timesAxis: 0.8, lowerStep: 0.8 } as const;
+/** Ventana de escala de Bordes (Colorado, 8.ª ronda): ≥ 1,5× el umbral del control y ≤ 0,8× el umbral del eje. */
+export const EDGE_SCALE = { timesControl: 1.5, timesAxis: 0.8, lowerStep: 0.8 } as const;
 
 export interface EdgeWindow {
-  /** 2 × umbral del control: por encima se ve en ángulos sanos. */
+  /** 1,5 × umbral del control: por encima se ve en ángulos sanos. */
   lo: number;
   /** 0,8 × umbral del eje: por debajo no se ve en el pico. */
   hi: number;
@@ -332,8 +333,8 @@ export interface EdgeWindow {
 }
 
 /**
- * La escala debe ser invisible en el pico y visible en ángulos sanos: entre 2× el control y 0,8× el umbral del eje.
- * Si 2× control ≥ 0,8× eje, la prueba de Bordes no se ofrece para ese eje.
+ * La escala debe ser invisible en el pico y visible en ángulos sanos: entre 1,5× el control y 0,8× el umbral del eje.
+ * Si 1,5× control ≥ 0,8× eje, la prueba de Bordes no se ofrece para ese eje.
  */
 export function edgeWindow(peakDeg: number, axisThreshold: number, controlThreshold: number): EdgeWindow {
   const lo = EDGE_SCALE.timesControl * controlThreshold;
@@ -369,6 +370,30 @@ function place(run: EdgeRun, phase: EdgePhase, angle: number, scale: number): Ed
     rng: rolled.rng,
     repeat: false,
     edgeConfirm: side?.status === "confirm" ? side.confirm : null,
+  };
+}
+
+/** Entrada de Bordes sacada SIEMPRE del perfil en que se basa (basedOn); ningún umbral fijo. */
+export function edgeInputFromProfile(
+  profile: {
+    schema: string;
+    createdAt: string;
+    fit: { controlAbs?: number | null; controlBounded?: boolean; timesControlKind?: string | null; pathways?: Array<{ id: string; threshold?: number | null; timesControl?: number | null }> };
+    axes: Array<{ id: string; angleDeg: number; threshold: number | null }>;
+  },
+  cone: ConeId,
+): Parameters<typeof startRun>[0] {
+  const pathway = profile.fit.pathways?.find((item) => item.id === cone);
+  const axis = profile.axes.find((item) => item.id === cone);
+  return {
+    cone,
+    peakDeg: axis?.angleDeg ?? 0,
+    floor: profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02,
+    sourceThreshold: pathway?.threshold ?? axis?.threshold ?? 0,
+    sourceTimes: pathway?.timesControl ?? null,
+    profileSchema: profile.schema,
+    profileCreatedAt: profile.createdAt,
+    controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
   };
 }
 
@@ -639,7 +664,8 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
         const next = { ...run, edgeScale: lowered, depthHi: lowered, depthCursor: lowered, peakSeen: 0, scaleLowered: (run.scaleLowered ?? 0) + 1 };
         return place(next, "peak", run.peak, lowered);
       }
-      return { ...run, phase: "done", band: "none", edgeConfirm: null };
+      // Visto aún a la escala mínima: sin banda medible (no es «none»).
+      return { ...run, phase: "done", band: "unmeasurable", edgeConfirm: null };
     }
     const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone).lo);
     return place({ ...run, minus: { ...blankSide("minus", run.peak), cursor: first } }, "minus", first, run.edgeScale);
@@ -739,7 +765,7 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
   const plus = boundOf(run.plus);
   const ceiling = depthCeiling(run.floor, run.sourceThreshold, run.depthAngle);
   const depth =
-    run.phase === "peak" || run.phase === "minus" || run.phase === "plus" || run.band === "none"
+    run.phase === "peak" || run.phase === "minus" || run.phase === "plus" || run.band === "none" || run.band === "unmeasurable"
       ? null
       : {
           angleDeg: round1(run.depthAngle),
@@ -753,7 +779,7 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     basedOn: { schema: run.profileSchema, createdAt: run.profileCreatedAt },
     cone: run.cone,
     name: run.name,
-    offeredBecause: run.scaleWindow ? "2× control < 0.8× axis" : "estimate >= 1.6× control",
+    offeredBecause: run.scaleWindow ? "1.5× control < 0.8× axis" : "estimate >= 1.6× control",
     floor: round4(run.floor),
     ...(run.floorFrom === "band" ? { floorFrom: "band" as const } : {}),
     edgeScale: round4(run.edgeScale),
