@@ -8,6 +8,7 @@ cada push a `main` despliega en Pages.
 
 ## 01. Tarea futura (aparte)
 - [ ] **Corrección de claridad con máscara estrecha en la cara azul (violeta/azul).** Ahora la esquina azul saturada de la gama queda sin corrección (limitación conocida en `transforms.params.notes`): violeta/azul 2,87 ΔE00 protán, igual que el original. El intento de la 5.ª ronda (residuo de S a Y, umbrales 2/4 por déficit) llegaba a 5,17 pero cambiaba ~69 % de los nodos y dejaba escalones de 3–4 ΔE00.
+- [ ] **Escalón cian→menta al 50 % en la pared verde de la gama (~181–205°)** (limitación conocida en `transforms.params.notes`): exceso sobre el original 2,63 ΔE00 (Asistencia) y 3,33 (Extremo). Probado ensanchar la pared de gamut: 0,6 → 1,49 en Extremo; 0,8 y 1,0 lo arreglan (0,96/0,73) pero rosa/gris baja a 4,71/4,06 (< 5).
 
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.

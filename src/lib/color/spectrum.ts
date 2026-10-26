@@ -591,7 +591,10 @@ function gamutAtten(a: Vec3, b: Vec3): number {
  * Limitación conocida (Colorado, decisión tras la 5.ª ronda): esquina azul saturada de la gama sin corrección.
  * El par violeta/azul queda como el original (2,87 ΔE00 protán); el derrame a luminosidad se descartó.
  */
-export const KNOWN_LIMITATIONS = ["esquina azul saturada de la gama: sin corrección"];
+export const KNOWN_LIMITATIONS = [
+  "esquina azul saturada de la gama: sin corrección",
+  "escalón cian→menta al 50 % en la pared verde de la gama, ~181–205°",
+];
 
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
