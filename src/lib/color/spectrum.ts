@@ -965,9 +965,10 @@ export function confusionT(points: Array<{ deg: number; ratio: number }>, floor:
     const t = dl / span;
     return floor * Math.exp(Math.log(lo.ratio) * (1 - t) + Math.log(hi.ratio) * t);
   }
-  // Hueco > 60°: no se inventa pérdida entre puntos lejanos; cada extremo baja al suelo en taperDeg.
+  // Hueco > 60°: no se inventa la zona central; log T de cada eje medido decae hacia el suelo
+  // con semianchura taperDeg (gaussiana: a taperDeg queda la mitad del log), sin corte brusco.
   const dh = span - dl;
-  const fade = (ratio: number, dist: number) => Math.exp(Math.log(ratio) * Math.max(0, 1 - dist / LOSS_CURVE.taperDeg));
+  const fade = (ratio: number, dist: number) => Math.exp(Math.log(ratio) * Math.exp(-Math.LN2 * (dist / LOSS_CURVE.taperDeg) ** 2));
   return floor * Math.max(1, fade(lo.ratio, dl), fade(hi.ratio, dh));
 }
 
