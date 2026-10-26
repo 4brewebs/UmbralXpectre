@@ -602,7 +602,8 @@ export type Sector = {
   provisional: boolean;
 };
 /** Transición coseno (C1) de 6° en cada extremo; los lados provisionales corrigen al 70 %. */
-export const REGION = { edgeSoftDeg: 6, scaleSoft: 0.5, provisionalGain: 0.7 };
+/** Extremo usa una transición más ancha (Colorado, 26/10): su desplazamiento es mayor y el escalón crece con él. */
+export const REGION = { edgeSoftDeg: 6, edgeSoftDegExtreme: 10, scaleSoft: 0.5, provisionalGain: 0.7 };
 
 const wrapDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 
@@ -682,14 +683,14 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
 }
 
 /** Peso C1 de la región y ganancia (1 en lados medidos, 0,7 en provisionales). */
-export function regionInfo(theta: number, radius: number, sectors: Sector[]): { w: number; gain: number } {
+export function regionInfo(theta: number, radius: number, sectors: Sector[], softDeg: number = REGION.edgeSoftDeg): { w: number; gain: number } {
   let best = { w: 0, gain: 1 };
   const deg = (theta * 180) / Math.PI;
   for (const sct of sectors) {
     const rel = wrapDeg(deg - sct.centerDeg);
     const sideDeg = rel >= 0 ? sct.hiDeg - sct.centerDeg : sct.centerDeg - sct.loDeg;
     const outside = Math.max(0, Math.abs(rel) - sideDeg);
-    const ws = 1 - smoothstep(0, REGION.edgeSoftDeg, outside);
+    const ws = 1 - smoothstep(0, softDeg, outside);
     const wr = 1 - smoothstep(sct.scale, sct.scale * (1 + REGION.scaleSoft), radius);
     const w = ws * wr;
     if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
@@ -717,7 +718,7 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean,
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const { w: mask, gain: sideGain } = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
+  const { w: mask, gain: sideGain } = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor), extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg);
   if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);

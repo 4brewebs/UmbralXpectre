@@ -159,3 +159,26 @@ test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 
   }
   assert.deepEqual(bad, []);
 });
+
+test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia y Mapa; ≤ +1,5 en Extremo (transición de 10°, Colorado acepta +1,0–1,5)", () => {
+  const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
+  const fl = real.fit.controlAbs!;
+  const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((x: { file: unknown }) => x.file);
+  const at = (deg: number, r: number): Vec3 => { const d = dirFromTheta((deg * Math.PI) / 180); return [0.2 + d[0] * r, 0.2 + d[1] * r, 0.2 + d[2] * r]; };
+  for (const edges of [sim, []]) {
+    const reg = measuredRegion(real.axes, fl, edges);
+    for (const [name, f, limit] of [
+      ["asistencia", (c: Vec3) => assistColor(c, real.axes, fl, [], reg), 1],
+      ["mapa", (c: Vec3) => correctColor(c, real.axes, fl, reg), 1],
+      ["extremo", (c: Vec3) => extremeColor(c, real.axes, fl, [], reg), 1.5],
+    ] as const) {
+      let worst = -Infinity;
+      for (const r of [0.01, 0.02, 0.03, 0.045, 0.06, 0.08]) for (let h = -180; h < 180; h += 0.25) {
+        const a = at(h, r), b = at(h + 0.25, r);
+        worst = Math.max(worst, (deltaE00Linear(f(a), f(b)) - deltaE00Linear(a, b)) * 4);
+      }
+      console.log(`anillo ${edges.length ? "simulados" : "reales"} ${name}: ${worst.toFixed(2)} ΔE00/1°`);
+      assert.ok(worst <= limit, `${name} ${worst.toFixed(2)} > ${limit}`);
+    }
+  }
+});

@@ -49,9 +49,9 @@
   <div class="h-14 flex-1 rounded-2xl" style:background={cssRgb(toSrgb8(rgb))} role="img" aria-label={cssRgb(toSrgb8(rgb))}></div>
 {/snippet}
 
-{#snippet stripRow(label: string, gradient: string)}
+{#snippet stripRow(label: string, gradient: string, review = false)}
   <div class="flex flex-col gap-1">
-    <p class="text-xs text-muted">{label}</p>
+    <p class="text-xs text-muted">{label}{#if review}<span class="ml-1.5 rounded-full border border-border px-1.5 py-px text-[10px] text-muted">en revisión</span>{/if}</p>
     <div class="relative pt-3">
       {#each CONE_MARKS as mark (mark.id)}
         <span class="absolute top-0 h-2.5 w-px bg-accent" style:left={`${markLeft(mark.nm)}%`}></span>
@@ -61,8 +61,8 @@
   </div>
 {/snippet}
 
-{#snippet pairRow(title: string, colors: [Rgb, Rgb])}
-  <p class="text-sm text-fg">{title}</p>
+{#snippet pairRow(title: string, colors: [Rgb, Rgb], review = false)}
+  <p class="text-sm text-fg">{title}{#if review}<span class="ml-1.5 rounded-full border border-border px-1.5 py-px text-[10px] text-muted">en revisión</span>{/if}</p>
   <div class="flex gap-3">
     {@render swatch(colors[0])}
     {@render swatch(colors[1])}
@@ -108,7 +108,7 @@
   <div class="flex flex-col gap-1.5">
     {@render stripRow("En esta pantalla", expected)}
     {@render stripRow("Tu visión", yours)}
-    {@render stripRow("Mapa intermedio", corrected)}
+    {@render stripRow("Mapa intermedio", corrected, true)}
     {@render stripRow("Asistencia", assisted)}
   </div>
   <div class="flex flex-col gap-4">
@@ -123,7 +123,7 @@
         </p>
       </div>
       <div class="flex flex-col gap-2">
-        {@render pairRow("Ese par, en el mapa intermedio", pair.corrected)}
+        {@render pairRow("Ese par, en el mapa intermedio", pair.corrected, true)}
       </div>
       <div class="flex flex-col gap-2">
         {@render pairRow("Ese par, con la asistencia", pair.assisted)}
