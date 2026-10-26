@@ -18,7 +18,8 @@
   $effect(() => {
     void step;
     const target = untrack(() => stim?.rotationDeg ?? 0);
-    const plan = wheelPlan(untrack(() => angle), target, reduced, Math.random());
+    const stepDeg = untrack(() => stim?.rotationStepDeg ?? 0);
+    const plan = wheelPlan(untrack(() => angle), stepDeg, target, reduced, Math.random());
     const timers: number[] = [];
     phase = plan.fadeMs ? "fade" : phase;
     timers.push(
@@ -31,7 +32,7 @@
         timers.push(
           window.setTimeout(() => {
             spinMs = 0;
-            angle = plan.target;
+            angle = plan.to;
             phase = "ready";
           }, plan.spinMs),
         );

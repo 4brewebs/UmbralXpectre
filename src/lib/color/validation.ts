@@ -46,6 +46,8 @@ export interface ValidationTrial {
   /** Sector distinto (0..2), orientación del disco (°) y sector elegido. */
   odd: number;
   rotationDeg: number;
+  /** Incremento con signo respecto al ensayo anterior (0 en el primero). */
+  rotationStepDeg: number;
   picked: number;
   correct: boolean;
 }
@@ -77,6 +79,7 @@ export interface ValidationStimulus {
   fields: [number, number, number][];
   odd: number;
   rotationDeg: number;
+  rotationStepDeg: number;
   step: number;
   /** Tope de seguridad (los ejes paran antes por precisión). */
   maxTotal: number;
@@ -108,14 +111,15 @@ export function oddPosition(seed: number, n: number): number {
   return hash(seed, n, 0) % VALIDATION.choices;
 }
 /**
- * Orientación del disco en el ensayo `n`, 0–359° (determinista con la semilla): diferencia con la anterior ≥ 30°
- * módulo 120° (`nextRotation`). Independiente del sector distinto (otra sal).
+ * Orientación del disco en el ensayo `n` (0–360°) y su incremento con signo respecto al anterior (15–45°, sentido
+ * al azar; `nextRotation`). Determinista con la semilla e independiente del sector distinto (otra sal).
  */
-export function rotationOf(seed: number, n: number): number {
-  let r: number | null = null;
-  for (let i = 0; i <= n; i++) r = nextRotation(r, hash(seed, i, 0x5bd1e995) / 4294967296, hash(seed, i, 0x27d4eb2f) / 4294967296);
-  return r as number;
+export function rotationAt(seed: number, n: number): { rotationDeg: number; stepDeg: number } {
+  let r: { rotationDeg: number; stepDeg: number } | null = null;
+  for (let i = 0; i <= n; i++) r = nextRotation(r?.rotationDeg ?? null, hash(seed, i, 0x5bd1e995) / 4294967296, hash(seed, i, 0x27d4eb2f) / 4294967296);
+  return r!;
 }
+export const rotationOf = (seed: number, n: number): number => rotationAt(seed, n).rotationDeg;
 
 /**
  * Ejes conflictivos del perfil: los de umbral ≥ 1,6× el control (vías elevadas, extremos y afinados), de mayor a
@@ -161,7 +165,8 @@ export function validationStimulus(state: ValidationState): ValidationStimulus |
   const diff = toSrgb8(addScaled(gray(), dir, s));
   const odd = oddPosition(state.seed, n);
   const fields = [0, 1, 2].map((i) => (i === odd ? diff : same));
-  return { axis: ax.id, scale: s, fields, odd, rotationDeg: rotationOf(state.seed, n), step: n + 1, maxTotal: state.axes.length * VALIDATION.maxTrials };
+  const rot = rotationAt(state.seed, n);
+  return { axis: ax.id, scale: s, fields, odd, rotationDeg: rot.rotationDeg, rotationStepDeg: rot.stepDeg, step: n + 1, maxTotal: state.axes.length * VALIDATION.maxTrials };
 }
 
 /** Respuesta: posición elegida (0..2). */
@@ -169,7 +174,7 @@ export function answerValidation(state: ValidationState, picked: number): Valida
   const stim = validationStimulus(state);
   if (!stim) return state;
   const correct = picked === stim.odd;
-  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, odd: stim.odd, rotationDeg: stim.rotationDeg, picked, correct }];
+  const log = [...state.log, { order: state.log.length + 1, axis: stim.axis, scale: Math.round(stim.scale * 1e5) / 1e5, odd: stim.odd, rotationDeg: stim.rotationDeg, rotationStepDeg: stim.rotationStepDeg, picked, correct }];
   const axes = state.axes.map((a) => ({ ...a }));
   const ax = axes[state.next];
   ax.qp.update(stim.scale, correct ? 0 : 1);
@@ -236,7 +241,7 @@ export function applyValidation(profile: UmbralProfile, state: ValidationState):
     ...profile,
     axes,
     validation: {
-      method: "3AFC: disco en 3 sectores de 120° (orientación y distinto al azar), ejes conflictivos del perfil, QUEST+ con γ = 1/3 fija y lapse estimada, prior log-normal en el umbral del perfil (σ = ln 2), parada por IC 95 % (ln hi/lo < ln 2, mínimo 6, tope 30 por eje)",
+      method: "3AFC: disco en 3 sectores de 120° (giro de 15–45° en sentido al azar entre ensayos, distinto al azar), ejes conflictivos del perfil, QUEST+ con γ = 1/3 fija y lapse estimada, prior log-normal en el umbral del perfil (σ = ln 2), parada por IC 95 % (ln hi/lo < ln 2, mínimo 6, tope 30 por eje)",
       pairLuminance: { source: "measured", weights: [state.weights[0], state.weights[1], state.weights[2]] },
       gamma: Math.round(VALIDATION.gamma * 1e4) / 1e4,
       axes: est.map((e) => ({ id: e.id, threshold: r4(e.threshold), thresholdStandardY: e.thresholdStandardY, lo: r4(e.lo), hi: r4(e.hi), lapse: Math.round(e.lapse * 1000) / 1000, trials: e.trials, stop: e.stop, ratio: Math.round(e.ratio * 100) / 100, label: r4(e.lo) <= e.thresholdStandardY && e.thresholdStandardY <= r4(e.hi) ? ("confirmado" as const) : ("nuevo" as const) })),

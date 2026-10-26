@@ -7,7 +7,7 @@ import { answer, createSession, stimulusOf } from "../src/lib/color/session";
 import { edgeInputFromProfile, QP_EDGES } from "../src/lib/color/edges";
 import { buildProfile, type HardwareSnapshot } from "../src/lib/color/profile";
 import { buildFilterTransforms, filterProfile } from "../src/lib/color/lut";
-import { answerValidation, applyValidation, createValidation, oddPosition, rotationOf, VALIDATION, validationEstimates, validationStimulus, validationTargets, type ValidationState } from "../src/lib/color/validation";
+import { answerValidation, applyValidation, createValidation, oddPosition, rotationAt, rotationOf, VALIDATION, validationEstimates, validationStimulus, validationTargets, type ValidationState } from "../src/lib/color/validation";
 import { acceptsAnswer, diff120, sectorFill, wheelPhase, wheelPlan } from "../src/lib/color/wheel";
 
 const FIX = new URL("./fixtures/lucas-9dd5bcd/", import.meta.url);
@@ -110,7 +110,7 @@ test("validación: parada por IC (sin número fijo), tope de seguridad y orienta
     assert.ok(a.done && a.trials >= VALIDATION.minTrials && a.trials <= VALIDATION.maxTrials);
     if (a.stop === "ci") { const e = a.qp.estimate(); assert.ok(Math.log(e.hi / e.lo) < VALIDATION.stopLogWidth); }
   }
-  assert.ok(st.log.every((t) => Number.isInteger(t.rotationDeg) && t.rotationDeg >= 0 && t.rotationDeg < 360));
+  assert.ok(st.log.every((t) => t.rotationDeg >= 0 && t.rotationDeg < 360));
   const p = applyValidation(lucas, st);
   assert.ok((p.validation!.trials as Array<{ rotationDeg: number }>).every((t) => typeof t.rotationDeg === "number"));
 });
@@ -155,12 +155,25 @@ test("bordes: parten del umbral validado, mínimo 8 y tope 20 QUEST+ por lado", 
   assert.equal(edgeInputFromProfile(p, "l").sourceThreshold, p.axes.find((x) => x.id === "l")!.threshold);
 });
 
-test("orientación: diferencia ≥ 30° módulo 120° con la anterior en todos los ensayos", () => {
+test("orientación: incremento 15–45° en sentido al azar (~50/50), módulo 360 y desplazamiento efectivo mód. 120 ≥ 15°", () => {
+  let cw = 0, total = 0;
   for (const seed of [1, 42, 777, 123456]) {
-    const r = Array.from({ length: 200 }, (_, n) => rotationOf(seed, n));
-    for (let n = 1; n < r.length; n++) assert.ok(diff120(r[n], r[n - 1]) >= 30, `semilla ${seed} n ${n}: ${r[n - 1]}→${r[n]}`);
-    assert.ok(r.every((x) => Number.isInteger(x) && x >= 0 && x < 360));
+    const r = Array.from({ length: 500 }, (_, n) => rotationAt(seed, n));
+    assert.equal(r[0].stepDeg, 0);
+    for (let n = 1; n < r.length; n++) {
+      const st = r[n].stepDeg;
+      assert.ok(Math.abs(st) >= 15 && Math.abs(st) <= 45, `semilla ${seed} n ${n}: ${st}`);
+      const expect = (((r[n - 1].rotationDeg + st) % 360) + 360) % 360;
+      assert.ok(Math.abs(r[n].rotationDeg - Math.round(expect * 100) / 100) < 0.011);
+      assert.ok(diff120(r[n].rotationDeg, r[n - 1].rotationDeg) >= 15 - 0.011);
+      if (st > 0) cw++;
+      total++;
+    }
+    assert.ok(r.every((x) => x.rotationDeg >= 0 && x.rotationDeg < 360));
+    // Pasos distintos: no un paso fijo.
+    assert.ok(new Set(r.slice(1).map((x) => Math.abs(x.stepDeg))).size > 100);
   }
+  assert.ok(Math.abs(cw / total - 0.5) < 0.05, `horario ${cw}/${total}`);
 });
 
 test("orientación: el sector distinto es independiente de la orientación", () => {
@@ -176,13 +189,13 @@ test("orientación: el sector distinto es independiente de la orientación", () 
   for (const c of cols) assert.ok(Math.abs(c / N - 1 / 3) < 0.04);
 });
 
-test("transición: fundido a gris, giro corto 300–500 ms en gris, colores al pararse; sin respuesta antes", () => {
-  for (const u of [0, 0.5, 0.999]) {
-    const p = wheelPlan(725, 40, false, u);
+test("transición: fundido a gris, giro corto 300–500 ms en gris con el incremento, colores al pararse; sin respuesta antes", () => {
+  for (const [u, step] of [[0, 20], [0.5, -37.5], [0.999, 45]] as const) {
+    const target = (((725 + step) % 360) + 360) % 360;
+    const p = wheelPlan(725, step, target, false, u);
     assert.ok(p.spinMs >= 300 && p.spinMs <= 500);
-    assert.equal(diff120(p.to, 40), 0);
-    assert.ok(p.to - p.from >= 0 && p.to - p.from < 120);
-    assert.equal(p.target, 40);
+    assert.equal(p.to - p.from, step);
+    assert.ok(Math.abs((((p.to % 360) + 360) % 360) - target) < 1e-9);
     const at = (t: number) => wheelPhase(p, t);
     for (const t of [0, p.fadeMs - 1]) assert.equal(at(t), "fade");
     for (const t of [p.fadeMs, p.fadeMs + p.spinMs - 1]) assert.equal(at(t), "spin");
@@ -194,17 +207,27 @@ test("transición: fundido a gris, giro corto 300–500 ms en gris, colores al p
     assert.equal(acceptsAnswer("ready"), true);
     assert.equal(sectorFill("ready", "rgb(1, 2, 3)", "gris"), "rgb(1, 2, 3)");
   }
-  // Primer ensayo: sin transición.
-  assert.equal(wheelPhase(wheelPlan(null, 10, false, 0.5), 0), "ready");
+  assert.equal(wheelPhase(wheelPlan(null, 0, 10, false, 0.5), 0), "ready");
 });
 
-test("transición: con prefers-reduced-motion no hay giro, solo cambia la orientación", () => {
-  const p = wheelPlan(725, 40, true, 0.5);
+test("transición: con prefers-reduced-motion, mismo incremento sin animación", () => {
+  const p = wheelPlan(725, -30, 335, true, 0.5);
   assert.equal(p.spinMs, 0);
   assert.equal(p.from, p.to);
-  assert.equal(diff120(p.to, 40), 0);
+  assert.equal(p.to, 695);
   assert.notEqual(wheelPhase(p, 0), "spin");
   assert.equal(wheelPhase(p, p.fadeMs), "ready");
+});
+
+test("validación: el JSON guarda orientación e incremento con signo de cada ensayo", async () => {
+  const st = await run(truthOf(), 21);
+  const p = applyValidation(lucas, st);
+  const t = p.validation!.trials as Array<{ rotationDeg: number; rotationStepDeg: number }>;
+  assert.equal(t[0].rotationStepDeg, 0);
+  for (let n = 1; n < t.length; n++) {
+    assert.ok(Math.abs(t[n].rotationStepDeg) >= 15 && Math.abs(t[n].rotationStepDeg) <= 45);
+    assert.ok(t[n].rotationDeg >= 0 && t[n].rotationDeg < 360);
+  }
 });
 
 test("filtros: sin validación no hay; con ella salen solo de sus ejes y basedOn lo dice", async () => {
