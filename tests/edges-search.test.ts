@@ -58,7 +58,7 @@ test("pico visto: no se cierra; baja la escala y repite, sin lados «unexplored�
 test("escala de Bordes desde el perfil basedOn (07:21Z): 1,5× control a 0,8× eje; si no cabe, no se ofrece", async () => {
   const fs = await import("node:fs");
   const { edgeWindow, edgeInputFromProfile } = await import("../src/lib/color/edges");
-  const p = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z-sintetico.json", import.meta.url), "utf8"));
+  const p = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"));
   const red = startRun(edgeInputFromProfile(p, "l"));
   const green = startRun(edgeInputFromProfile(p, "m"));
   // Siempre el perfil del que parte: basedOn y umbrales del propio perfil.
