@@ -6,7 +6,7 @@ import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/l
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift, MASK_EDGE, measuredRegion, regionMask } from "../src/lib/color/spectrum";
+import { labHueShift, measuredRegion, regionMask } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -85,7 +85,7 @@ test("perfil de Lucas 21:40Z: Asistencia y Extremo cambian nodos (solo en la reg
 
 test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (objetivo 30 %)", () => {
   const red: Vec3 = [1, 0, 0];
-  for (const [f, cap] of [[assistColor, 45], [extremeColor, 60], [correctColor, 45]] as const) {
+  for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) {
     const dh = (labHueShift(red, f(red, profile.axes, floor)) * 180) / Math.PI;
     assert.ok(dh <= cap + 1e-6, `${dh}`);
   }
@@ -99,13 +99,12 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
   const mid = (11.1 * Math.PI) / 180;
   for (let i = 0; i < 600; i++) {
     const c: Vec3 = [((i * 37) % 101) / 100, ((i * 53) % 103) / 102, ((i * 71) % 107) / 106];
-    for (const [f, cap] of [[assistColor, 45], [extremeColor, 60], [correctColor, 45]] as const) {
+    for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) {
       const o = f(c, profile.axes, floor);
       assert.ok((labHueShift(c, o) * 180) / Math.PI <= cap + 0.5);
     }
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
-    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) assert.deepEqual(correctColor(c, profile.axes, floor), c);
     // Asistencia/Extremo: región medida; con w = 0 el cambio es exactamente 0.
     if (regionMask(thetaOf(plane), Math.hypot(...plane), measuredRegion(profile.axes, floor)) === 0) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
@@ -160,7 +159,7 @@ test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 
   assert.deepEqual(bad, []);
 });
 
-test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia y Mapa; ≤ +1,5 en Extremo (transición de 10°, Colorado acepta +1,0–1,5)", () => {
+test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia; ≤ +1,5 en Extremo (transición de 10°, Colorado acepta +1,0–1,5)", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const fl = real.fit.controlAbs!;
   const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((x: { file: unknown }) => x.file);
@@ -169,7 +168,6 @@ test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1°
     const reg = measuredRegion(real.axes, fl, edges);
     for (const [name, f, limit] of [
       ["asistencia", (c: Vec3) => assistColor(c, real.axes, fl, [], reg), 1],
-      ["mapa", (c: Vec3) => correctColor(c, real.axes, fl, reg), 1],
       ["extremo", (c: Vec3) => extremeColor(c, real.axes, fl, [], reg), 1.5],
     ] as const) {
       let worst = -Infinity;

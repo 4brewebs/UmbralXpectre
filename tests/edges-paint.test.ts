@@ -27,7 +27,7 @@ test("tInner no baja del umbral de origen aunque la profundidad se midiera en el
 });
 
 test("Bordes usa la región medida: un rojo saturado (fuera de la escala de fallo) no cambia en ningún filtro", () => {
-  for (const kind of ["assist", "extreme", "correct"] as const) assert.deepEqual(colorFor(kind, red, profile, "edges", [open]), red);
+  for (const kind of ["assist", "extreme"] as const) assert.deepEqual(colorFor(kind, red, profile, "edges", [open]), red);
 });
 
 test("con un lado cerrado: ese lado llega al borde; el abierto (toEnd) llega al primer eje sano", () => {

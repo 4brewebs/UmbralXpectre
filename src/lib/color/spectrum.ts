@@ -195,8 +195,6 @@ const GATE = 1.6;
 const BAND_HALF = (10 * Math.PI) / 180;
 /** Tope duro de giro de tono de la asistencia del perfil (60° en Extremo). */
 const ROT_CAP = (45 * Math.PI) / 180;
-/** Tope de giro del mapa intermedio en la línea de confusión (se estrecha con la máscara). */
-const MAP_CAP = (30 * Math.PI) / 180;
 const ROT_CAP_EXTREME = (60 * Math.PI) / 180;
 /** Máscara de la daltonización: distancia (plano) a la línea de confusión a la que el cambio ya es exactamente 0. */
 const MASK_CORE = (8 * Math.PI) / 180;
@@ -414,41 +412,6 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
   return planeColor(y2, plane2);
 }
 
-/**
- * Diagnostic map. The red magnitude this profile can still represent stays red.
- * The red gain that would be required and would not be seen is added on the intact blue cone.
- */
-export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number, region?: Sector[]): Vec3 {
-  if (!(floor > 0)) return rgb;
-  const y = luminance(rgb);
-  const plane = killPlane(rgb, y);
-  const radius = norm(plane);
-  if (radius < 1e-4) return rgb;
-  const model = filterModel(axes, floor);
-  if (model.blue == null || !model.confusion) return rgb;
-  // Misma máscara suave que la asistencia, sobre la línea de confusión (antes: banda dura de ±10° por eje,
-  // con saltos entre bandas y recorte del plano hacia el blanco).
-  const band = model.confusion;
-  // Mapa intermedio: coseno elevado desde la propia línea (sin núcleo plano) y tope de giro que también se
-  // estrecha con la máscara; así no hay bloques (cian blanquecino ~170°, violeta ~320°).
-  // Solo lo medido: la misma región que Asistencia/Extremo, sobre el coseno de la propia línea.
-  const reg = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
-  const mask = bandMask(thetaOf(plane), band.mid, 0, MASK_EDGE) * reg.w * reg.gain;
-  if (mask <= 0) return rgb;
-  const { u, p } = splitPlane(plane, band.mid);
-  const seen = Math.min(1, floor / band.T);
-  const drop = p * (1 - seen);
-  const unseen = Math.min(Math.abs(drop) * (band.T / floor), S_BOUND * radius);
-  const blue = dirFromTheta(model.blue);
-  // Con signo, como la asistencia: la carta rojiza va hacia S+ y la verdosa hacia S−.
-  const sgn = drop >= 0 ? 1 : -1;
-  const disp: Vec3 = [-u[0] * drop + blue[0] * unseen * sgn, -u[1] * drop + blue[1] * unseen * sgn, -u[2] * drop + blue[2] * unseen * sgn];
-  // Conserva el croma del píxel: es un giro hacia azul, no un paso hacia el gris (antes: bloque blanquecino).
-  const raw: Vec3 = [plane[0] + disp[0], plane[1] + disp[1], plane[2] + disp[2]];
-  const k = radius / (norm(raw) || 1);
-  const full = capPlaneTurn(y, plane, [raw[0] * k, raw[1] * k, raw[2] * k], MAP_CAP * mask);
-  return limitLabHue(rgb, mixRgb(rgb, full, mask), MAP_CAP * redGuard(rgb));
-}
 
 /**
  * Daltonización clásica (Fidaner et al.), base de Asistencia y Extremo en modo Perfil (Colorado, 6.ª ronda).
@@ -498,16 +461,6 @@ export function bandMask(theta: number, mid: number, core = MASK_CORE, edge = MA
   return 0.5 * (1 + Math.cos((Math.PI * (d - core)) / (edge - core)));
 }
 
-/**
- * Lleva el plano hacia el destino a la misma Y: el desplazamiento se acorta lo justo para quedar dentro del cubo
- * y con giro (plano) ≤ cap. El acortamiento es proporcional al hueco al gamut: continuo, sin blanquear.
- */
-function capPlaneTurn(y: number, plane: Vec3, target: Vec3, cap: number): Vec3 {
-  // Desplazamiento acortado (no croma encogido): dentro del cubo y con giro ≤ cap. Sin blanquear.
-  const disp: Vec3 = [target[0] - plane[0], target[1] - plane[1], target[2] - plane[2]];
-  const t = reachT(y, plane, disp, cap);
-  return [y + plane[0] + disp[0] * t, y + plane[1] + disp[1] * t, y + plane[2] + disp[2] * t];
-}
 
 /** Mayor t ∈ [0, 1] con y + plane + disp·t dentro del cubo y giro (plano) ≤ cap. Proporcional al hueco al gamut. */
 function reachT(y: number, plane: Vec3, disp: Vec3, cap: number, chromaCap = Infinity): number {
@@ -753,7 +706,7 @@ export function assistColor(rgb: Vec3, axes: AxisMark[], floor: number, _luma: L
 }
 
 export type FilterSource = "profile" | "edges";
-export type PaintedKind = "simulate" | "correct" | "assist" | "extreme";
+export type PaintedKind = "simulate" | "assist" | "extreme";
 
 type Notch = {
   cone: EdgeFile["cone"];
@@ -899,13 +852,6 @@ function edgePaint(rgb: Vec3, profile: UmbralProfile, files: EdgeFile[], kind: P
   const mid = (best.notch.loIn + best.notch.hiIn) / 2;
   const { u, p, n } = splitPlane(plane, mid);
   const { keep, lost } = knee(p, best.T, floor, best.w);
-  if (kind === "correct") {
-    const blue = roleAngle(profile.axes, "s");
-    if (blue == null || best.notch.cone === "s" || blocked(blue)) return rgb;
-    const unseen = Math.abs(lost) * (best.T / floor);
-    const b = dirFromTheta(blue);
-    return planeColor(y, [n[0] + u[0] * keep + b[0] * unseen, n[1] + u[1] * keep + b[1] * unseen, n[2] + u[2] * keep + b[2] * unseen]);
-  }
   const order = best.notch.cone === "m" ? (["l", "s"] as const) : best.notch.cone === "s" ? (["m", "l"] as const) : (["m", "s"] as const);
   let catcher: number | null = null;
   for (const role of order) {
@@ -941,7 +887,6 @@ export function colorFor(
   if (kind === "simulate") return paintYours(rgb, profile.axes, floor, luma);
   // Perfil y Bordes usan la misma región medida (reglas por lado): siempre hay filtro.
   const region = measuredRegion(profile.axes, floor, files);
-  if (kind === "correct") return correctColor(rgb, profile.axes, floor, region);
   if (kind === "extreme") return extremeColor(rgb, profile.axes, floor, luma, region);
   return assistColor(rgb, profile.axes, floor, luma, region);
 }

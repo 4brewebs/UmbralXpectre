@@ -1,5 +1,6 @@
 import type { UmbralProfile } from "./profile";
-import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { LOSS_RAMP, lossPoints } from "./lossmap";
+import { GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -73,7 +74,7 @@ export function buildFilterLuts(
 }
 
 export type TransformFilter = {
-  id: "original" | "simulate" | "correct" | "assist" | "extreme";
+  id: "original" | "simulate" | "assist" | "extreme";
   name: string;
   /** `identity` leaves every color. `srgb8-base64` is the baked map. */
   encoding: "identity" | "srgb8-base64";
@@ -100,6 +101,8 @@ export type TransformFile = {
     regionSoft: { edgeDeg: number; edgeDegExtreme: number; scaleTimes: number; provisionalGain: number };
     gamutSoft: number;
     notes: string[];
+    /** Zonas de confusión: diagnóstico en grises, no se hornea ni se aplica como filtro. */
+    lossMap?: { name: string; kind: "grises"; ratio: string; scale: "log"; lStar: [number, number]; estimated: string; points: Array<{ deg: number; ratio: number }> };
   };
   filters: TransformFilter[];
 };
@@ -134,12 +137,6 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       apply: (rgb) => paintYours(rgb, axes, floor, luma),
     },
     {
-      id: "correct",
-      name: "Mapa intermedio (en revisión)",
-      note: "Conserva el rojo que sí cabe en la banda y pasa a azul la ganancia que no se va a ver. Fuera de la banda no toca.",
-      apply: (rgb) => correctColor(rgb, axes, floor, region),
-    },
-    {
       id: "assist",
       name: "Asistencia",
       note: "Mueve un poco la banda hacia el rojo o el verde que ya separas, sin cambiar un pálido por uno vivo.",
@@ -168,6 +165,15 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       regionSoft: { edgeDeg: REGION.edgeSoftDeg, edgeDegExtreme: REGION.edgeSoftDegExtreme, scaleTimes: 1 + REGION.scaleSoft, provisionalGain: REGION.provisionalGain },
       gamutSoft: GAMUT_SOFT,
       notes: [...KNOWN_LIMITATIONS, ...(region.some((sector) => sector.provisional) ? [PROVISIONAL_NOTE] : [])],
+      lossMap: {
+        name: "Zonas de confusión",
+        kind: "grises",
+        ratio: "umbral en el tono / umbral del control",
+        scale: "log",
+        lStar: [LOSS_RAMP.lMin, LOSS_RAMP.lMax],
+        estimated: "lados midpointToHealthy (rayado)",
+        points: lossPoints(profile, edges).points.map((p) => ({ deg: Math.round(p.deg * 100) / 100, ratio: Math.round(p.ratio * 1000) / 1000 })),
+      },
     },
     filters: specs.map((spec) => bakeFilter(spec, floor)),
   };
