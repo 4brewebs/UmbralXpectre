@@ -14,6 +14,8 @@ cada push a `main` despliega en Pages.
 
 - [ ] **Revisión aparte, no urgente: simulación «Tu visión» con valle no fisiológico.** El valle (≈15–25°, ΔE00 0,3–1,3 frente a 6,6 en 0° y 6,2 en 30°) es un artefacto de la matriz de atenuación interpolando entre pocos ejes (red-end 0°, l 11°). La simulación debe ser monótona y suave entre ejes medidos: interpolar la pérdida en ángulo, sin extrapolar nunca con la matriz.
 
+- [ ] **Barra de Asistencia idéntica al original.** El barrido es a saturación plena y la región medida es de croma baja, así que la barra no cambia y parece que la asistencia no hace nada. Próxima ronda: pintar las barras a un croma dentro de la escala medida, o añadir una segunda fila de croma baja.
+
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
 - [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).
