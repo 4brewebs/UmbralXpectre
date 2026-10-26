@@ -156,6 +156,9 @@ export interface LuminanceV3 {
   sizingHeuristic?: string | null;
   /** Método de búsqueda de la prueba v2: escalera (por defecto) o QUEST+ (`?qp=1`). */
   searchMethod?: "staircase" | "quest+";
+  /** Interfaz de la última prueba de brillo (legacy|v2|v3). */
+  ui?: "legacy" | "v2" | "v3";
+  fixationWeber?: number;
   /** Dispositivo en que se midieron estos pesos (no valen en otra pantalla). */
   device?: DeviceFingerprint;
   checks: {

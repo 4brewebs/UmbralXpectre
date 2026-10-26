@@ -115,11 +115,21 @@ export function michelsonOf(stim: { test: Vec3; ref: Vec3 }): number {
   return Math.abs(a - b) / (a + b);
 }
 
-export function motionV2Enabled(search: string, stored: string | null): boolean {
+/** Versión de la interfaz de la prueba de brillo. v2 y v3 comparten el mismo motor (este archivo). */
+export type MotionUi = "legacy" | "v2" | "v3";
+
+/** `?motion=v1|v2|v3` manda; si no, `localStorage[umbral-motion]`; por defecto, legacy. */
+export function motionUiOf(search: string, stored: string | null, fallback: MotionUi = "legacy"): MotionUi {
   const q = new URLSearchParams(search).get("motion");
-  if (q === "v2") return true;
-  if (q === "v1") return false;
-  return stored === "v2";
+  if (q === "v2" || q === "v3") return q;
+  if (q === "v1") return "legacy";
+  if (stored === "v2" || stored === "v3") return stored;
+  if (stored === "v1") return "legacy";
+  return fallback;
+}
+
+export function motionV2Enabled(search: string, stored: string | null): boolean {
+  return motionUiOf(search, stored) !== "legacy";
 }
 
 /** Frecuencia de la red: refresco / (4·k). Prefiere la más alta entre 7.2 y 12 Hz. */
@@ -182,6 +192,10 @@ export interface MotionV2Meta {
   now?: Date;
   /** Huella del dispositivo (UA + pantalla + dpr + gamut + refresco). */
   device?: DeviceFingerprint;
+  /** Interfaz con la que se hizo (v2 o v3; mismo motor). */
+  ui?: MotionUi;
+  /** Weber del punto de fijación usado (v2: SCREEN.dotWeber = −0.15; v3: −0.40). */
+  fixationWeber?: number;
 }
 
 /** Periodo de la red en px CSS para `cpd` ciclos/grado a `viewingCm`, con `cssPxPerMm` supuestos. */
@@ -674,6 +688,8 @@ export function attachMotionV2(
       backgroundY: state.bgY ?? null,
       method: state.method ?? "staircase",
       ...(meta.device ? { device: meta.device } : {}),
+      ui: meta.ui ?? "v2",
+      fixationWeber: meta.fixationWeber ?? SCREEN.dotWeber,
     },
     state.log,
   );
@@ -692,6 +708,8 @@ export function attachMotionV2(
       stimulusDeg: meta.stimulusDeg ?? null,
       sizingHeuristic: meta.sizingHeuristic ?? null,
       searchMethod: state.method ?? "staircase",
+      ui: meta.ui ?? "v2",
+      fixationWeber: meta.fixationWeber ?? SCREEN.dotWeber,
       ...(meta.device ? { device: meta.device } : {}),
       checks: {
         controlError: solved.controlError,

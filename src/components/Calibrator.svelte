@@ -15,9 +15,10 @@
   import Trial from "./Trial.svelte";
   import MotionTest from "./MotionTest.svelte";
   import MotionTestV2 from "./MotionTestV2.svelte";
+  import MotionTestV3 from "./MotionTestV3.svelte";
   import { appendHistory, makeSession, type HistoryKind } from "@/lib/color/history";
   import { ANCHOR } from "@/lib/color/space";
-  import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionV2Enabled, questPlusEnabled, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
+  import { MOTION_V2_FLAG, viewingSetup, attachMotionV2, motionUiOf, questPlusEnabled, type MotionUi, type MotionV2State, type MotionV2Meta } from "@/lib/color/motion2";
   import { deviceDiff, fingerprint, weightsDevice } from "@/lib/color/device";
   import Result from "./Result.svelte";
 
@@ -58,13 +59,14 @@
   let copied = $state(false);
   let edgeFiles = $state.raw<Partial<Record<ConeId, EdgeFile>>>({});
 
-  let motionV2 = $state(false);
+  let motionUi = $state<MotionUi>("legacy");
+  const motionV2 = $derived(motionUi !== "legacy");
 
   onMount(() => {
     try {
-      motionV2 = motionV2Enabled(window.location.search, window.localStorage.getItem(MOTION_V2_FLAG));
+      motionUi = motionUiOf(window.location.search, window.localStorage.getItem(MOTION_V2_FLAG));
     } catch {
-      motionV2 = false;
+      motionUi = "legacy";
     }
     stored = loadStored();
   });
@@ -88,11 +90,11 @@
   }
 
   /** Sesión del historial con el montaje de esta pantalla (misma heurística que movimiento v2). */
-  function historyEntry(kind: HistoryKind, method: "staircase" | "quest+", backgroundY: number | null, trials: unknown[]) {
+  function historyEntry(kind: HistoryKind, method: "staircase" | "quest+", backgroundY: number | null, trials: unknown[], ui?: MotionUi) {
     const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
     const setup = viewingSetup(window.screen.width, window.screen.height, window.devicePixelRatio || 1, coarse);
     const device = fingerprint(readHardware(), null);
-    return makeSession(kind, { date: new Date().toISOString(), deviceType: setup.device, viewingCm: setup.cm, stimulusDeg: null, backgroundY, method, device }, trials);
+    return makeSession(kind, { date: new Date().toISOString(), deviceType: setup.device, viewingCm: setup.cm, stimulusDeg: null, backgroundY, method, device, ...(ui ? { ui } : {}) }, trials);
   }
 
   function choose(judgment: Judgment) {
@@ -123,9 +125,10 @@
 
   function takeLuminance(result: LuminanceResult) {
     if (!profile) return;
+    const attached = attachLuminance(profile, result);
     const enriched = appendHistory(
-      attachLuminance(profile, result),
-      historyEntry("motion-v1", "staircase", null, result.matches.flatMap((m) => m.samples)),
+      { ...attached, luminance: { ...attached.luminance!, ui: "legacy" as const } },
+      historyEntry("motion-v1", "staircase", null, result.matches.flatMap((m) => m.samples), "legacy"),
     );
     persistProfile(enriched);
     profile = enriched;
@@ -135,7 +138,7 @@
 
   function takeMotionV2(state: MotionV2State, meta: MotionV2Meta) {
     if (!profile) return;
-    const enriched = attachMotionV2(profile, state, { ...meta, device: fingerprint(readHardware(), meta.refreshHz) });
+    const enriched = attachMotionV2(profile, state, { ...meta, device: fingerprint(readHardware(), meta.refreshHz), ui: motionUi === "v3" ? "v3" : "v2" });
     persistProfile(enriched);
     profile = enriched;
     stored = enriched;
@@ -202,7 +205,11 @@
     <MotionTest {profile} onDone={takeLuminance} onSkip={() => (phase = "done")} />
   {/if}
 
-  {#if phase === "motion" && profile && motionV2}
+  {#if phase === "motion" && profile && motionUi === "v3"}
+    <MotionTestV3 {profile} onDone={takeMotionV2} onStop={() => (phase = "done")} />
+  {/if}
+
+  {#if phase === "motion" && profile && motionUi === "v2"}
     <MotionTestV2 {profile} onDone={takeMotionV2} onStop={() => (phase = "done")} />
   {/if}
 
