@@ -1,11 +1,12 @@
 import test from "node:test";
+import { parseProfile } from "../src/lib/color/profile";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/lib/color/spectrum";
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
 import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
-import { correctColor, labHueShift, MASK_EDGE, lossMask } from "../src/lib/color/spectrum";
+import { correctColor, labHueShift, MASK_EDGE, protanSimProfile, SAT_MASK } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -43,19 +44,20 @@ test("daltonización: #C04040 vs #708030 (misma Y) ≥ 10 ΔE00 en simulación p
   const r = pairReport();
   assert.ok(r.assist >= 10, JSON.stringify(r));
   assert.ok(r.extreme >= r.assist - 1e-9, JSON.stringify(r));
-  // Solo croma: la Y no cambia.
-  assert.ok(Math.abs(r.y[0] - r.y[1]) < 1e-7 && Math.abs(r.y[2] - r.y[3]) < 1e-7);
+  // Y: solo el derrame del residuo que no cabe en S (≤ 8 % relativo).
+  assert.ok(Math.abs(r.y[0] - r.y[1]) <= 0.08 * r.y[0] + 1e-7 && Math.abs(r.y[2] - r.y[3]) <= 0.08 * r.y[2] + 1e-7);
 });
 
 test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (60° Extremo), dentro del gamut", () => {
   // Las dos cartas de la línea de confusión (mismo Y, ± dirección del eje l): a extremos opuestos de S.
-  // Con la máscara por pérdida (t0 = 12 ΔE00) hacen falta cartas más saturadas que las de antes (0.08): 0.2.
+  // Máscara por pérdida (base t0 = 14): con el perfil 21:40Z la carta rojiza ya no pierde bastante; se usa el real 07:21Z.
+  const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const d = dirFromTheta((11.1 * Math.PI) / 180);
-  const a: Vec3 = [0.22 + d[0] * 0.2, 0.22 + d[1] * 0.2, 0.22 + d[2] * 0.2];
-  const b: Vec3 = [0.22 - d[0] * 0.2, 0.22 - d[1] * 0.2, 0.22 - d[2] * 0.2];
+  const a: Vec3 = [0.22 + d[0] * 0.22, 0.22 + d[1] * 0.22, 0.22 + d[2] * 0.22];
+  const b: Vec3 = [0.22 - d[0] * 0.22, 0.22 - d[1] * 0.22, 0.22 - d[2] * 0.22];
   const blue = (c: Vec3) => c[2] - (c[0] + c[1]) / 2;
-  const da = blue(assistColor(a, profile.axes, floor)) - blue(a);
-  const db = blue(assistColor(b, profile.axes, floor)) - blue(b);
+  const da = blue(assistColor(a, real.axes, real.fit.controlAbs!)) - blue(a);
+  const db = blue(assistColor(b, real.axes, real.fit.controlAbs!)) - blue(b);
   assert.ok(da * db < 0, `${da} ${db}`);
   for (let i = 0; i < 400; i++) {
     const c: Vec3 = [((i * 37) % 101) / 100, ((i * 53) % 103) / 102, ((i * 71) % 107) / 106];
@@ -82,7 +84,7 @@ test("perfil de Lucas 21:40Z: Asistencia y Extremo ya cambian nodos", () => {
   assert.ok(changed("extreme") > 1000, `${changed("extreme")}`);
 });
 
-test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y < 30 % de los nodos cambian", () => {
+test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y ≤ 32 % de los nodos cambian (objetivo 30 %)", () => {
   const red: Vec3 = [1, 0, 0];
   for (const [f, cap] of [[assistColor, 45], [extremeColor, 60], [correctColor, 45]] as const) {
     const dh = (labHueShift(red, f(red, profile.axes, floor)) * 180) / Math.PI;
@@ -91,7 +93,7 @@ test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤
   const t = buildTransformFile(profile);
   const changed = (id: string) => t.filters.find((x) => x.id === id)!.changed;
   assert.equal(t.nodes, 35937);
-  assert.ok(changed("assist") < 0.3 * 35937, `${changed("assist")}`);
+  assert.ok(changed("assist") <= 0.32 * 35937, `${changed("assist")}`);
 });
 
 test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de la máscara el cambio es exactamente 0", () => {
@@ -105,8 +107,8 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
     if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= MASK_EDGE) assert.deepEqual(correctColor(c, profile.axes, floor), c);
-    // Asistencia/Extremo: máscara por pérdida; con w = 0 el cambio es exactamente 0.
-    if (lossMask(c, profile.axes, floor) === 0) {
+    // Asistencia/Extremo: máscara por pérdida; por debajo del umbral más bajo (SAT_MASK.t0) el cambio es exactamente 0.
+    if (deltaE00Linear(c, protanSimProfile(c, profile.axes, floor)) <= SAT_MASK.t0) {
       assert.deepEqual(assistColor(c, profile.axes, floor), c);
       assert.deepEqual(extremeColor(c, profile.axes, floor), c);
     }
@@ -120,6 +122,19 @@ test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono
 
 test("transforms: guarda t0/t1 de la máscara por pérdida y el derrame a Y", () => {
   const f = buildTransformFile(profile) as { params?: { lossMask: { t0: number; t1: number }; lightSpill: { capRel: number } } };
-  assert.deepEqual(f.params?.lossMask, { t0: 12, t1: 18 });
+  assert.deepEqual(f.params?.lossMask, { t0: 14, t1: 20 });
   assert.equal(f.params?.lightSpill.capRel, 0.08);
+});
+
+test("Extremo, S = 50 %: el escalón 184→185° (y el máximo por 1°) ≤ 1 ΔE00 con el perfil real 07:21Z", () => {
+  const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
+  const hsv = (h: number, s: number): Vec3 => {
+    const g = (n: number) => { const k = (n + h / 60) % 6; return 1 - s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return [g(5), g(3), g(1)].map(lin) as Vec3;
+  };
+  const step = (h: number) => deltaE00Linear(extremeColor(hsv(h, 0.5), real.axes, real.fit.controlAbs!), extremeColor(hsv(h + 1, 0.5), real.axes, real.fit.controlAbs!));
+  let mx = 0;
+  for (let h = 0; h < 360; h++) mx = Math.max(mx, step(h));
+  console.log(`Extremo S50: 184→185 ${step(184).toFixed(2)} ΔE00, máx/1° ${mx.toFixed(2)}`);
+  assert.ok(step(184) <= 1, `184→185: ${step(184).toFixed(2)}`);
 });

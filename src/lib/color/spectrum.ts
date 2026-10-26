@@ -543,9 +543,8 @@ function redGuard(rgb: Vec3): number {
  * perfil)). Sustituye a la máscara por ángulo de tono en Asistencia/Extremo: solo se corrige lo que este perfil
  * pierde de verdad, sea cual sea su tono.
  */
-// t0 = 2 (propuesta): 58 % de los nodos con t1 = 8 y aún 35 % con t1 = 80 (este perfil pierde ~82 % de L−M); 12/18 es el
-// primer par que deja la asistencia ≤ 30 % (10531/35937, con el suavizado de pared de gamut).
-export const LOSS_MASK = { t0: 12, t1: 18 };
+// Base 14/20 (Colorado, 5.ª ronda): los otros 4 pares siguen ≥ 5 ΔE00. Donde S está saturado bajan a SAT_MASK.
+export const LOSS_MASK = { t0: 14, t1: 20 };
 export function smoothstep(a: number, b: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -589,12 +588,13 @@ function gamutAtten(a: Vec3, b: Vec3): number {
 }
 
 /**
- * Derrame a luminosidad (Colorado, 4.ª ronda): la parte de la inyección en S que no cabe en el gamut pasa a Y, con
- * signo uniforme (rojizo → más claro, verdoso → más oscuro), tope ±8 % de Y relativo, saturación suave (tanh).
- * Solo en la esquina azul/violeta: peso por coseno entre el croma del píxel y la dirección S+.
+ * Derrame a luminosidad (Colorado, 5.ª ronda): la parte de la inyección en S que no cabe (déficit de margen en S)
+ * pasa a Y con signo uniforme: rojizo → más oscuro, verdoso → más claro, tope 8 % de Y relativo (tanh).
+ * Sin región de tono fija: el peso es w_clar = smoothstep(déficit). Donde S está saturado, los umbrales de la máscara
+ * por pérdida pasan suavemente de los base (LOSS_MASK) a SAT_MASK.
  */
-// `dir` = +1: signo de Colorado (rojizo más claro). Con −1 el par violeta/azul mejora (ver informe 4.ª ronda).
-export const L_SPILL = { capRel: 0.08, cornerLo: 0.2, cornerHi: 0.6, dir: 1 as 1 | -1 };
+export const L_SPILL = { capRel: 0.08, dir: -1 as 1 | -1, deficitLo: 0.15, deficitHi: 0.3 };
+export const SAT_MASK = { t0: 2, t1: 4 };
 
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
@@ -605,8 +605,6 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const mask = lossMask(rgb, axes, floor);
-  if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
   const lost = p * (1 - seen);
@@ -620,19 +618,22 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
   const tS = reachT(y, plane, d, cap);
   const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
-  const att = mask * gamutAtten(rgb, full);
-  let out = mixRgb(rgb, full, att);
-  // Lo que no cupo en S (por gamut o tope), a Y con el signo de lost.
-  const rest = Math.abs(inj) * (1 - tS * gamutAtten(rgb, full));
-  const corner = smoothstep(L_SPILL.cornerLo, L_SPILL.cornerHi, dot(plane, s) / radius);
-  if (rest > 0 && corner > 0) {
+  const gA = gamutAtten(rgb, full);
+  const deficit = 1 - tS * gA;
+  const wClar = smoothstep(L_SPILL.deficitLo, L_SPILL.deficitHi, deficit);
+  const t0 = LOSS_MASK.t0 + (SAT_MASK.t0 - LOSS_MASK.t0) * wClar;
+  const t1 = LOSS_MASK.t1 + (SAT_MASK.t1 - LOSS_MASK.t1) * wClar;
+  const mask = smoothstep(t0, t1, deltaE00Linear(rgb, protanSimProfile(rgb, axes, floor)));
+  if (mask <= 0) return rgb;
+  let out = mixRgb(rgb, full, mask * gA);
+  const rest = Math.abs(inj) * deficit;
+  if (rest > 0 && wClar > 0) {
     const sign = (lost > 0 ? 1 : -1) * L_SPILL.dir;
     const capY = L_SPILL.capRel * y;
-    // Hueco hasta la pared al sumar gris (sube o baja todos los canales por igual).
     const gap = sign > 0 ? 1 - Math.max(out[0], out[1], out[2]) : Math.min(out[0], out[1], out[2]);
     const lim = Math.max(0, Math.min(capY, gap));
     if (lim > 0) {
-      const dY = sign * lim * Math.tanh(rest / lim) * corner * mask;
+      const dY = sign * lim * Math.tanh(rest / lim) * wClar * mask;
       out = [out[0] + dY, out[1] + dY, out[2] + dY];
     }
   }
