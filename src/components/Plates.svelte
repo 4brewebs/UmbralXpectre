@@ -83,7 +83,7 @@
     {/each}
   </div>
   {#if source === "edges" && !ready}
-    <p class="text-sm text-muted">Sin un borde cerrado, este filtro no cambia ningún color.</p>
+    <p class="text-sm text-muted">Sin bordes cerrados, el filtro usa una región provisional: hasta el punto medio hacia el primer eje sano, al 70 %.</p>
   {/if}
   <canvas bind:this={canvas} class="mx-auto aspect-square w-full max-w-[520px]" aria-label="Lámina de umbral"></canvas>
   <div class="flex flex-wrap gap-2">

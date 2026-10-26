@@ -119,20 +119,26 @@ test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono
   for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
 });
 
-test("transforms: máscara de región medida; sin bordes → provisional ±10°; limitaciones previas retiradas", () => {
+test("transforms: región por lados (borde / toEnd / punto medio al eje sano); sin bordes → punto medio, provisional", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const f = buildTransformFile(real);
   assert.equal(f.params?.mask, "región medida");
   assert.equal(f.params?.provisional, true);
-  assert.deepEqual(f.params?.region.map((r) => [r.axis, r.provisional, +(r.hiDeg - r.loDeg).toFixed(6)]), [["l", true, 20], ["m", true, 20]]);
+  const r = (x: typeof f) => x.params!.region.map((s) => [s.axis, +s.loDeg.toFixed(2), +s.hiDeg.toFixed(2), s.minus.source, s.plus.source]);
+  // l (11,1°): sanos control −37° y s 94,5° → puntos medios −12,95° y 52,8°. m (−156,7°): blue-end 107,7° y control −37°.
+  assert.deepEqual(r(f), [["l", -12.95, 52.8, "midpointToHealthy", "midpointToHealthy"], ["m", -204.5, -96.85, "midpointToHealthy", "midpointToHealthy"]]);
   assert.ok(f.params?.notes.some((n) => n.startsWith("provisional:")));
-  assert.ok(!f.params?.notes.includes("esquina azul saturada de la gama: sin corrección"));
   assert.ok(f.params?.notes.some((n) => n.startsWith("retirada «esquina azul")) && f.params?.notes.some((n) => n.startsWith("retirada «escalón cian")));
   assert.equal((f.params as { lossMask?: unknown }).lossMask, undefined);
-  const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((r: { file: unknown }) => r.file);
+  const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((x: { file: unknown }) => x.file);
   const g = buildTransformFile(real, sim);
   assert.equal(g.params?.provisional, false);
-  assert.deepEqual(g.params?.region.map((r) => [r.axis, r.loDeg, r.hiDeg, r.scale]), [["l", 1.1, 22, 0.0564], ["m", -164, -148.7, 0.0228]]);
+  assert.deepEqual(r(g), [["l", 1.1, 22, "edge", "edge"], ["m", -164, -148.7, "edge", "edge"]]);
+  // toEnd: banda lateral completa hasta el primer eje sano (s 94,5°).
+  const open = structuredClone(sim);
+  open[0].plus = { ...open[0].plus, found: false, toEnd: true, result: "noEdgeToGamut" };
+  const h = buildTransformFile(real, open);
+  assert.deepEqual(r(h)[0], ["l", 1.1, 94.5, "edge", "toEnd"]);
 });
 
 test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 1 ΔE00 (Asistencia y Extremo, perfil 07:21Z)", () => {

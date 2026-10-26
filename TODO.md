@@ -8,9 +8,9 @@ cada push a `main` despliega en Pages.
 
 ## 01. Tarea futura (aparte)
 - [x] ~~Esquina azul saturada (violeta/azul)~~ y ~~escalón cian→menta al 50 %~~: ya no son limitaciones. Con el principio «solo modificar lo que sabemos y podemos medir que el usuario falla» (26/10), Asistencia/Extremo solo tocan la región medida (sector entre bordes medidos × escala de fallo medida; sin bordes, ±10° provisional). Esas zonas quedan fuera, con cambio 0.
-- [ ] **Pares dentro de la región medida < 5 ΔE00 tras la Asistencia** (protán Machado, perfil 07:21Z): l 4,58 y m 2,17 con bordes SIMULADOS v3 (Extremo 6,74 y 3,01). El test está como TODO.
-- [ ] **Extremo en la transición angular de 6° a croma baja**: hasta +1,4 ΔE00/1° sobre el original (r 0,045–0,06, ~25°). Asistencia ≤ 0,85.
-- [ ] Láminas y cámara con fuente «Perfil» usan los bordes que se les pasen; sin bordes, la región es provisional.
+- [x] Pares dentro de la región: criterio nuevo en la simulación del perfil (≥ 1,5× / 2× el control en ΔE00, 2,78 → 4,17 / 5,57): cumple con bordes SIMULADOS y con los reales vacíos (Extremo con ganancia 2,4 y cota 1,1).
+- [ ] **Extremo en la transición angular de 6° a croma baja** (r ≈ 0,06): +1,55 ΔE00/1° (SIMULADOS, ~25°) y +1,02 (reales, ~56°). Asistencia ≤ 0,85; Mapa ≤ 0,56.
+- [ ] **Mapa intermedio con región provisional**: el par l / gris en la simulación del perfil baja de 6,18 a 0,24 (con bordes SIMULADOS sube a 7,81). Revisar.
 
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.

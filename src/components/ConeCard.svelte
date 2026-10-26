@@ -103,7 +103,7 @@
     {/each}
   </div>
   {#if source === "edges" && !ready}
-    <p class="text-sm text-muted">Sin un borde cerrado, este filtro no cambia ningún color.</p>
+    <p class="text-sm text-muted">Sin bordes cerrados, el filtro usa una región provisional: hasta el punto medio hacia el primer eje sano, al 70 %.</p>
   {/if}
   <div class="flex flex-col gap-1.5">
     {@render stripRow("En esta pantalla", expected)}

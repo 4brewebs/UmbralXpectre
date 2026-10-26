@@ -202,13 +202,15 @@ const ROT_CAP_EXTREME = (60 * Math.PI) / 180;
 const MASK_CORE = (8 * Math.PI) / 180;
 export const MASK_EDGE = (35 * Math.PI) / 180;
 /** Inyección en S acotada: como mucho esta fracción del croma del píxel (Extremo, la segunda). */
+/** Tope de croma de salida (radio en el plano) frente al de entrada. */
+const CHROMA_CAP = 2.5;
 const S_BOUND = 0.6;
-const S_BOUND_EXTREME = 1;
+const S_BOUND_EXTREME = 1.1;
 /** Tono CIELAB de #FF0000 y entorno en el que el rojo puro conserva su tono (puede perder saturación). */
 const RED_LAB_HUE = Math.atan2(labOfLinear([1, 0, 0])[2], labOfLinear([1, 0, 0])[1]);
 const RED_GUARD = (40 * Math.PI) / 180;
 const DALTON_GAIN = 1;
-const DALTON_GAIN_EXTREME = 2;
+const DALTON_GAIN_EXTREME = 2.4;
 const ASSIST_TURN = 0.7;
 const EXTREME_GAIN = 5.5;
 const ALIAS_LEAK = 1;
@@ -416,7 +418,7 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
  * Diagnostic map. The red magnitude this profile can still represent stays red.
  * The red gain that would be required and would not be seen is added on the intact blue cone.
  */
-export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
+export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number, region?: Sector[]): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
   const plane = killPlane(rgb, y);
@@ -429,7 +431,9 @@ export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
   const band = model.confusion;
   // Mapa intermedio: coseno elevado desde la propia línea (sin núcleo plano) y tope de giro que también se
   // estrecha con la máscara; así no hay bloques (cian blanquecino ~170°, violeta ~320°).
-  const mask = bandMask(thetaOf(plane), band.mid, 0, MASK_EDGE);
+  // Solo lo medido: la misma región que Asistencia/Extremo, sobre el coseno de la propia línea.
+  const reg = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
+  const mask = bandMask(thetaOf(plane), band.mid, 0, MASK_EDGE) * reg.w * reg.gain;
   if (mask <= 0) return rgb;
   const { u, p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
@@ -506,10 +510,11 @@ function capPlaneTurn(y: number, plane: Vec3, target: Vec3, cap: number): Vec3 {
 }
 
 /** Mayor t ∈ [0, 1] con y + plane + disp·t dentro del cubo y giro (plano) ≤ cap. Proporcional al hueco al gamut. */
-function reachT(y: number, plane: Vec3, disp: Vec3, cap: number): number {
+function reachT(y: number, plane: Vec3, disp: Vec3, cap: number, chromaCap = Infinity): number {
   const radius = norm(plane);
   const ok = (t: number): boolean => {
     const q: Vec3 = [plane[0] + disp[0] * t, plane[1] + disp[1] * t, plane[2] + disp[2] * t];
+    if (norm(q) > chromaCap * radius + 1e-12) return false;
     const c = dot(q, plane) / (norm(q) * radius || 1);
     if (Math.acos(Math.max(-1, Math.min(1, c))) > cap + 1e-9) return false;
     return q.every((v) => y + v >= -1e-9 && y + v <= 1 + 1e-9);
@@ -565,13 +570,13 @@ function gamutAtten(a: Vec3, b: Vec3): number {
 
 /** Notas del filtro (principio «solo lo medido», 26-10-2026). Las dos limitaciones previas se retiran: ver texto. */
 export const KNOWN_LIMITATIONS = [
-  "máscara solo con datos medidos: sector entre los bordes medidos de cada eje elevado y por debajo de la escala hasta la que se midió el fallo; fuera, cambio 0 (transición C1)",
+  "máscara solo con datos medidos: por lado, borde encontrado → hasta el borde; toEnd → hasta el primer eje sano; sin explorar → punto medio hacia el eje sano (provisional, 70 %); por debajo de la escala de fallo medida; fuera, cambio 0 (coseno 6°)",
   "la simulación («Tu visión») es solo ilustración; no decide qué se modifica",
   "colores fuera de la región medida (p. ej. saturados) sin corrección hasta que se mida fallo ahí",
   "retirada «esquina azul saturada de la gama: sin corrección»: queda fuera de la región medida, cambio 0 por diseño (no es zona medida, no una limitación del filtro)",
   "retirada «escalón cian→menta al 50 % en la pared verde, ~181–205°»: la pared verde queda fuera de la región; el barrido HSV ya no añade escalón",
 ];
-export const PROVISIONAL_NOTE = "provisional: eje elevado sin bordes medidos (sin explorar, «unmeasurable», abierto o en el techo); se corrige solo ±10° alrededor del ángulo medido del eje";
+export const PROVISIONAL_NOTE = "provisional: algún lado sin borde medido (sin explorar / «unmeasurable» / sin bordes) llega al punto medio hacia el primer eje sano y corrige al 70 %";
 
 
 /**
@@ -584,14 +589,70 @@ export const PROVISIONAL_NOTE = "provisional: eje elevado sin bordes medidos (si
  *   medido del eje, escala = umbral del eje; provisional.
  * Fuera: cambio 0, con transición C1 (smoothstep) en ángulo y en escala.
  */
-export type Sector = { axis: string; loDeg: number; hiDeg: number; scale: number; provisional: boolean; reason: string };
-export const REGION = { edgeSoftDeg: 6, provisionalHalfDeg: 10, scaleSoft: 0.5 };
+export type SideSource = "edge" | "toEnd" | "midpointToHealthy";
+export type SectorSide = { deg: number; source: SideSource; provisional: boolean; healthyDeg: number | null };
+export type Sector = {
+  axis: string;
+  centerDeg: number;
+  loDeg: number;
+  hiDeg: number;
+  minus: SectorSide;
+  plus: SectorSide;
+  scale: number;
+  provisional: boolean;
+};
+/** Transición coseno (C1) de 6° en cada extremo; los lados provisionales corrigen al 70 %. */
+export const REGION = { edgeSoftDeg: 6, scaleSoft: 0.5, provisionalGain: 0.7 };
 
-function edgeSectorOf(file: EdgeFile | undefined): { lo: number; hi: number; scale: number | null } | null {
-  if (!file || file.band === "unmeasurable" || file.band === "none") return null;
-  const m = file.minus, p = file.plus;
-  if (m?.result !== "found" || p?.result !== "found" || m.angleDeg == null || p.angleDeg == null) return null;
-  return { lo: m.angleDeg, hi: p.angleDeg, scale: file.depth?.scale ?? null };
+const wrapDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
+
+/** Primer eje sano medido en esa dirección (control, s o blue-end no elevados): distancia angular (°) > 0. */
+function healthyReach(axes: AxisMark[], gate: number, from: number, dir: 1 | -1): { dist: number; deg: number } | null {
+  let best: { dist: number; deg: number } | null = null;
+  for (const axis of axes) {
+    if (!(axis.role === "control" || axis.role === "s" || axis.role === "blue-end")) continue;
+    const healthy = axis.thresholdKind === "upper-bound" || (axis.threshold != null && axis.threshold <= gate);
+    if (!healthy) continue;
+    const dist = ((((axis.angleDeg - from) * dir) % 360) + 360) % 360;
+    if (dist > 1e-6 && (!best || dist < best.dist)) best = { dist, deg: axis.angleDeg };
+  }
+  return best;
+}
+
+/**
+ * Reglas por lado (decisión 26/10), en orden:
+ * 1) borde encontrado → el sector llega al borde;
+ * 2) toEnd (sigue fallando hasta el final explorado / gamut) → banda lateral completa hasta el primer eje sano;
+ * 3) sin explorar / «unmeasurable» → hasta el punto medio entre el eje que falla y el primer eje sano (provisional);
+ * 4) sin bordes → regla 3 en ambos lados, centrada en el punto crítico del perfil (ángulo medido del eje).
+ * Nunca pasa del primer eje sano medido. Cada regla es una función: cambiarlas no toca el resto.
+ */
+type SideRule = (ctx: { center: number; dir: 1 | -1; healthy: { dist: number; deg: number } | null; side: EdgeSide | null }) => SectorSide | null;
+type EdgeSide = NonNullable<EdgeFile["minus"]>;
+const NO_HEALTHY_DIST = 90;
+const sideRules: SideRule[] = [
+  ({ center, dir, healthy, side }) => {
+    if (!side || !(side.result === "found" || (side.result == null && side.found && !side.toEnd)) || side.angleDeg == null) return null;
+    const dist = Math.min(((((side.angleDeg - center) * dir) % 360) + 360) % 360, healthy?.dist ?? 360);
+    return { deg: center + dir * dist, source: "edge", provisional: false, healthyDeg: healthy?.deg ?? null };
+  },
+  ({ center, dir, healthy, side }) => {
+    if (!side || !(side.result === "noEdgeToGamut" || side.toEnd)) return null;
+    return { deg: center + dir * (healthy?.dist ?? NO_HEALTHY_DIST), source: "toEnd", provisional: false, healthyDeg: healthy?.deg ?? null };
+  },
+  ({ center, dir, healthy }) => ({
+    deg: center + (dir * (healthy?.dist ?? NO_HEALTHY_DIST)) / 2,
+    source: "midpointToHealthy",
+    provisional: true,
+    healthyDeg: healthy?.deg ?? null,
+  }),
+];
+function buildSide(center: number, dir: 1 | -1, healthy: { dist: number; deg: number } | null, side: EdgeSide | null): SectorSide {
+  for (const rule of sideRules) {
+    const out = rule({ center, dir, healthy, side });
+    if (out) return out;
+  }
+  throw new Error("sin regla de lado");
 }
 
 export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[] = []): Sector[] {
@@ -600,34 +661,43 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
   const out: Sector[] = [];
   for (const axis of axes) {
     if (isReference(axis) || axis.threshold == null || !(axis.threshold > gate) || axis.thresholdKind === "upper-bound") continue;
-    const id = axis.id ?? axis.role ?? "?";
-    const open = axis.thresholdKind != null && axis.thresholdKind !== "estimate";
-    const cone = axis.role === "l" || axis.role === "m" ? axis.role : null;
-    const sec = cone && !open ? edgeSectorOf(edges.find((e) => e.cone === cone)) : null;
-    if (sec) {
-      out.push({ axis: id, loDeg: sec.lo, hiDeg: sec.hi, scale: sec.scale ?? axis.threshold, provisional: false, reason: "bordes medidos" });
-    } else {
-      const h = REGION.provisionalHalfDeg;
-      out.push({ axis: id, loDeg: axis.angleDeg - h, hiDeg: axis.angleDeg + h, scale: axis.threshold, provisional: true,
-        reason: open ? "eje abierto o en el techo" : cone ? "bordes sin medir" : "eje sin prueba de bordes" });
-    }
+    if (!(axis.role === "l" || axis.role === "m" || axis.role === "s")) continue;
+    const file = edges.find((e) => e.cone === axis.role);
+    const usable = file && file.band !== "unmeasurable" && file.band !== "none" ? file : null;
+    const center = axis.angleDeg;
+    const minus = buildSide(center, -1, healthyReach(axes, gate, center, -1), usable?.minus ?? null);
+    const plus = buildSide(center, 1, healthyReach(axes, gate, center, 1), usable?.plus ?? null);
+    out.push({
+      axis: axis.id ?? axis.role,
+      centerDeg: center,
+      loDeg: minus.deg,
+      hiDeg: plus.deg,
+      minus,
+      plus,
+      scale: usable?.depth?.scale ?? axis.threshold,
+      provisional: minus.provisional || plus.provisional,
+    });
   }
   return out;
 }
 
-/** Peso C1 de la región: sector (smoothstep fuera del borde) × escala (1 hasta la escala medida, 0 a ×1,5). */
-export function regionMask(theta: number, radius: number, sectors: Sector[]): number {
-  let w = 0;
+/** Peso C1 de la región y ganancia (1 en lados medidos, 0,7 en provisionales). */
+export function regionInfo(theta: number, radius: number, sectors: Sector[]): { w: number; gain: number } {
+  let best = { w: 0, gain: 1 };
+  const deg = (theta * 180) / Math.PI;
   for (const sct of sectors) {
-    const lo = rad(sct.loDeg);
-    const width = (((rad(sct.hiDeg) - lo) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const rel = (((theta - lo) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const outside = rel <= width ? 0 : Math.min(rel - width, 2 * Math.PI - rel);
-    const ws = 1 - smoothstep(0, rad(REGION.edgeSoftDeg), outside);
+    const rel = wrapDeg(deg - sct.centerDeg);
+    const sideDeg = rel >= 0 ? sct.hiDeg - sct.centerDeg : sct.centerDeg - sct.loDeg;
+    const outside = Math.max(0, Math.abs(rel) - sideDeg);
+    const ws = 1 - smoothstep(0, REGION.edgeSoftDeg, outside);
     const wr = 1 - smoothstep(sct.scale, sct.scale * (1 + REGION.scaleSoft), radius);
-    w = Math.max(w, ws * wr);
+    const w = ws * wr;
+    if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
   }
-  return w;
+  return best;
+}
+export function regionMask(theta: number, radius: number, sectors: Sector[]): number {
+  return regionInfo(theta, radius, sectors).w;
 }
 const regionCache = new WeakMap<AxisMark[], { floor: number; sectors: Sector[] }>();
 function defaultRegion(axes: AxisMark[], floor: number): Sector[] {
@@ -647,20 +717,20 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean,
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
-  const mask = regionMask(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
+  const { w: mask, gain: sideGain } = regionInfo(thetaOf(plane), radius, region ?? defaultRegion(axes, floor));
   if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
   const lost = p * (1 - seen);
   if (Math.abs(lost) < 1e-6) return rgb;
   const s = dirFromTheta(model.sDir);
-  const gain = extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN;
-  const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius;
+  const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain;
+  const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain;
   // Signo de Fidaner uniforme: rojizo (lost > 0) → S+, verdoso → S−.
   const inj = Math.max(-bound, Math.min(bound, lost * gain));
   const d: Vec3 = [s[0] * inj, s[1] * inj, s[2] * inj];
   const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
-  const tS = reachT(y, plane, d, cap);
+  const tS = reachT(y, plane, d, cap, CHROMA_CAP);
   const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
   const att = mask * gamutAtten(rgb, full);
   const out = mixRgb(rgb, full, att);
@@ -864,12 +934,13 @@ export function colorFor(
   source: FilterSource,
   files: EdgeFile[] = [],
 ): Vec3 {
-  if (source === "edges") return edgePaint(rgb, profile, files, kind);
+  if (source === "edges" && kind === "simulate") return edgePaint(rgb, profile, files, kind);
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const luma = lumaFromProfile(profile);
   if (kind === "simulate") return paintYours(rgb, profile.axes, floor, luma);
-  if (kind === "correct") return correctColor(rgb, profile.axes, floor);
+  // Perfil y Bordes usan la misma región medida (reglas por lado): siempre hay filtro.
   const region = measuredRegion(profile.axes, floor, files);
+  if (kind === "correct") return correctColor(rgb, profile.axes, floor, region);
   if (kind === "extreme") return extremeColor(rgb, profile.axes, floor, luma, region);
   return assistColor(rgb, profile.axes, floor, luma, region);
 }

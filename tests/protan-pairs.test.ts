@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { assistColor, extremeColor, measuredRegion, regionMask, type Sector } from "../src/lib/color/spectrum";
+import { assistColor, extremeColor, lumaFromProfile, measuredRegion, paintYours, regionMask, type Sector } from "../src/lib/color/spectrum";
+import { pairDeltaE } from "../src/lib/color/calibqp";
 import { dirFromTheta, thetaOf } from "../src/lib/color/space";
 import { parseProfile } from "../src/lib/color/profile";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
@@ -42,28 +43,39 @@ export function region(simulated: boolean): Sector[] {
 const at = (deg: number, r: number, y = 0.2): Vec3 => { const d = dirFromTheta((deg * Math.PI) / 180); return [y + d[0] * r, y + d[1] * r, y + d[2] * r]; };
 const inMask = (c: Vec3, reg: Sector[]) => { const y = luminance(c); const p: Vec3 = [c[0] - y, c[1] - y, c[2] - y]; return regionMask(thetaOf(p), Math.hypot(...p), reg); };
 
+/** Umbral del control en ΔE00 (par gris ± dir·T, como la sesión), calculado desde el perfil. */
+export const CONTROL_DE = (() => { const c = profile.axes.find((a) => a.role === "control")!; return pairDeltaE((c.angleDeg * Math.PI) / 180, c.threshold!); })();
+const luma = lumaFromProfile(profile);
+const simProfile = (c: Vec3) => paintYours(c, profile.axes, floor, luma);
+
 export function protanTable(simulated = true) {
   const reg = region(simulated);
   const base = PAIRS.map(([name, ha, hb]) => { const a = hex(ha); return { name, ha, hb, a, b: matched(a, hex(hb)) }; });
-  const inner = reg.map((s) => { const mid = s.loDeg + (((s.hiDeg - s.loDeg) % 360) + 360) % 360 / 2; return { name: `dentro ${s.axis} (${mid.toFixed(1)}°, 0,8·escala) / gris`, ha: "-", hb: "-", a: at(mid, 0.8 * s.scale), b: at(0, 0) }; });
+  const inner = reg.flatMap((s) => [
+    { name: `dentro ${s.axis} (${s.centerDeg}°, 0,8·escala) / gris`, ha: "-", hb: "-", a: at(s.centerDeg, 0.8 * s.scale), b: at(0, 0) },
+    { name: `dentro ${s.axis}: gris ± 0,8·escala`, ha: "-", hb: "-", a: at(s.centerDeg, 0.8 * s.scale), b: at(s.centerDeg + 180, 0.8 * s.scale) },
+  ]);
   const rows = [...base, ...inner].map(({ name, ha, hb, a, b }) => {
     const d = (f: (c: Vec3) => Vec3) => deltaE00Linear(protan(f(a)), protan(f(b)));
+    const dp = (f: (c: Vec3) => Vec3) => deltaE00Linear(simProfile(f(a)), simProfile(f(b)));
+    const A = (c: Vec3) => assistColor(c, profile.axes, floor, [], reg), E = (c: Vec3) => extremeColor(c, profile.axes, floor, [], reg);
     const inside = inMask(a, reg) > 0 || inMask(b, reg) > 0;
-    return { name, ha, hb, inside, before: d((c) => c), assist: d((c) => assistColor(c, profile.axes, floor, [], reg)), extreme: d((c) => extremeColor(c, profile.axes, floor, [], reg)) };
+    return { name, ha, hb, inside, before: d((c) => c), assist: d(A), extreme: d(E), simBefore: dp((c) => c), simAssist: dp(A), simExtreme: dp(E) };
   });
   return { rows };
 }
 
 for (const simulated of [true, false]) {
-  const label = simulated ? "bordes SIMULADOS v3" : "bordes reales vacíos (provisional ±10°)";
-  test(`protán simulado (perfil 07:21Z, ${label}): los pares fuera de la región quedan iguales al original`, () => {
+  const label = simulated ? "bordes SIMULADOS v3" : "bordes reales vacíos (provisional)";
+  test(`pares (perfil 07:21Z, ${label}): fuera de la región = original; dentro, simulación del perfil ≥ 1,5× control (asist.) y ≥ 2× (extr.)`, () => {
     const t = protanTable(simulated);
-    console.log(`${label}: par | región | original | asistencia | extremo`);
-    for (const r of t.rows) console.log(`${r.name} (${r.ha}/${r.hb}) | ${r.inside ? "dentro" : "fuera"} | ${r.before.toFixed(2)} | ${r.assist.toFixed(2)} | ${r.extreme.toFixed(2)}`);
-    for (const r of t.rows.filter((x) => !x.inside)) assert.ok(r.assist === r.before && r.extreme === r.before, r.name);
-    for (const r of t.rows.filter((x) => x.inside)) assert.ok(r.assist > r.before && r.extreme >= r.assist, r.name);
-  });
-  test(`protán simulado (perfil 07:21Z, ${label}): pares dentro de la región ≥ 5 ΔE00 tras la asistencia`, { todo: "no se alcanza: con colores bajo la escala de fallo medida la asistencia da 2,2–4,6 ΔE00 (extremo 3,0–6,7)" }, () => {
-    for (const r of protanTable(simulated).rows.filter((x) => x.inside)) assert.ok(r.assist >= 5, `${r.name}: ${r.assist.toFixed(2)}`);
+    console.log(`${label}: control ${CONTROL_DE.toFixed(2)} ΔE00 → ≥ ${(1.5 * CONTROL_DE).toFixed(2)} / ≥ ${(2 * CONTROL_DE).toFixed(2)}`);
+    console.log("par | región | Machado orig/asist/extr | simulación del perfil orig/asist/extr");
+    for (const r of t.rows) console.log(`${r.name} | ${r.inside ? "dentro" : "fuera"} | ${r.before.toFixed(2)}/${r.assist.toFixed(2)}/${r.extreme.toFixed(2)} | ${r.simBefore.toFixed(2)}/${r.simAssist.toFixed(2)}/${r.simExtreme.toFixed(2)}`);
+    for (const r of t.rows.filter((x) => !x.inside)) assert.ok(r.assist === r.before && r.extreme === r.before && r.simAssist === r.simBefore, r.name);
+    for (const r of t.rows.filter((x) => x.inside && x.ha === "-")) {
+      assert.ok(r.simAssist >= 1.5 * CONTROL_DE, `${r.name}: asist ${r.simAssist.toFixed(2)}`);
+      assert.ok(r.simExtreme >= 2 * CONTROL_DE, `${r.name}: extr ${r.simExtreme.toFixed(2)}`);
+    }
   });
 }

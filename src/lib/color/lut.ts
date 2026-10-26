@@ -97,7 +97,7 @@ export type TransformFile = {
     mask: "región medida";
     region: Sector[];
     provisional: boolean;
-    regionSoft: { edgeDeg: number; scaleTimes: number; provisionalHalfDeg: number };
+    regionSoft: { edgeDeg: number; scaleTimes: number; provisionalGain: number };
     gamutSoft: number;
     notes: string[];
   };
@@ -137,7 +137,7 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       id: "correct",
       name: "Mapa intermedio",
       note: "Conserva el rojo que sí cabe en la banda y pasa a azul la ganancia que no se va a ver. Fuera de la banda no toca.",
-      apply: (rgb) => correctColor(rgb, axes, floor),
+      apply: (rgb) => correctColor(rgb, axes, floor, region),
     },
     {
       id: "assist",
@@ -165,7 +165,7 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
       mask: "región medida",
       region,
       provisional: region.some((sector) => sector.provisional),
-      regionSoft: { edgeDeg: REGION.edgeSoftDeg, scaleTimes: 1 + REGION.scaleSoft, provisionalHalfDeg: REGION.provisionalHalfDeg },
+      regionSoft: { edgeDeg: REGION.edgeSoftDeg, scaleTimes: 1 + REGION.scaleSoft, provisionalGain: REGION.provisionalGain },
       gamutSoft: GAMUT_SOFT,
       notes: [...KNOWN_LIMITATIONS, ...(region.some((sector) => sector.provisional) ? [PROVISIONAL_NOTE] : [])],
     },
