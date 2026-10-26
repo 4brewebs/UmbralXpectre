@@ -30,6 +30,8 @@ type AxisMark = {
   role?: string;
   parentId?: string | null;
   thresholdKind?: string | null;
+  /** «validation-3afc» si la validación 3AFC lo midió; en un perfil validado, el resto entra como estimado. */
+  thresholdSource?: string | null;
 };
 export type LumaGain = { angleDeg: number; gain: number };
 
@@ -368,6 +370,15 @@ function splitPlane(plane: Vec3, mid: number): { u: Vec3; p: number; n: Vec3 } {
  * What this profile sees, shown to someone who separates the band.
  * Only the confusion coordinate shrinks. The lost red is caught by the intact cone, not dropped to gray.
  */
+const simCache = new WeakMap<AxisMark[], { floor: number; points: Array<{ deg: number; ratio: number }> }>();
+function simPoints(axes: AxisMark[], floor: number): Array<{ deg: number; ratio: number }> {
+  const hit = simCache.get(axes);
+  if (hit && hit.floor === floor) return hit.points;
+  const points = confusionPoints(axes, floor, []).points;
+  simCache.set(axes, { floor, points });
+  return points;
+}
+
 export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: LumaGain[] = []): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
@@ -377,7 +388,8 @@ export function paintYours(rgb: Vec3, axes: AxisMark[], floor: number, luma: Lum
   const hit = activeBand(thetaOf(plane), model);
   if (!hit) return rgb;
   const { u, p, n } = splitPlane(plane, hit.band.mid);
-  const seen = Math.min(1, floor / hit.band.T);
+  // Misma T(θ) que el mapa y el filtro, en el tono del color (punto 2, 26/10).
+  const seen = Math.min(1, floor / confusionT(simPoints(axes, floor), floor, (thetaOf(plane) * 180) / Math.PI));
   const pSim = p * (1 - hit.w * (1 - seen));
   const lost = p - pSim;
   // Solo la carta medida (el rayo del eje que falla) vierte hacia la vía que lo recoge; igual para l, m y s.
@@ -540,8 +552,11 @@ export type Sector = {
   scale: number;
   /** Escala a la que se midieron los bordes (fallo en el borde). */
   edgeScale?: number;
-  /** T del perfil en log entre los ejes medidos (como el mapa): el techo radial es max(1,5·scale, 1,5·T_perfil(ángulo)). */
+  /** T(θ) única (ejes medidos, estimados y bordes): de ella sale el peso por tono y lo perdido. */
   profileT?: { floor: number; points: Array<{ deg: number; ratio: number }> };
+  /** Alcance angular del sector: hasta el primer eje sano a cada lado (los bordes no lo recortan, solo afinan T). */
+  reachLo?: number;
+  reachHi?: number;
   provisional: boolean;
 };
 /** Transición coseno (C1) de 12° (Extremo 14°) en cada extremo, ensanchada al calibrar la ganancia con T/floor ≥ 1,6; los lados provisionales corrigen al 70 %. */
@@ -551,16 +566,36 @@ export const REGION = { edgeSoftDeg: 16, edgeSoftDegExtreme: 18, scaleSoft: 0.5,
 const wrapDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 
 /** Eje medido sano: cualquier eje (control, l, m, s, red-end, blue-end o vecino) con umbral ≤ gate o cota «o menos». */
-function isHealthy(axis: AxisMark, gate: number): boolean {
+function isHealthy(axis: AxisMark, gate: number, axes?: AxisMark[]): boolean {
   if (!Number.isFinite(axis.angleDeg) || axis.threshold == null || !(axis.threshold > 0)) return false;
-  return axis.thresholdKind === "upper-bound" || axis.threshold <= gate;
+  if (axis.thresholdKind === "upper-bound") return true;
+  // En un perfil validado, los ejes no validados cuentan con su razón atenuada (estimados).
+  return effThreshold(axis, gate / GATE, axes) <= gate;
+}
+
+/**
+ * Pérdida única T(θ) (Colorado, 26/10): mapa, filtro y simulador usan la misma. En un perfil con validación 3AFC,
+ * los ejes no validados entran como «estimado» con la razón atenuada en log (peso ESTIMATED_WEIGHT).
+ */
+/** weightFullRatio: T/suelo a partir del cual el peso por tono es 1 (rampa ancha: sin escalón en el anillo). */
+export const LOSS_CURVE = { estimatedWeight: 0.5, maxGapDeg: 60, taperDeg: 30, weightFullRatio: 2.5 };
+function validated(axes: AxisMark[] | undefined): boolean {
+  return !!axes?.some((a) => a.thresholdSource === "validation-3afc");
+}
+function isEstimated(axis: AxisMark, axes: AxisMark[] | undefined): boolean {
+  return validated(axes) && axis.thresholdSource !== "validation-3afc";
+}
+function effThreshold(axis: AxisMark, floor: number, axes: AxisMark[] | undefined): number {
+  const t = axis.threshold as number;
+  if (!isEstimated(axis, axes) || !(floor > 0) || !(t > floor)) return t;
+  return floor * Math.exp(LOSS_CURVE.estimatedWeight * Math.log(t / floor));
 }
 
 /** Primer eje sano medido en esa dirección (cualquier eje medido no elevado): distancia angular (°) > 0. */
 function healthyReach(axes: AxisMark[], gate: number, from: number, dir: 1 | -1): { dist: number; deg: number } | null {
   let best: { dist: number; deg: number } | null = null;
   for (const axis of axes) {
-    if (!isHealthy(axis, gate)) continue;
+    if (!isHealthy(axis, gate, axes)) continue;
     const dist = ((((axis.angleDeg - from) * dir) % 360) + 360) % 360;
     if (dist > 1e-6 && (!best || dist < best.dist)) best = { dist, deg: axis.angleDeg };
   }
@@ -610,11 +645,15 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
   for (const axis of axes) {
     if (isReference(axis) || axis.threshold == null || !(axis.threshold > gate) || axis.thresholdKind === "upper-bound") continue;
     if (!(axis.role === "l" || axis.role === "m" || axis.role === "s")) continue;
+    // Filtros solo desde lo validado: un eje estimado da forma a T(θ) pero no abre sector propio.
+    if (isEstimated(axis, axes)) continue;
     const file = edges.find((e) => e.cone === axis.role);
     const usable = file && file.band !== "unmeasurable" && file.band !== "none" ? file : null;
     const center = axis.angleDeg;
-    const minus = buildSide(center, -1, healthyReach(axes, gate, center, -1), usable?.minus ?? null);
-    const plus = buildSide(center, 1, healthyReach(axes, gate, center, 1), usable?.plus ?? null);
+    const hMinus = healthyReach(axes, gate, center, -1);
+    const hPlus = healthyReach(axes, gate, center, 1);
+    const minus = buildSide(center, -1, hMinus, usable?.minus ?? null);
+    const plus = buildSide(center, 1, hPlus, usable?.plus ?? null);
     out.push({
       axis: axis.id ?? axis.role,
       centerDeg: center,
@@ -625,10 +664,14 @@ export function measuredRegion(axes: AxisMark[], floor: number, edges: EdgeFile[
       // Profundidad: max(estimación, edgeScale si el pico falló), ≥ floor, techo = umbral del eje (Colorado, 26/10).
       scale: (usable && fileDepth(usable, floor, axis.threshold)) ?? axis.threshold,
       ...(usable ? { edgeScale: usable.edgeScale } : {}),
-      profileT: { floor, points: confusionPoints(axes, floor, []).points },
+      reachLo: center - (hMinus?.dist ?? NO_HEALTHY_DIST),
+      reachHi: center + (hPlus?.dist ?? NO_HEALTHY_DIST),
       provisional: minus.provisional || plus.provisional,
     });
   }
+  // Una sola T(θ) para todos los sectores: ejes (medidos y estimados) y bordes de la región.
+  const points = confusionPoints(axes, floor, out).points;
+  for (const sct of out) sct.profileT = { floor, points };
   return out;
 }
 
@@ -638,13 +681,15 @@ export function regionInfo(theta: number, radius: number, sectors: Sector[], sof
   const deg = (theta * 180) / Math.PI;
   for (const sct of sectors) {
     const rel = wrapDeg(deg - sct.centerDeg);
-    const sideDeg = rel >= 0 ? sct.hiDeg - sct.centerDeg : sct.centerDeg - sct.loDeg;
+    // Alcance hasta el primer eje sano (no hasta el borde medido: los bordes solo afinan T(θ)).
+    const sideDeg = rel >= 0 ? (sct.reachHi ?? sct.hiDeg) - sct.centerDeg : sct.centerDeg - (sct.reachLo ?? sct.loDeg);
     const outside = Math.max(0, Math.abs(rel) - sideDeg);
     const ws = 1 - smoothstep(0, softDeg, outside);
-    // Techo radial (Colorado, 26/10): max(1,5·depth, 1,5·T_perfil(ángulo)); si depth > T manda depth. El ángulo sigue acotado por los bordes.
-    // Punto 1 (26/10): sin techo radial; el peso depende solo del tono.
+    // Peso solo por tono (punto 1, 26/10): sin techo radial; un color saturado de la zona se corrige igual que uno pálido.
+    // Dentro del alcance, el peso sigue a T(θ): 0 donde T ≈ suelo, 1 desde T ≥ 2,5·suelo.
+    const wt = sct.profileT ? smoothstep(1, LOSS_CURVE.weightFullRatio, confusionT(sct.profileT.points, sct.profileT.floor, deg) / sct.profileT.floor) : 1;
     void radius;
-    const w = ws;
+    const w = ws * wt;
     if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
   }
   return best;
@@ -682,7 +727,7 @@ export type Correction = {
  * línea de confusión; si ninguna cae ahí, la perpendicular. Sin ninguna vía sana medida, no se corrige (null).
  */
 function pickTarget(axes: AxisMark[], line: number, gate: number): Pick<Correction, "target" | "targetId" | "targetRole" | "margin"> | null {
-  const healthy = axes.filter((axis) => isHealthy(axis, gate));
+  const healthy = axes.filter((axis) => isHealthy(axis, gate, axes));
   if (!healthy.length) return null;
   const perp = line + Math.PI / 2;
   let best: AxisMark | null = null;
@@ -874,12 +919,16 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean,
 export function confusionPoints(axes: AxisMark[], floor: number, region: Sector[]): { points: Array<{ deg: number; ratio: number }>; estimated: Array<[number, number]>; measured: number[] } {
   const w360 = (d: number) => ((d % 360) + 360) % 360;
   const points: Array<{ deg: number; ratio: number }> = [];
+  const estimated: Array<[number, number]> = [];
+  const measured: number[] = [];
   for (const axis of axes) {
     if (axis.threshold == null || !Number.isFinite(axis.angleDeg)) continue;
-    points.push({ deg: w360(axis.angleDeg), ratio: Math.max(1, axis.threshold / floor) });
+    const deg = w360(axis.angleDeg);
+    points.push({ deg, ratio: Math.max(1, effThreshold(axis, floor, axes) / floor) });
+    // Ejes no validados en un perfil validado: estimados (rayado en el mapa).
+    if (isEstimated(axis, axes)) estimated.push([deg - 10, deg + 10]);
+    else measured.push(deg);
   }
-  const measured = points.map((p) => p.deg);
-  const estimated: Array<[number, number]> = [];
   for (const sector of region) {
     const axis = axes.find((a) => (a.id ?? a.role) === sector.axis);
     const peak = Math.max(1, (axis?.threshold ?? floor) / floor);
@@ -911,8 +960,15 @@ export function confusionT(points: Array<{ deg: number; ratio: number }>, floor:
   const hi = points[i];
   const lo = points[(i - 1 + points.length) % points.length];
   const span = w360(hi.deg - lo.deg) || 360;
-  const t = w360(d - lo.deg) / span;
-  return floor * Math.exp(Math.log(lo.ratio) * (1 - t) + Math.log(hi.ratio) * t);
+  const dl = w360(d - lo.deg);
+  if (span <= LOSS_CURVE.maxGapDeg) {
+    const t = dl / span;
+    return floor * Math.exp(Math.log(lo.ratio) * (1 - t) + Math.log(hi.ratio) * t);
+  }
+  // Hueco > 60°: no se inventa pérdida entre puntos lejanos; cada extremo baja al suelo en taperDeg.
+  const dh = span - dl;
+  const fade = (ratio: number, dist: number) => Math.exp(Math.log(ratio) * Math.max(0, 1 - dist / LOSS_CURVE.taperDeg));
+  return floor * Math.max(1, fade(lo.ratio, dl), fade(hi.ratio, dh));
 }
 
 function pairMetricPoints(a: Vec3, b: Vec3, points: Array<{ deg: number; ratio: number }>, floor: number): number {

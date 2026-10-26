@@ -253,10 +253,13 @@ test("filtros: sin validación no hay; con ella salen solo de sus ejes y basedOn
   const st = await run(truthOf(), 11);
   const p = applyValidation(lucas, st);
   const base = filterProfile(p)!;
-  assert.deepEqual(base.axes.map((a) => a.id).sort(), ids().sort());
+  // Punto 2 (26/10): el perfil de filtros conserva todos los ejes medidos; los validados son los de la validación.
+  const val = base.axes.filter((a) => a.thresholdSource === "validation-3afc");
+  assert.deepEqual(val.map((a) => a.id).sort(), ids().sort());
+  assert.ok(base.axes.length >= val.length);
   const t = buildFilterTransforms(p, [])!;
   assert.equal(t.basedOn.thresholds, "validation-3afc");
-  assert.deepEqual(t.basedOn.validation!.map((v) => v.threshold), base.axes.map((a) => a.threshold));
+  assert.deepEqual(t.basedOn.validation!.map((v) => v.threshold), val.map((a) => a.threshold));
   assert.deepEqual(t.basedOn.edges, []);
   assert.equal(t.basedOn.createdAt, lucas.createdAt);
 });

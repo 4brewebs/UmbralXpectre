@@ -326,7 +326,7 @@ export function sampleLut(lut: Uint8Array, r8: number, g8: number, b8: number): 
 }
 
 /**
- * Perfil para filtros: solo los ejes de la validación 3AFC (sus umbrales ya sustituyen a los del perfil).
+ * Perfil para filtros: ejes validados (3AFC) + el resto como estimados; los sectores solo salen de lo validado.
  * Sin validación, null: no hay filtros (los umbrales del perfil sí/no ya no los construyen).
  * El suelo (`fit.controlAbs`) es el control validado; sin control validado, null.
  */
@@ -334,9 +334,13 @@ export function filterProfile(profile: UmbralProfile): UmbralProfile | null {
   const v = profile.validation;
   if (!v?.axes?.length) return null;
   const ids = new Set(v.axes.map((a) => a.id));
-  const axes = profile.axes.filter((a) => ids.has(a.id) && a.thresholdSource === "validation-3afc");
-  const control = axes.find((a) => a.role === "control");
-  if (!control?.threshold || !axes.some((a) => a.role !== "control")) return null;
+  const isVal = (a: (typeof profile.axes)[number]) => ids.has(a.id) && a.thresholdSource === "validation-3afc";
+  // Punto 2 (26/10): se conservan TODOS los ejes medidos; los no validados entran en T(θ) como «estimado»
+  // (razón atenuada en spectrum) y no abren sector. Solo lo validado decide si hay filtros.
+  const valAxes = profile.axes.filter(isVal);
+  const control = valAxes.find((a) => a.role === "control");
+  if (!control?.threshold || !valAxes.some((a) => a.role !== "control")) return null;
+  const axes = profile.axes.filter((a) => isVal(a) || a.role !== "control");
   return { ...profile, axes, fit: { ...profile.fit, controlAbs: control.threshold } };
 }
 
@@ -350,7 +354,7 @@ export function buildFilterTransforms(profile: UmbralProfile, edges: EdgeFile[] 
     basedOn: {
       ...file.basedOn,
       thresholds: "validation-3afc",
-      validation: base.axes.map((a) => ({ id: a.id, threshold: a.threshold ?? 0, thresholdStandardY: a.thresholdStandardY ?? 0 })),
+      validation: base.axes.filter((a) => a.thresholdSource === "validation-3afc").map((a) => ({ id: a.id, threshold: a.threshold ?? 0, thresholdStandardY: a.thresholdStandardY ?? 0 })),
       edges: edges.map((e) => e.cone),
     },
   };
