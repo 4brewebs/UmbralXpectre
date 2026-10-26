@@ -78,6 +78,7 @@ cada push a `main` despliega en Pages.
 - [ ] Tests más finos de `src/lib/color` (`spectrum.ts`, `lut.ts`).
 - Láminas: el contenido sigue como estaba (§7); solo se añadió el selector Perfil/Bordes.
 - [ ] Probar en el móvil de Lucas: bordes más allá del sector, aviso de dispositivo y la rejilla nueva (más ensayos por eje en ojos sanos: ~5–8).
+- Posible mejora: validación multi-centro. Además del gris, medir umbrales 3AFC en 2–3 colores de partida poco saturados y dentro de gamut: amarillo anaranjado (la zona de Rayleigh, la del anomaloscopio), verde azulado (el lado opuesto de la línea de confusión) y opcionalmente tono piel. Mismo disco de 3 sectores y mismos pesos de luminancia, con el fondo gris de anclaje para no desplazar la adaptación. Motivo: las elipses de discriminación varían con la cromaticidad (MacAdam), y medir solo en gris obliga a los filtros a extrapolar. Coste: unos 25 ensayos por centro y eje, así que sería una etapa opcional como los bordes.
 
 ## Notas
 - `tests/fixtures/` contiene los JSON del perfil de Lucas y son públicos en el repo; Lucas lo aceptó.
