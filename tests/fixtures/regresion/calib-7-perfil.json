@@ -31,7 +31,8 @@
   "space": "linear sRGB, constant CIE Y, anchor 0.22",
   "anchorLinear": 0.22,
   "procedure": "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
-  "priorsRole": "Cone-isolation directions only choose where to look first. They are not the output."
+  "priorsRole": "Cone-isolation directions only choose where to look first. They are not the output.",
+  "search": "staircase"
  },
  "summary": "Las tres vías quedan medidas. violáceo 0.040. rojizo 0.041. verdoso 0.042. Control 0.039. Ninguna de las tres queda claramente por encima del control. En el extremo de la pantalla, «rojo extremo» 0.038 y «azul extremo» 0.042.",
  "confidence": "high",
@@ -127,7 +128,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 7,
-   "order": 1
+   "order": 1,
+   "staircase": {
+    "lo": 0.0382,
+    "hi": 0.0425,
+    "convergence": 0.0403,
+    "stop": "bisection"
+   }
   },
   {
    "id": "control",
@@ -143,7 +150,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 5,
-   "order": 2
+   "order": 2,
+   "staircase": {
+    "lo": 0.036,
+    "hi": 0.0419,
+    "convergence": 0.039,
+    "stop": "bisection"
+   }
   },
   {
    "id": "l",
@@ -159,7 +172,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 5,
-   "order": 3
+   "order": 3,
+   "staircase": {
+    "lo": 0.0391,
+    "hi": 0.0434,
+    "convergence": 0.0412,
+    "stop": "bisection"
+   }
   },
   {
    "id": "m",
@@ -175,7 +194,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 6,
-   "order": 4
+   "order": 4,
+   "staircase": {
+    "lo": 0.0397,
+    "hi": 0.0441,
+    "convergence": 0.0419,
+    "stop": "bisection"
+   }
   },
   {
    "id": "red-end",
@@ -191,7 +216,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 6,
-   "order": 5
+   "order": 5,
+   "staircase": {
+    "lo": 0.0351,
+    "hi": 0.0401,
+    "convergence": 0.0376,
+    "stop": "bisection"
+   }
   },
   {
    "id": "blue-end",
@@ -207,7 +238,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 5,
-   "order": 6
+   "order": 6,
+   "staircase": {
+    "lo": 0.0377,
+    "hi": 0.046,
+    "convergence": 0.0419,
+    "stop": "bisection"
+   }
   },
   {
    "id": "s:-",
@@ -223,7 +260,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 7
+   "order": 7,
+   "staircase": {
+    "lo": 0.0206,
+    "hi": 0.0411,
+    "convergence": 0.0308,
+    "stop": "bisection"
+   }
   },
   {
    "id": "l:-",
@@ -239,7 +282,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 8
+   "order": 8,
+   "staircase": {
+    "lo": 0.0363,
+    "hi": 0.0484,
+    "convergence": 0.0424,
+    "stop": "bisection"
+   }
   },
   {
    "id": "l:+",
@@ -255,7 +304,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 9
+   "order": 9,
+   "staircase": {
+    "lo": 0.033,
+    "hi": 0.0495,
+    "convergence": 0.0412,
+    "stop": "bisection"
+   }
   },
   {
    "id": "m:-",
@@ -271,7 +326,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 10
+   "order": 10,
+   "staircase": {
+    "lo": 0.0367,
+    "hi": 0.0419,
+    "convergence": 0.0393,
+    "stop": "bisection"
+   }
   },
   {
    "id": "m:+",
@@ -287,7 +348,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 11
+   "order": 11,
+   "staircase": {
+    "lo": 0.036,
+    "hi": 0.042,
+    "convergence": 0.039,
+    "stop": "bisection"
+   }
   },
   {
    "id": "red-end:-",
@@ -303,7 +370,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 12
+   "order": 12,
+   "staircase": {
+    "lo": 0.0381,
+    "hi": 0.0458,
+    "convergence": 0.0419,
+    "stop": "bisection"
+   }
   },
   {
    "id": "red-end:+",
@@ -319,7 +392,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 13
+   "order": 13,
+   "staircase": {
+    "lo": 0.0299,
+    "hi": 0.0449,
+    "convergence": 0.0374,
+    "stop": "bisection"
+   }
   },
   {
    "id": "blue-end:+",
@@ -335,7 +414,13 @@
    "thresholdKind": "estimate",
    "closed": false,
    "trials": 4,
-   "order": 14
+   "order": 14,
+   "staircase": {
+    "lo": 0.0381,
+    "hi": 0.0508,
+    "convergence": 0.0445,
+    "stop": "bisection"
+   }
   }
  ],
  "trials": [
