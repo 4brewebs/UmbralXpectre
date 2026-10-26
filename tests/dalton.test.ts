@@ -40,9 +40,9 @@ export function pairReport() {
   };
 }
 
-test("solo lo medido: #C04040 vs #708030 (saturados, fuera de la región medida) quedan como el original", () => {
+test("sin techo radial (punto 1, 26/10): #C04040 vs #708030 (saturados en la zona) se separan más; Y intacta", () => {
   const r = pairReport();
-  assert.ok(Math.abs(r.assist - r.before) < 1e-9 && Math.abs(r.extreme - r.before) < 1e-9, JSON.stringify(r));
+  assert.ok(r.assist >= r.before && r.extreme >= r.before, JSON.stringify(r));
   assert.ok(Math.abs(r.y[0] - r.y[1]) < 1e-7 && Math.abs(r.y[2] - r.y[3]) < 1e-7);
 });
 
@@ -106,16 +106,17 @@ test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de
     const y = luminance(c);
     const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
     // Asistencia/Extremo: región medida; con w = 0 el cambio es exactamente 0.
-    if (regionMask(thetaOf(plane), Math.hypot(...plane), measuredRegion(profile.axes, floor)) === 0) {
-      assert.deepEqual(assistColor(c, profile.axes, floor), c);
-      assert.deepEqual(extremeColor(c, profile.axes, floor), c);
-    }
+    const reg = measuredRegion(profile.axes, floor);
+    if (regionMask(thetaOf(plane), Math.hypot(...plane), reg) === 0) assert.deepEqual(assistColor(c, profile.axes, floor), c);
+    // Extremo tiene borde de 14° (Asistencia 12°): su máscara propia.
+    if (regionMask(thetaOf(plane), Math.hypot(...plane), reg, true) === 0) assert.deepEqual(extremeColor(c, profile.axes, floor), c);
   }
 });
 
-test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono)", () => {
+test("filtros del perfil: el rojo casi puro sigue rojo (regla fija de Lucas: giro ≤ 45°, 60° Extremo)", () => {
+  // Antes < 15° porque el techo radial dejaba fuera los saturados; sin techo, la regla es la de Lucas.
   const near: Vec3 = [0.75, 0.05, 0.05];
-  for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
+  for (const [f, cap] of [[assistColor, 45], [extremeColor, 60]] as const) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI <= cap + 0.5);
 });
 
 test("transforms: región por lados (borde / toEnd / punto medio al eje sano); sin bordes → punto medio, provisional", () => {
@@ -159,7 +160,7 @@ test("barrido HSV 1° (S 100 y 50 %): escalón filtrado ≤ escalón original + 
   assert.deepEqual(bad, []);
 });
 
-test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia; ≤ +1,5 en Extremo (transición de 12–14°, Colorado acepta +1,0–1,5)", () => {
+test("anillo de croma baja (r 0,01–0,08, paso 0,25°): exceso ≤ +1 ΔE00/1° en Asistencia; ≤ +1,5 en Extremo (transición de 16–18° sin techo radial; Colorado acepta +1,0–1,5)", () => {
   const real = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8"))!;
   const fl = real.fit.controlAbs!;
   const sim = JSON.parse(fs.readFileSync(new URL("./fixtures/bordes-simulado-v3-0721Z.json", import.meta.url), "utf8")).runs.map((x: { file: unknown }) => x.file);

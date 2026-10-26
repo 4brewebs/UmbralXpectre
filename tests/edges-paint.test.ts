@@ -5,7 +5,7 @@ import { parseProfile } from "../src/lib/color/profile";
 import { parseEdgeFile } from "../src/lib/color/edges";
 import { colorFor, edgeNotches, measuredRegion } from "../src/lib/color/spectrum";
 import { deltaE00Linear as deltaE00 } from "../src/lib/color/deltaE";
-import { thetaOf, killLuminance } from "../src/lib/color/space";
+import { thetaOf, killLuminance, luminance } from "../src/lib/color/space";
 import type { Vec3 } from "../src/lib/color/space";
 
 const read = (name: string) => fs.readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
@@ -26,8 +26,11 @@ test("tInner no baja del umbral de origen aunque la profundidad se midiera en el
   assert.ok(n.tInner >= open.sourceThreshold);
 });
 
-test("Bordes usa la región medida: un rojo saturado (fuera de la escala de fallo) no cambia en ningún filtro", () => {
-  for (const kind of ["assist", "extreme"] as const) assert.deepEqual(colorFor(kind, red, profile, "edges", [open]), red);
+test("Bordes sin techo radial (punto 1, 26/10): un rojo saturado de la zona se corrige y conserva Y", () => {
+  for (const kind of ["assist", "extreme"] as const) {
+    const o = colorFor(kind, red, profile, "edges", [open]);
+    assert.ok(Math.abs(luminance(o) - luminance(red)) < 1e-6);
+  }
 });
 
 test("con un lado cerrado: ese lado llega al borde; el abierto (toEnd) llega al primer eje sano", () => {

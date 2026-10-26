@@ -546,7 +546,7 @@ export type Sector = {
 };
 /** Transición coseno (C1) de 12° (Extremo 14°) en cada extremo, ensanchada al calibrar la ganancia con T/floor ≥ 1,6; los lados provisionales corrigen al 70 %. */
 /** Extremo usa una transición más ancha (Colorado, 26/10): su desplazamiento es mayor y el escalón crece con él. */
-export const REGION = { edgeSoftDeg: 12, edgeSoftDegExtreme: 14, scaleSoft: 0.5, provisionalGain: 0.7 };
+export const REGION = { edgeSoftDeg: 16, edgeSoftDegExtreme: 18, scaleSoft: 0.5, provisionalGain: 0.7 };
 
 const wrapDeg = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 
@@ -642,15 +642,15 @@ export function regionInfo(theta: number, radius: number, sectors: Sector[], sof
     const outside = Math.max(0, Math.abs(rel) - sideDeg);
     const ws = 1 - smoothstep(0, softDeg, outside);
     // Techo radial (Colorado, 26/10): max(1,5·depth, 1,5·T_perfil(ángulo)); si depth > T manda depth. El ángulo sigue acotado por los bordes.
-    const base = sct.profileT ? Math.max(sct.scale, confusionT(sct.profileT.points, sct.profileT.floor, deg)) : sct.scale;
-    const wr = 1 - smoothstep(base, base * (1 + REGION.scaleSoft), radius);
-    const w = ws * wr;
+    // Punto 1 (26/10): sin techo radial; el peso depende solo del tono.
+    void radius;
+    const w = ws;
     if (w > best.w) best = { w, gain: (rel >= 0 ? sct.plus : sct.minus).provisional ? REGION.provisionalGain : 1 };
   }
   return best;
 }
-export function regionMask(theta: number, radius: number, sectors: Sector[]): number {
-  return regionInfo(theta, radius, sectors).w;
+export function regionMask(theta: number, radius: number, sectors: Sector[], extreme = false): number {
+  return regionInfo(theta, radius, sectors, extreme ? REGION.edgeSoftDegExtreme : REGION.edgeSoftDeg).w;
 }
 const regionCache = new WeakMap<AxisMark[], { floor: number; sectors: Sector[] }>();
 function defaultRegion(axes: AxisMark[], floor: number): Sector[] {
@@ -732,9 +732,9 @@ export function corrections(axes: AxisMark[], floor: number, region?: Sector[]):
 /** Subida de croma junto al giro (Asistencia / Extremo). */
 export const RADIAL_BOOST = 0.8;
 export const RADIAL_BOOST_EXTREME = 0.5;
-export const LOSS_FLOOR = 1;
+/** Fracción perdida en el tono del color: 1 − suelo/T(θ) (punto 1, 26/10); escala con la croma vía p, sin tope de radio. */
 function lostFraction(T: number, floor: number): number {
-  return Math.max(LOSS_FLOOR, 1 - floor / T);
+  return T > floor ? 1 - floor / T : 0;
 }
 
 /**
@@ -767,19 +767,20 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
     const { w, gain: sideGain } = regionInfo(theta, radius, [c.sector], soft);
     if (w <= 0) continue;
     const p = dot(plane, dirFromTheta(c.line));
+    const tHere = c.sector.profileT ? confusionT(c.sector.profileT.points, floor, (theta * 180) / Math.PI) : c.T;
     if (w > lineW) {
       lineW = w;
       line = c.line;
       lineP = p;
     }
-    const lost = p * lostFraction(c.T, floor);
+    const lost = p * lostFraction(tHere, floor);
     const gain = (extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN) * sideGain * k;
     const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius * sideGain * k;
     const boost = (extreme ? RADIAL_BOOST_EXTREME : RADIAL_BOOST) * sideGain;
     const inj = Math.max(-bound * (1 + boost), Math.min(bound * (1 + boost), lost * gain * (1 + boost)));
     const t = dirFromTheta(c.target);
     // Además del giro, sube el croma (≤ 2,5×) en proporción a lo perdido: con T/floor bajo el giro solo no basta.
-    const radial = k * boost * (Math.abs(p) / radius) * lostFraction(c.T, floor);
+    const radial = k * boost * (Math.abs(p) / radius) * lostFraction(tHere, floor);
     d[0] += w * (t[0] * inj + plane[0] * radial);
     d[1] += w * (t[1] * inj + plane[1] * radial);
     d[2] += w * (t[2] * inj + plane[2] * radial);
@@ -791,12 +792,27 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
   d[1] /= sumW;
   d[2] /= sumW;
   if (norm(d) < 1e-9) return { out: rgb, line, p: lineP, w: maxW };
+  // Sin techo radial ya entran colores saturados pegados a una pared del cubo: el desplazamiento resbala por la
+  // pared (se quita, dentro del plano isoluminante, la parte que saldría) en vez de anularse entero. C1 en el tono.
+  slideOnWalls(rgb, d);
   const cap = cornerCap(rgb, extreme ? ROT_CAP_EXTREME : ROT_CAP);
   const tS = reachT(y, plane, d, cap, CHROMA_CAP);
   const full: Vec3 = [y + plane[0] + d[0] * tS, y + plane[1] + d[1] * tS, y + plane[2] + d[2] * tS];
   const att = maxW * gamutAtten(rgb, full);
   const out = mixRgb(rgb, full, att);
   return { out: limitLabHue(rgb, out, cap), line, p: lineP, w: maxW };
+}
+
+function slideOnWalls(rgb: Vec3, d: Vec3): void {
+  const w = luminance([1, 0, 0]), wv: Vec3 = [w, luminance([0, 1, 0]), luminance([0, 0, 1])];
+  for (let i = 0; i < 3; i++) {
+    const room = d[i] < 0 ? rgb[i] : 1 - rgb[i];
+    const s = 1 - smoothstep(0, GAMUT_SOFT, room);
+    if (s <= 0 || Math.abs(d[i]) < 1e-12) continue;
+    // g = e_i − w_i·(1,1,1): mantiene Y. Tras restar λ·g, d_i queda en d_i·(1 − s).
+    const lambda = (s * d[i]) / (1 - wv[i]);
+    for (let j = 0; j < 3; j++) d[j] -= lambda * ((j === i ? 1 : 0) - wv[i]);
+  }
 }
 
 /**
@@ -812,7 +828,7 @@ function daltonizeK(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean
  * con kMax 4, 8, 20 o 100 la proporción no cambia. Frenan el giro (45°/60°) y el croma (≤ 2,5×): el destino blue-end
  * está a ~95° de m y la diferencia sigue en tonos de T alto. Se deja así (Colorado, 26/10) y el JSON lo marca.
  */
-export const ADAPTIVE = { target: 1.5, targetExtreme: 2, kMax: 4, kMaxExtreme: 4, nearFrac: 0.5, iters: 14 };
+export const ADAPTIVE = { target: 2, targetExtreme: 2.6, kMax: 4, kMaxExtreme: 4, nearFrac: 0.5, iters: 14 };
 
 export type AdaptiveResult = { out: Vec3; k: number; limited: boolean; active: boolean };
 
@@ -820,14 +836,17 @@ export function adaptiveColor(rgb: Vec3, axes: AxisMark[], floor: number, extrem
   const base = daltonizeK(rgb, axes, floor, extreme, region, 1);
   if (base.line == null || base.w <= 0) return { out: base.out, k: 0, limited: false, active: false };
   const u = dirFromTheta(base.line);
-  const mate: Vec3 = [rgb[0] - 2 * base.p * u[0], rgb[1] - 2 * base.p * u[1], rgb[2] - 2 * base.p * u[2]];
+  // Pareja reflejada a lo largo de la línea; puede caer fuera del cubo: es solo la referencia de la métrica
+  // (antes, fuera de gamut se saltaba a k = 1: escalón en cuanto los saturados entran en la región).
+  const step: Vec3 = [-2 * base.p * u[0], -2 * base.p * u[1], -2 * base.p * u[2]];
+  const reach = 1;
+  const mate: Vec3 = [rgb[0] + step[0] * reach, rgb[1] + step[1] * reach, rgb[2] + step[2] * reach];
   const points = confusionPoints(axes, floor, region ?? []).points;
   const tLine = Math.max(confusionT(points, floor, (base.line * 180) / Math.PI), confusionT(points, floor, (base.line * 180) / Math.PI + 180));
   const target = extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target;
   // Rampa smoothstep de 0 a nearFrac·T cerca del gris (Colorado, 26/10).
   const need = target * smoothstep(0, ADAPTIVE.nearFrac * tLine, Math.abs(base.p));
-  const inGamut = mate.every((v) => v >= 0 && v <= 1);
-  if (!inGamut || need <= 1e-6) return { out: base.out, k: 1, limited: false, active: true };
+  if (need <= 1e-6) return { out: rgb, k: 0, limited: false, active: true };
   const metricAt = (k: number): { m: number; out: Vec3 } => {
     const a = daltonizeK(rgb, axes, floor, extreme, region, k).out;
     const b = daltonizeK(mate, axes, floor, extreme, region, k).out;
