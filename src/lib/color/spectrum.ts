@@ -17,6 +17,7 @@ import {
   thetaOf,
   type Vec3,
 } from "./space";
+import { labOfLinear } from "./deltaE";
 import type { UmbralProfile } from "./profile";
 import type { EdgeFile } from "./edges";
 
@@ -195,6 +196,14 @@ const BAND_HALF = (10 * Math.PI) / 180;
 /** Tope duro de giro de tono de la asistencia del perfil (60° en Extremo). */
 const ROT_CAP = (45 * Math.PI) / 180;
 const ROT_CAP_EXTREME = (60 * Math.PI) / 180;
+/** Máscara de la daltonización: distancia (plano) a la línea de confusión a la que el cambio ya es exactamente 0. */
+const DALTON_MASK_HALF = (30 * Math.PI) / 180;
+/** Inyección en S acotada: como mucho esta fracción del croma del píxel (Extremo, la segunda). */
+const S_BOUND = 0.6;
+const S_BOUND_EXTREME = 1;
+/** Tono CIELAB de #FF0000 y entorno en el que el rojo puro conserva su tono (puede perder saturación). */
+const RED_LAB_HUE = Math.atan2(labOfLinear([1, 0, 0])[2], labOfLinear([1, 0, 0])[1]);
+const RED_GUARD = (40 * Math.PI) / 180;
 const DALTON_GAIN = 1;
 const DALTON_GAIN_EXTREME = 2;
 const ASSIST_TURN = 0.7;
@@ -423,7 +432,7 @@ export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
     n[1] + u[1] * pKeep + blue[1] * Math.abs(unseen),
     n[2] + u[2] * pKeep + blue[2] * Math.abs(unseen),
   ];
-  return planeColor(y, plane2);
+  return limitLabHue(rgb, planeColor(y, plane2), ROT_CAP * redGuard(rgb));
 }
 
 /**
@@ -433,6 +442,52 @@ export function correctColor(rgb: Vec3, axes: AxisMark[], floor: number): Vec3 {
  * con tope de giro de tono (45°, 60° en Extremo). Solo croma: la Y personal no cambia. Si se sale del gamut, se
  * acorta el desplazamiento; nunca se recorta el canal.
  */
+function labHue(rgb: Vec3): { h: number; c: number } {
+  const lab = labOfLinear(rgb);
+  return { h: Math.atan2(lab[2], lab[1]), c: Math.hypot(lab[1], lab[2]) };
+}
+
+/** Giro de tono CIELAB (rad) entre dos colores; 0 si alguno es casi acromático. */
+export function labHueShift(a: Vec3, b: Vec3): number {
+  const ha = labHue(a);
+  const hb = labHue(b);
+  if (ha.c < 1 || hb.c < 1) return 0;
+  return angDist(ha.h, hb.h);
+}
+
+/**
+ * Tope por nodo del giro de tono CIELAB (Colorado, 7.ª ronda): si `out` gira más que `cap` respecto a `rgb`,
+ * se mezcla hacia `rgb` (en lineal, misma Y si ambos la tienen) hasta que quepa.
+ */
+function limitLabHue(rgb: Vec3, out: Vec3, cap: number): Vec3 {
+  if (labHueShift(rgb, out) <= cap) return out;
+  const mix = (t: number): Vec3 => [rgb[0] + (out[0] - rgb[0]) * t, rgb[1] + (out[1] - rgb[1]) * t, rgb[2] + (out[2] - rgb[2]) * t];
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (labHueShift(rgb, mix(mid)) <= cap) lo = mid;
+    else hi = mid;
+  }
+  return lo <= 0 ? rgb : mix(lo);
+}
+
+/** Peso de la máscara: 1 en la línea de confusión, 0 exacto a DALTON_MASK_HALF o más. */
+function daltonMask(theta: number, mid: number): number {
+  const d = lineGap(theta, mid);
+  if (d >= DALTON_MASK_HALF) return 0;
+  const c = Math.cos((Math.PI * 0.5 * d) / DALTON_MASK_HALF);
+  return c * c;
+}
+
+/** Cerca del tono de #FF0000 el tope de giro baja a 0: el rojo puro conserva su tono. */
+function redGuard(rgb: Vec3): number {
+  const { h, c } = labHue(rgb);
+  if (c < 1) return 1;
+  const d = angDist(h, RED_LAB_HUE);
+  return d >= RED_GUARD ? 1 : (d / RED_GUARD) ** 2;
+}
+
 function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean): Vec3 {
   if (!(floor > 0)) return rgb;
   const y = luminance(rgb);
@@ -442,13 +497,17 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   const model = filterModel(axes, floor);
   const band = model.confusion;
   if (!band || model.sDir == null) return rgb;
+  const mask = daltonMask(thetaOf(plane), band.mid);
+  if (mask <= 0) return rgb;
   const { p } = splitPlane(plane, band.mid);
   const seen = Math.min(1, floor / band.T);
-  const lost = p * (1 - seen);
+  const lost = p * (1 - seen) * mask;
   if (Math.abs(lost) < 1e-6) return rgb;
   const s = dirFromTheta(model.sDir);
   const gain = extreme ? DALTON_GAIN_EXTREME : DALTON_GAIN;
-  const d: Vec3 = [s[0] * lost * gain, s[1] * lost * gain, s[2] * lost * gain];
+  const bound = (extreme ? S_BOUND_EXTREME : S_BOUND) * radius;
+  const inj = Math.max(-bound, Math.min(bound, lost * gain));
+  const d: Vec3 = [s[0] * inj, s[1] * inj, s[2] * inj];
   const cap = extreme ? ROT_CAP_EXTREME : ROT_CAP;
   const at = (t: number): Vec3 => [plane[0] + d[0] * t, plane[1] + d[1] * t, plane[2] + d[2] * t];
   const ok = (t: number): boolean => {
@@ -470,7 +529,7 @@ function daltonize(rgb: Vec3, axes: AxisMark[], floor: number, extreme: boolean)
   }
   if (t <= 0) return rgb;
   const q = at(t);
-  return [y + q[0], y + q[1], y + q[2]];
+  return limitLabHue(rgb, [y + q[0], y + q[1], y + q[2]], cap * redGuard(rgb));
 }
 
 function killPlane(rgb: Vec3, y: number): Vec3 {

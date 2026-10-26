@@ -4,7 +4,8 @@ import fs from "node:fs";
 import { assistColor, extremeColor, paintYours, lumaFromProfile } from "../src/lib/color/spectrum";
 import { buildTransformFile } from "../src/lib/color/lut";
 import { deltaE00Linear } from "../src/lib/color/deltaE";
-import { luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
+import { dirFromTheta, lineGap, luminance, thetaOf, type Vec3 } from "../src/lib/color/space";
+import { correctColor, labHueShift } from "../src/lib/color/spectrum";
 
 const profile = JSON.parse(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"));
 const floor = profile.fit.controlAbs;
@@ -47,7 +48,10 @@ test("daltonización: #C04040 vs #708030 (misma Y) ≥ 10 ΔE00 en simulación p
 });
 
 test("daltonización: rojizo y verdoso a extremos opuestos de S, giro ≤ 45° (60° Extremo), dentro del gamut", () => {
-  const [a, b] = pair();
+  // Las dos cartas de la línea de confusión (mismo Y, ± dirección del eje l): a extremos opuestos de S.
+  const d = dirFromTheta((11.1 * Math.PI) / 180);
+  const a: Vec3 = [0.22 + d[0] * 0.08, 0.22 + d[1] * 0.08, 0.22 + d[2] * 0.08];
+  const b: Vec3 = [0.22 - d[0] * 0.08, 0.22 - d[1] * 0.08, 0.22 - d[2] * 0.08];
   const blue = (c: Vec3) => c[2] - (c[0] + c[1]) / 2;
   const da = blue(assistColor(a, profile.axes, floor)) - blue(a);
   const db = blue(assistColor(b, profile.axes, floor)) - blue(b);
@@ -74,4 +78,38 @@ test("perfil de Lucas 21:40Z: Asistencia y Extremo ya cambian nodos", () => {
   const changed = (id: string) => t.filters.find((f) => f.id === id)!.changed;
   assert.ok(changed("assist") > 1000, `${changed("assist")}`);
   assert.ok(changed("extreme") > 1000, `${changed("extreme")}`);
+});
+
+test("filtros del perfil (Colorado, 7.ª ronda): #FF0000 con Asistencia gira ≤ 45° CIELAB y < 30 % de los nodos cambian", () => {
+  const red: Vec3 = [1, 0, 0];
+  for (const [f, cap] of [[assistColor, 45], [extremeColor, 60], [correctColor, 45]] as const) {
+    const dh = (labHueShift(red, f(red, profile.axes, floor)) * 180) / Math.PI;
+    assert.ok(dh <= cap + 1e-6, `${dh}`);
+  }
+  const t = buildTransformFile(profile);
+  const changed = (id: string) => t.filters.find((x) => x.id === id)!.changed;
+  assert.equal(t.nodes, 35937);
+  assert.ok(changed("assist") < 0.3 * 35937, `${changed("assist")}`);
+});
+
+test("filtros del perfil: giro CIELAB por nodo ≤ 45° (60° Extremo); fuera de la máscara el cambio es exactamente 0", () => {
+  const mid = (11.1 * Math.PI) / 180;
+  for (let i = 0; i < 600; i++) {
+    const c: Vec3 = [((i * 37) % 101) / 100, ((i * 53) % 103) / 102, ((i * 71) % 107) / 106];
+    for (const [f, cap] of [[assistColor, 45], [extremeColor, 60], [correctColor, 45]] as const) {
+      const o = f(c, profile.axes, floor);
+      assert.ok((labHueShift(c, o) * 180) / Math.PI <= cap + 0.5);
+    }
+    const y = luminance(c);
+    const plane: Vec3 = [c[0] - y, c[1] - y, c[2] - y];
+    if (Math.hypot(...plane) > 1e-3 && lineGap(thetaOf(plane), mid) >= (30 * Math.PI) / 180) {
+      assert.deepEqual(assistColor(c, profile.axes, floor), c);
+      assert.deepEqual(extremeColor(c, profile.axes, floor), c);
+    }
+  }
+});
+
+test("filtros del perfil: el rojo casi puro no se va a magenta (conserva su tono)", () => {
+  const near: Vec3 = [0.75, 0.05, 0.05];
+  for (const f of [assistColor, extremeColor]) assert.ok((labHueShift(near, f(near, profile.axes, floor)) * 180) / Math.PI < 15);
 });
