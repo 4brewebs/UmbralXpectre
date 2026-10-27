@@ -6,7 +6,10 @@
   import { questPlusEnabled } from "@/lib/color/motion2";
   import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
-  const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
+  import { acceptsResponse, EDGE_STAGE, edgeLayout, edgeOffset, SWAP, swapFill, swapStarts, type Offset, type SwapPhase } from "@/lib/test/transition";
+
+  /** Las piezas se funden al fondo de la app (sin cuadrado ni velo): solo se ven las 4 bolas sobre negro. */
+  const BG = "var(--color-bg)";
 
   let {
     profile,
@@ -51,7 +54,6 @@
     });
   });
 
-  let ready = $state(false);
   let picked = $state.raw<number[]>([]);
   let draft = $state.raw<{ minus: number; plus: number } | null>(null);
   let probe = $state.raw<null | { side: "minus" | "plus"; left: number; hits: number }>(null);
@@ -61,12 +63,32 @@
   // Mismas dependencias que el useEffect original; $derived solo notifica si cambia el valor.
   const askKey = $derived(asking ? `${run.trials.length}|${run.angle}|${run.scale}|${run.oddIndex}|${run.phase}` : null);
 
+  let swap = $state<{ key: string | null; phase: SwapPhase }>({ key: null, phase: "fadeOut" });
+  /** Si la pregunta acaba de cambiar y el efecto aún no ha corrido, ya es fadeOut: el color nuevo nunca se pinta antes de tiempo. */
+  const phase = $derived<SwapPhase>(swap.key === askKey ? swap.phase : "fadeOut");
+  const ready = $derived(acceptsResponse(phase));
+  /** Posiciones de las piezas; solo cambian en el hold, bajo el velo. No se guardan en el JSON. */
+  let layout = $state.raw<Offset[]>(edgeLayout(Math.random));
+  const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+
   $effect(() => {
-    if (askKey == null) return;
-    picked = [];
-    ready = false;
-    const id = window.setTimeout(() => (ready = true), 700);
-    return () => window.clearTimeout(id);
+    const k = askKey;
+    if (k == null) return;
+    const set = (p: SwapPhase) => (swap = { key: k, phase: p });
+    untrack(() => {
+      picked = [];
+      set("fadeOut");
+    });
+    const at = swapStarts();
+    const timers = [
+      window.setTimeout(() => {
+        set("hold");
+        layout = edgeLayout(Math.random);
+      }, at.hold),
+      window.setTimeout(() => set("fadeIn"), at.fadeIn),
+      window.setTimeout(() => set("ready"), at.ready),
+    ];
+    return () => timers.forEach((t) => window.clearTimeout(t));
   });
 
   $effect(() => {
@@ -137,18 +159,25 @@
   {/if}
 
   {#if showDiscs}
-    <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? (probe ? `Probando este borde. Quedan ${probe.left}.` : phaseLabel(run)) : "Pausa en gris. No juzgues el cambio."}</p>
+    <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? (probe ? `Probando este borde. Quedan ${probe.left}.` : phaseLabel(run)) : "Pausa. No juzgues el cambio."}</p>
     <p class="text-sm text-muted">Pregunta {run.trials.length + 1} · tono {num(run.angle, 1)}°</p>
-    <div class="mx-auto grid w-full max-w-xs grid-cols-2 gap-x-16 gap-y-10 py-4">
-      {#each discsOf(run) as rgb, index (`${run.trials.length}-${index}`)}
+    <div class="relative mx-auto my-4 shrink-0" style:width={`${EDGE_STAGE.size}px`} style:height={`${EDGE_STAGE.size}px`} data-testid="edge-stage" data-phase={phase}>
+      <!-- Piezas siempre montadas (clave por índice): el color se funde con background-color y la posición con transform. -->
+      {#each discsOf(run) as rgb, index (index)}
+        {@const o = edgeOffset(phase, index, layout, reduced)}
         <button
           type="button"
           disabled={!ready}
           aria-pressed={picked.includes(index) ? "true" : "false"}
           aria-label={`Disco ${index + 1}`}
           onclick={() => (picked = picked[0] === index ? [] : [index])}
-          class={`mx-auto size-[4.5rem] rounded-full border-2 ${picked.includes(index) ? "border-accent" : "border-transparent"} disabled:opacity-80`}
-          style:background={ready ? cssRgb(rgb) : GRAY}
+          class={`absolute top-1/2 left-1/2 rounded-full border-2 ${picked.includes(index) ? "border-accent" : "border-transparent"}`}
+          style:width={`${EDGE_STAGE.disc}px`}
+          style:height={`${EDGE_STAGE.disc}px`}
+          style:margin={`-${EDGE_STAGE.disc / 2}px`}
+          style:transform={`translate(${o.x}px, ${o.y}px)`}
+          style:background-color={swapFill(phase, cssRgb(rgb), BG)}
+          style:transition={phase === "hold" ? "none" : `background-color ${SWAP.fadeOut}ms linear, transform ${SWAP.fadeOut}ms ease-in-out`}
         ></button>
       {/each}
     </div>

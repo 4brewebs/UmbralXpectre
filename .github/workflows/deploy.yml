@@ -4,6 +4,7 @@ name: Deploy to GitHub Pages
 #   main      → raíz        (https://4brewebs.github.io/UmbralXpectre/)
 #   stable-v1 → /stable-v1/ (https://4brewebs.github.io/UmbralXpectre/stable-v1/), congelada
 #   develop   → /qa/        (https://4brewebs.github.io/UmbralXpectre/qa/), VITE_APP_ENV=qa
+# VITE_APP_ENV (pro | qa | stable) fija la coletilla de las claves de localStorage de cada build.
 # Un push a cualquiera de las tres ramas reconstruye y publica las tres.
 on:
   push:
@@ -56,7 +57,7 @@ jobs:
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}/
           APP_BRANCH: main
-          VITE_APP_ENV: prod
+          VITE_APP_ENV: pro
       - name: Build develop (QA, /qa/)
         working-directory: develop
         run: |
@@ -74,7 +75,7 @@ jobs:
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}/stable-v1/
           APP_BRANCH: stable-v1
-          VITE_APP_ENV: prod
+          VITE_APP_ENV: stable
       - name: Assemble site
         run: |
           mkdir -p site
