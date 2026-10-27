@@ -6,7 +6,7 @@
   import { questPlusEnabled } from "@/lib/color/motion2";
   import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
-  import { acceptsResponse, EDGE_STAGE, edgeLayout, edgeOffset, SWAP, swapFill, swapStarts, type Offset, type SwapPhase } from "@/lib/test/transition";
+  import { acceptsResponse, EDGE_STAGE, EDGE_VEIL, edgeLayout, edgeOffset, SWAP, swapFill, swapStarts, type Offset, type SwapPhase } from "@/lib/test/transition";
 
   /** Gris de anclaje: el mismo en todos los ensayos y en el test de perfil. */
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
@@ -180,14 +180,14 @@
           style:transition={phase === "hold" ? "none" : `background-color ${SWAP.fadeOut}ms linear, transform ${SWAP.fadeOut}ms ease-in-out`}
         ></button>
       {/each}
-      <!-- Velo gris de anclaje sobre toda la zona de las piezas: liso en el hold, sin bordes suavizados ni costuras. Sube en fadeOut y baja en fadeIn. -->
+      <!-- Velo gris de anclaje sobre toda la zona de las piezas: liso en el hold, sin bordes suavizados ni costuras. Sube solo al final del fadeOut (el viaje al centro se ve entero) y baja en fadeIn. -->
       <div
         aria-hidden="true"
         data-testid="edge-veil"
         class="pointer-events-none absolute inset-0"
         style:background-color={GRAY}
         style:opacity={phase === "fadeOut" || phase === "hold" ? 1 : 0}
-        style:transition={`opacity ${SWAP.fadeOut}ms linear`}
+        style:transition={phase === "fadeOut" ? `opacity ${EDGE_VEIL.fadeOut}ms linear ${EDGE_VEIL.delay}ms` : `opacity ${SWAP.fadeIn}ms linear`}
       ></div>
     </div>
     <button type="button" disabled={!ready} onclick={() => submit(true)} class="h-14 rounded-2xl border border-border text-base font-medium text-fg disabled:opacity-40">Ninguno destaca</button>
