@@ -40,6 +40,87 @@ export function killLuminance(rgb: Vec3, w: Vec3 = Y_COEF): Vec3 {
   return [rgb[0] - y, rgb[1] - y, rgb[2] - y];
 }
 
+/** Pesos de luminancia con que se igualan los pares (C1): personales medidos o la Y estándar. */
+export interface PairLuminance {
+  source: "measured" | "standard";
+  weights: Vec3;
+}
+
+export function pairLuminanceOf(w?: Vec3 | null): PairLuminance {
+  return w ? { source: "measured", weights: [w[0], w[1], w[2]] } : { source: "standard", weights: [Y_COEF[0], Y_COEF[1], Y_COEF[2]] };
+}
+
+/** Pesos personales medidos en la prueba de luminancia, o null (entonces los pares van con la Y estándar). */
+export function measuredLumWeights(profile: { luminance?: { weightsSource?: string; weights?: Vec3 } | null } | null | undefined): Vec3 | null {
+  const lum = profile?.luminance;
+  if (!lum || lum.weightsSource !== "measured" || !Array.isArray(lum.weights) || lum.weights.length !== 3) return null;
+  return lum.weights.every((v) => Number.isFinite(v)) ? [lum.weights[0], lum.weights[1], lum.weights[2]] : null;
+}
+
+/**
+ * Dirección de un par isoluminante (gris ± s·dir). Con pesos personales `w` se quita la luminancia personal
+ * (w·dir = 0: los dos colores brillan igual para el observador); sin pesos, la dirección tal cual (Y estándar), sin
+ * tocar un bit.
+ */
+export function isoDir(dir: Vec3, w?: Vec3 | null): Vec3 {
+  return w ? killLuminance(dir, w) : dir;
+}
+
+/**
+ * Ruido de luminancia por estímulo: Y·(1+ε), ε uniforme en ±amp, nuevo en cada ensayo y estímulo.
+ * Por defecto APAGADO (amp 0, Lucas 26/10); `?lumnoise=1` lo activa a ±8 % y `?lumnoise=0.05` fija la amplitud.
+ */
+export const LUM_NOISE_AMP = 0;
+/** Amplitud con el flag activo (`?lumnoise=1`) o con `lumNoise: true`. */
+export const LUM_NOISE_ON_AMP = 0.08;
+export interface LumNoise {
+  amp: number;
+  seed: number;
+}
+
+/** Amplitud del flag `?lumnoise=`: ausente/0/no válido → 0; `1` → 0,08; otro número en (0, 0,5] → ese valor. */
+export function lumNoiseAmp(search: string): number {
+  const raw = new URLSearchParams(search).get("lumnoise");
+  if (raw == null || raw === "") return LUM_NOISE_AMP;
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  if (v === 1) return LUM_NOISE_ON_AMP;
+  return v <= 0.5 ? v : 0;
+}
+
+/** Flag activo (amplitud > 0). */
+export function lumNoiseEnabled(search: string): boolean {
+  return lumNoiseAmp(search) > 0;
+}
+
+/** `true` → ±8 %; número → esa amplitud (0 incluido: se registra); `false`/ausente → null. */
+export function noiseOf(opt: boolean | number | undefined, seed: number): LumNoise | null {
+  if (opt === true) return makeLumNoise(seed, LUM_NOISE_ON_AMP);
+  if (typeof opt === "number" && opt >= 0) return makeLumNoise(seed, opt);
+  return null;
+}
+
+export function makeLumNoise(seed: number, amp = LUM_NOISE_ON_AMP): LumNoise {
+  return { amp, seed: (seed >>> 0) || 1 };
+}
+
+/** ε del estímulo `index` del ensayo `trial` (determinista: se puede reconstruir desde la semilla). */
+export function lumEps(noise: LumNoise, trial: number, index: number): number {
+  let h = Math.imul(noise.seed ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(trial + 1, 0xc2b2ae35) ^ Math.imul(index + 1, 0x27d4eb2f);
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  h ^= h >>> 16;
+  const u = (h >>> 0) / 4294967296;
+  return Math.round((2 * u - 1) * noise.amp * 1e6) / 1e6;
+}
+
+/** Escala la luminancia por (1+ε) sin mover el tono (factor común); si se sale del gamut, el factor se recorta. */
+export function withLum(lin: Vec3, eps: number): Vec3 {
+  const top = Math.max(lin[0], lin[1], lin[2]);
+  const f = top > 0 ? Math.min(1 + eps, 1 / top) : 1 + eps;
+  return [lin[0] * f, lin[1] * f, lin[2] * f];
+}
+
 export function dot(a: Vec3, b: Vec3): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
@@ -166,6 +247,14 @@ export function toSrgb8(linear: Vec3): [number, number, number] {
     number,
     number,
   ];
+}
+
+export function srgbToLinearChannel(v: number): number {
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
+export function fromSrgb8(rgb: [number, number, number]): Vec3 {
+  return [srgbToLinearChannel(rgb[0] / 255), srgbToLinearChannel(rgb[1] / 255), srgbToLinearChannel(rgb[2] / 255)];
 }
 
 export function cssRgb(rgb: [number, number, number]): string {

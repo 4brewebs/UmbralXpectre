@@ -3,6 +3,19 @@
 Revisado el 25/10/2026 contra el código y `git log` (`main` = `origin/main`). **No hacer push sin el OK de Lucas**:
 cada push a `main` despliega en Pages.
 
+## 00. URGENTE
+- [ ] **Persistencia** (no implementado aún): migrar localStorage a IndexedDB con `idb` (ISC, Jake Archibald) + `navigator.storage.persist()` + exportar/importar JSON + migración automática desde localStorage, con prefijo por entorno (`qa.`). Sync entre dispositivos opcional más adelante; descartados Firebase (datos de salud RGPD, cuentas, backend) y FalkorDB (servidor).
+
+## 01. Tarea futura (aparte)
+- [x] ~~Esquina azul saturada (violeta/azul)~~ y ~~escalón cian→menta al 50 %~~: ya no son limitaciones. Con el principio «solo modificar lo que sabemos y podemos medir que el usuario falla» (26/10), Asistencia/Extremo solo tocan la región medida (sector entre bordes medidos × escala de fallo medida; sin bordes, ±10° provisional). Esas zonas quedan fuera, con cambio 0.
+- [x] Pares dentro de la región: criterio nuevo en la simulación del perfil (≥ 1,5× / 2× el control en ΔE00, 2,78 → 4,17 / 5,57): cumple con bordes SIMULADOS y con los reales vacíos (Extremo con ganancia 2,4 y cota 1,1).
+- [x] Extremo: transición de sector a 10° (Asistencia 6°). Anillo de croma baja: 1,34 ΔE00/1° (SIMULADOS, en 8,75° dentro del sector, no en la transición) y 0,93 (reales). Con 12° sale igual (1,34), así que se queda en 10°. Test: ≤ 1,5 en Extremo (Colorado acepta 1,0–1,5) y ≤ 1 en Asistencia/Mapa.
+- [ ] **Mapa intermedio «en revisión»** (etiqueta en la UI; la retira Colorado). Con los bordes reales, el par l / gris baja de 6,18 a 0,24 en la simulación del perfil. Causa: no es un fallo del ángulo (θ 11,1°, w = 1, gain 0,7, sin cruce de 0°) ni del signo de S (el gris no se mueve). El mapa gira el color 30°·0,7 = 21° hasta θ ≈ 25°, y la simulación del perfil («Tu visión») no es monótona en el tono: a r 0,04 da 6,6 (0°), 3,3 (5°), 5,3 (10°), 0,9 (15°), 1,3 (20°), 0,3 (25°), 6,2 (30°) frente al gris. Con 30° completos (bordes SIMULADOS, gain 1) cae en 33° y sale bien (7,81). No se arregla: depende de esa simulación con escalones, que además conviene revisar.
+
+- [ ] **Revisión aparte, no urgente: simulación «Tu visión» con valle no fisiológico.** El valle (≈15–25°, ΔE00 0,3–1,3 frente a 6,6 en 0° y 6,2 en 30°) es un artefacto de la matriz de atenuación interpolando entre pocos ejes (red-end 0°, l 11°). La simulación debe ser monótona y suave entre ejes medidos: interpolar la pérdida en ángulo, sin extrapolar nunca con la matriz.
+
+- [ ] **Barra de Asistencia idéntica al original.** El barrido es a saturación plena y la región medida es de croma baja, así que la barra no cambia y parece que la asistencia no hace nada. Próxima ronda: pintar las barras a un croma dentro de la escala medida, o añadir una segunda fila de croma baja.
+
 ## 0. Hecho (verificado en el código)
 - [x] **Despliegue en GitHub Pages**, en vivo en https://4brewebs.github.io/UmbralXpectre/. El repo `4brewebs/UmbralXpectre` es público y Pages se publica con Actions (`.github/workflows/deploy.yml`). Se eliminaron Vercel, Nitro, better-auth, PGlite y la plantilla de servidor.
 - [x] **Migración de React a Svelte 5** (runes, sin SvelteKit); paridad visual comprobada con Playwright (`/workspace/parity`).

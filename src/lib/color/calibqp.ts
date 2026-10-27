@@ -16,8 +16,18 @@ import { ANCHOR, addScaled, dirFromTheta, type Vec3 } from "./space";
 
 export const QP_CALIB = {
   deMin: 0.1,
-  deMax: 10,
-  points: 40,
+  /**
+   * Techo de la rejilla de α (Colorado, 6.ª ronda): muy por encima del alcance del gamut (~9 ΔE00 en l y rojo
+   * extremo), para que el posterior no se amontone en el último punto. Los estímulos siguen cortados al alcance.
+   */
+  deMax: 60,
+  /** Mismo paso logarítmico que la rejilla antigua (40 puntos en 0,1–10). */
+  points: 56,
+  /** Masa del posterior por encima del estímulo más alto posible que impide la parada relativa. */
+  pinnedMass: 0.05,
+  /** Con ≥ este número de ensayos y la mitad de la masa fuera de alcance: «al menos» el alcance (límite del gamut). */
+  gamutMinTrials: 10,
+  gamutMass: 0.5,
   beta: 3,
   lapses: [0.02, 0.035, 0.05],
   gammaMin: 0.02,
@@ -33,7 +43,17 @@ export const QP_CALIB = {
   stopLogWidth: Math.log(1.5),
   maxTrials: 36,
   /** Tope de ensayos por sesión con QUEST+ (Colorado); lo que falte sigue en otra sesión. */
-  sessionCap: 80,
+  sessionCap: 60,
+  /**
+   * Parada antes en ejes no elevados (Colorado, 6.ª ronda): si el IC entero queda por debajo de 1,6× el control,
+   * basta una anchura ln 2,2 con ≥ 8 ensayos. El número exacto no cambia ningún filtro.
+   */
+  relaxedLogWidth: Math.log(2.2),
+  relaxedMinTrials: 8,
+  /** Catch 1 de cada 8–10 ensayos; mitad pares idénticos, mitad pares obvios (+20 % de Y). */
+  catchMin: 8,
+  catchMax: 10,
+  obviousLum: 1.2,
 } as const;
 
 export function yesNo(gamma: number): ResponseFn[] {
@@ -90,6 +110,10 @@ export function rebuild(Q: JsQuest, deReach: number, gamma: number, log: QpLog):
 
 export interface AxisQpResult {
   done: boolean;
+  /** Masa del posterior por encima del alcance del gamut (α que no se puede probar en esta pantalla). */
+  beyondReach: number;
+  /** Terminado (o a terminar) como «al menos el alcance»: resultado válido, no un fallo. */
+  bound: "gamut-limit" | null;
   /** ΔE00 del siguiente par. */
   nextDe: number;
   estimate: { mean: number; lo: number; hi: number; width: number };
@@ -100,15 +124,44 @@ export function logWidth(e: { lo: number; hi: number }): number {
   return e.lo > 0 ? Math.log(e.hi / e.lo) : Infinity;
 }
 
-export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog): AxisQpResult {
+export function stepAxis(Q: JsQuest, deReach: number, gamma: number, log: QpLog, relaxed = false): AxisQpResult {
   const qp = rebuild(Q, deReach, gamma, log);
   const estimate = qp.estimate(0);
-  const done = log.length > 0 && (logWidth(estimate) < QP_CALIB.stopLogWidth || log.length >= QP_CALIB.maxTrials);
-  return { done, nextDe: qp.next(), estimate };
+  const m = qp.marginal(0);
+  const top = Math.min(QP_CALIB.deMax, deReach);
+  let beyondReach = 0;
+  for (let i = 0; i < m.values.length; i++) if (m.values[i] > top + 1e-9) beyondReach += m.probs[i];
+  // Nunca para por anchura con > 5 % fuera de alcance: ese IC lo estrecha el techo, no los datos.
+  const pinned = beyondReach > QP_CALIB.pinnedMass;
+  const width = logWidth(estimate);
+  const narrow =
+    !pinned && (width < QP_CALIB.stopLogWidth || (relaxed && log.length >= QP_CALIB.relaxedMinTrials && width < QP_CALIB.relaxedLogWidth));
+  const gamut = pinned && log.length >= QP_CALIB.gamutMinTrials && beyondReach >= QP_CALIB.gamutMass;
+  const capped = log.length >= QP_CALIB.maxTrials;
+  const done = log.length > 0 && (narrow || gamut || capped);
+  return { done, nextDe: qp.next(), estimate, beyondReach, bound: pinned && (gamut || capped) ? "gamut-limit" : null };
 }
 
 /** Posterior marginal de α (ΔE00) del eje, para guardarlo y mostrarlo. */
 export function posteriorOf(Q: JsQuest, deReach: number, gamma: number, log: QpLog): { alphas: number[]; probs: number[] } {
   const m = rebuild(Q, deReach, gamma, log).marginal(0);
   return { alphas: m.values, probs: m.probs };
+}
+
+/** Entropía (nats) del posterior marginal de α: el eje con más incertidumbre recibe el siguiente ensayo. */
+const entropyCache = new WeakMap<QpLog, { reach: number; gamma: number; h: number }>();
+
+export function entropyOf(Q: JsQuest, deReach: number, gamma: number, log: QpLog): number {
+  const hit = entropyCache.get(log);
+  if (hit && hit.reach === deReach && hit.gamma === gamma) return hit.h;
+  const h = entropyRaw(Q, deReach, gamma, log);
+  entropyCache.set(log, { reach: deReach, gamma, h });
+  return h;
+}
+
+function entropyRaw(Q: JsQuest, deReach: number, gamma: number, log: QpLog): number {
+  const { probs } = rebuild(Q, deReach, gamma, log).marginal(0);
+  let h = 0;
+  for (const p of probs) if (p > 0) h -= p * Math.log(p);
+  return h;
 }

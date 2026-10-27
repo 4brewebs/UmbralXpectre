@@ -15,6 +15,7 @@
  */
 import type { DeviceFingerprint } from "./device";
 import { appendHistory, makeSession } from "./history";
+import { BUILD, IS_QA } from "../env";
 import { luminance, type Vec3 } from "./space";
 import { predictedMatch, predictedLumWeights, type ObserverType } from "./cones";
 import { solveLumWeights } from "./lumweights";
@@ -53,8 +54,12 @@ export const CATCH_EVERY = 4;
 export const BLOCK_MS = 25_000;
 
 /** QUEST+ en movimiento v2, tras flag (`?motion=v2&qp=1`). Apagado por defecto: escalera actual. */
-export function questPlusEnabled(search: string): boolean {
-  return new URLSearchParams(search).get("qp") === "1";
+/** `?qp=1` lo enciende y `?qp=0` lo apaga; sin flag, `fallback` (encendido en QA). */
+export function questPlusEnabled(search: string, fallback = IS_QA): boolean {
+  const q = new URLSearchParams(search).get("qp");
+  if (q === "1") return true;
+  if (q === "0") return false;
+  return fallback;
 }
 
 /**
@@ -119,7 +124,7 @@ export function michelsonOf(stim: { test: Vec3; ref: Vec3 }): number {
 export type MotionUi = "legacy" | "v2" | "v3";
 
 /** `?motion=v1|v2|v3` manda; si no, `localStorage[umbral-motion]`; por defecto, legacy. */
-export function motionUiOf(search: string, stored: string | null, fallback: MotionUi = "legacy"): MotionUi {
+export function motionUiOf(search: string, stored: string | null, fallback: MotionUi = IS_QA ? "v3" : "legacy"): MotionUi {
   const q = new URLSearchParams(search).get("motion");
   if (q === "v2" || q === "v3") return q;
   if (q === "v1") return "legacy";
@@ -710,6 +715,7 @@ export function attachMotionV2(
       searchMethod: state.method ?? "staircase",
       ui: meta.ui ?? "v2",
       fixationWeber: meta.fixationWeber ?? SCREEN.dotWeber,
+      build: BUILD,
       ...(meta.device ? { device: meta.device } : {}),
       checks: {
         controlError: solved.controlError,

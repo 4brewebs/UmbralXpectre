@@ -1,5 +1,6 @@
 import type { UmbralProfile } from "./profile";
-import { assistColor, colorFor, correctColor, extremeColor, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { LOSS_RAMP, lossPoints } from "./lossmap";
+import { ADAPTIVE, adaptiveColor, GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
 
@@ -73,7 +74,7 @@ export function buildFilterLuts(
 }
 
 export type TransformFilter = {
-  id: "original" | "simulate" | "correct" | "assist" | "extreme";
+  id: "original" | "simulate" | "assist" | "extreme";
   name: string;
   /** `identity` leaves every color. `srgb8-base64` is the baked map. */
   encoding: "identity" | "srgb8-base64";
@@ -81,17 +82,46 @@ export type TransformFilter = {
   note: string;
   /** RGB bytes, r fastest, then g, then b. Omitted when the filter is identity. */
   bytes?: string;
+  /** Ganancia adaptativa por color (Asistencia/Extremo): factor k sobre la ganancia calibrada y nodos que no llegan a la meta. */
+  adaptive?: {
+    metric: string;
+    target: number;
+    activeNodes: number;
+    kMean: number;
+    kMax: number;
+    limitedNodes: number;
+    /** «limitado por tope» si algún nodo se quedó en el máximo permitido sin llegar a la meta. */
+    status: "limitado por tope" | "meta alcanzada";
+  };
 };
 
 export type TransformFile = {
   schema: "umbral.transforms.v1";
-  basedOn: { schema: UmbralProfile["schema"]; createdAt: string };
+  basedOn: {
+    schema: UmbralProfile["schema"];
+    createdAt: string;
+    /** De dónde salen los umbrales: solo la validación 3AFC (y los bordes, si hay). */
+    thresholds?: "validation-3afc";
+    validation?: Array<{ id: string; threshold: number; thresholdStandardY: number }>;
+    edges?: string[];
+  };
   space: string;
   size: number;
   nodes: number;
   order: string;
   floor: number;
   gate: number;
+  /** Parámetros de Asistencia/Extremo con los que se hornearon los nodos (ausente en archivos anteriores). */
+  params?: {
+    mask: "región medida";
+    region: Sector[];
+    provisional: boolean;
+    regionSoft: { edgeDeg: number; edgeDegExtreme: number; scaleTimes: number; provisionalGain: number };
+    gamutSoft: number;
+    notes: string[];
+    /** Zonas de confusión: diagnóstico en grises, no se hornea ni se aplica como filtro. */
+    lossMap?: { name: string; kind: "grises"; ratio: string; scale: "log"; lStar: [number, number]; estimated: string; points: Array<{ deg: number; ratio: number }> };
+  };
   filters: TransformFilter[];
 };
 
@@ -101,15 +131,19 @@ const GATE = 1.6;
  * One element per filter. The lattice is the same function the plates and the camera apply,
  * baked from this profile. Identity filters omit the bytes.
  */
-export function buildTransformFile(profile: UmbralProfile): TransformFile {
+export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = []): TransformFile {
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
   const luma = lumaFromProfile(profile);
   const axes = profile.axes;
+  const region = measuredRegion(axes, floor, edges);
+  const texts = filterTexts(axes, floor, region);
   const specs: Array<{
     id: TransformFilter["id"];
     name: string;
     note: string;
     apply: ((rgb: Vec3) => Vec3) | null;
+    /** Extremo (true) o Asistencia (false): se hornea con adaptiveColor y se resume en `adaptive`. */
+    adaptive?: boolean;
   }> = [
     {
       id: "original",
@@ -120,26 +154,22 @@ export function buildTransformFile(profile: UmbralProfile): TransformFile {
     {
       id: "simulate",
       name: "Simulador",
-      note: "Encoge solo la coordenada que no separas y vierte el rojo perdido hacia el cono que sí lo recoge. Aplica el brillo medido. Fuera de la banda no toca.",
+      note: texts.simulate,
       apply: (rgb) => paintYours(rgb, axes, floor, luma),
-    },
-    {
-      id: "correct",
-      name: "Mapa intermedio",
-      note: "Conserva el rojo que sí cabe en la banda y pasa a azul la ganancia que no se va a ver. Fuera de la banda no toca.",
-      apply: (rgb) => correctColor(rgb, axes, floor),
     },
     {
       id: "assist",
       name: "Asistencia",
-      note: "Mueve un poco la banda hacia el rojo o el verde que ya separas, sin cambiar un pálido por uno vivo.",
-      apply: (rgb) => assistColor(rgb, axes, floor, luma),
+      note: texts.assist,
+      apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
+      adaptive: false,
     },
     {
       id: "extreme",
       name: "Extremo",
-      note: "La misma dirección que la asistencia, ampliada hasta el borde del gamut, para separar los píxeles de la banda.",
-      apply: (rgb) => extremeColor(rgb, axes, floor, luma),
+      note: texts.extreme,
+      apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
+      adaptive: true,
     },
   ];
   return {
@@ -151,7 +181,58 @@ export function buildTransformFile(profile: UmbralProfile): TransformFile {
     order: "Índice ((b * size + g) * size + r). r es el eje rápido. Tres bytes RGB por nodo.",
     floor: Math.round(floor * 10000) / 10000,
     gate: GATE,
-    filters: specs.map((spec) => bakeFilter(spec, floor)),
+    params: {
+      mask: "región medida",
+      region,
+      provisional: region.some((sector) => sector.provisional),
+      regionSoft: { edgeDeg: REGION.edgeSoftDeg, edgeDegExtreme: REGION.edgeSoftDegExtreme, scaleTimes: 1 + REGION.scaleSoft, provisionalGain: REGION.provisionalGain },
+      gamutSoft: GAMUT_SOFT,
+      notes: [...KNOWN_LIMITATIONS, ...(region.some((sector) => sector.provisional) ? [PROVISIONAL_NOTE] : [])],
+      lossMap: {
+        name: "Zonas de confusión",
+        kind: "grises",
+        ratio: "umbral en el tono / umbral del control",
+        scale: "log",
+        lStar: [LOSS_RAMP.lMin, LOSS_RAMP.lMax],
+        estimated: "lados midpointToHealthy (rayado)",
+        points: lossPoints(profile, edges).points.map((p) => ({ deg: Math.round(p.deg * 100) / 100, ratio: Math.round(p.ratio * 1000) / 1000 })),
+      },
+    },
+    filters: specs.map((spec) => {
+      if (spec.adaptive == null) return bakeFilter(spec, floor);
+      const extreme = spec.adaptive;
+      const stats = { active: 0, sum: 0, max: 0, limited: 0 };
+      const baked = bakeFilter(
+        {
+          ...spec,
+          apply: (rgb) => {
+            const res = adaptiveColor(rgb, axes, floor, extreme, region);
+            if (res.active) {
+              stats.active++;
+              stats.sum += res.k;
+              stats.max = Math.max(stats.max, res.k);
+              if (res.limited) stats.limited++;
+            }
+            return res.out;
+          },
+        },
+        floor,
+      );
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      return {
+        ...baked,
+        ...(stats.limited ? { note: `${baked.note} Limitado por tope en ${stats.limited} nodos: se aplica el máximo permitido.` } : {}),
+        adaptive: {
+          metric: "|diferencia| / (2 · T(ángulo de la diferencia)), T interpolado en log como «Zonas de confusión»",
+          target: extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target,
+          activeNodes: stats.active,
+          kMean: stats.active ? r2(stats.sum / stats.active) : 0,
+          kMax: r2(stats.max),
+          limitedNodes: stats.limited,
+          status: stats.limited ? "limitado por tope" : "meta alcanzada",
+        },
+      };
+    }),
   };
 }
 
@@ -242,4 +323,35 @@ export function sampleLut(lut: Uint8Array, r8: number, g8: number, b8: number): 
     out[c] = Math.round(c0 * (1 - tz) + c1 * tz);
   }
   return out;
+}
+
+/**
+ * Perfil para filtros: solo los ejes de la validación 3AFC (sus umbrales ya sustituyen a los del perfil).
+ * Sin validación, null: no hay filtros (los umbrales del perfil sí/no ya no los construyen).
+ * El suelo (`fit.controlAbs`) es el control validado; sin control validado, null.
+ */
+export function filterProfile(profile: UmbralProfile): UmbralProfile | null {
+  const v = profile.validation;
+  if (!v?.axes?.length) return null;
+  const ids = new Set(v.axes.map((a) => a.id));
+  const axes = profile.axes.filter((a) => ids.has(a.id) && a.thresholdSource === "validation-3afc");
+  const control = axes.find((a) => a.role === "control");
+  if (!control?.threshold || !axes.some((a) => a.role !== "control")) return null;
+  return { ...profile, axes, fit: { ...profile.fit, controlAbs: control.threshold } };
+}
+
+/** Transformaciones solo desde la validación 3AFC y los bordes; null sin validación. */
+export function buildFilterTransforms(profile: UmbralProfile, edges: EdgeFile[] = []): TransformFile | null {
+  const base = filterProfile(profile);
+  if (!base) return null;
+  const file = buildTransformFile(base, edges);
+  return {
+    ...file,
+    basedOn: {
+      ...file.basedOn,
+      thresholds: "validation-3afc",
+      validation: base.axes.map((a) => ({ id: a.id, threshold: a.threshold ?? 0, thresholdStandardY: a.thresholdStandardY ?? 0 })),
+      edges: edges.map((e) => e.cone),
+    },
+  };
 }

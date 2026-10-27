@@ -1,0 +1,2387 @@
+{
+ "schema": "umbral.profile.v3",
+ "disclaimer": "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
+ "createdAt": "<ts>",
+ "build": {
+  "env": "prod",
+  "branch": "local",
+  "commit": "local"
+ },
+ "hardware": {
+  "userAgent": "test",
+  "language": "es",
+  "screen": {
+   "width": 390,
+   "height": 844,
+   "colorDepth": 24,
+   "pixelRatio": 3
+  },
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "gamut": "srgb",
+  "colorScheme": "light",
+  "forcedColors": false,
+  "reducedMotion": false,
+  "maxTouchPoints": 5,
+  "capturedAt": "<ts>"
+ },
+ "method": {
+  "space": "linear sRGB, constant CIE Y, anchor 0.22",
+  "anchorLinear": 0.22,
+  "procedure": "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
+  "priorsRole": "Cone-isolation directions only choose where to look first. They are not the output.",
+  "search": "staircase"
+ },
+ "summary": "Las tres vías quedan medidas. violáceo 0.040. rojizo 0.041. verdoso 0.042. Control 0.039. Ninguna de las tres queda claramente por encima del control. En el extremo de la pantalla, «rojo extremo» 0.039 y «azul extremo» 0.040.",
+ "confidence": "high",
+ "closedAxes": [],
+ "measuredAxes": [
+  "violáceo",
+  "anaranjado",
+  "rojizo",
+  "verdoso",
+  "rojo extremo",
+  "azul extremo",
+  "magenta · al lado",
+  "violáceo · al lado",
+  "cian · al lado",
+  "verdoso · al lado",
+  "anaranjado · al lado",
+  "azulado · al lado"
+ ],
+ "fit": {
+  "method": "Peak absolute distance in linear sRGB (unit direction × scale), compared with the control. Gamut fraction is not the rank: a short-gamut axis must not look worse just because it clips sooner.",
+  "severity": 0,
+  "timesControl": 1.1,
+  "timesControlKind": "estimate",
+  "controlBounded": false,
+  "peakAbs": null,
+  "controlAbs": 0.039,
+  "confusionAngleDeg": null,
+  "shiftFromNearestPriorDeg": null,
+  "nearestSearchPrior": null,
+  "confusionDirectionLinearRgb": null,
+  "elevatedCount": 0,
+  "pathways": [
+   {
+    "id": "s",
+    "hue": "violáceo",
+    "threshold": 0.0403,
+    "kind": "estimate",
+    "timesControl": 1,
+    "elevated": false,
+    "sameLineAs": null
+   },
+   {
+    "id": "l",
+    "hue": "rojizo",
+    "threshold": 0.0412,
+    "kind": "estimate",
+    "timesControl": 1.1,
+    "elevated": false,
+    "sameLineAs": null
+   },
+   {
+    "id": "m",
+    "hue": "verdoso",
+    "threshold": 0.0419,
+    "kind": "estimate",
+    "timesControl": 1.1,
+    "elevated": false,
+    "sameLineAs": null
+   }
+  ],
+  "attenuationMatrix": [
+   [
+    1,
+    0,
+    0
+   ],
+   [
+    0,
+    1,
+    0
+   ],
+   [
+    0,
+    0,
+    1
+   ]
+  ]
+ },
+ "axes": [
+  {
+   "id": "s",
+   "hue": "violáceo",
+   "label": "violáceo",
+   "role": "s",
+   "searchPrior": "S-cone isolation",
+   "parentId": null,
+   "angleDeg": 94.5,
+   "maxScale": 0.2123,
+   "threshold": 0.0403,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 1,
+   "staircase": {
+    "lo": 0.0382,
+    "hi": 0.0425,
+    "convergence": 0.0403,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "control",
+   "hue": "anaranjado",
+   "label": "anaranjado",
+   "role": "control",
+   "searchPrior": "control, off the cone axes",
+   "parentId": null,
+   "angleDeg": -37,
+   "maxScale": 0.2663,
+   "threshold": 0.039,
+   "thresholdNorm": 0.146,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 2,
+   "staircase": {
+    "lo": 0.036,
+    "hi": 0.0419,
+    "convergence": 0.039,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "l",
+   "hue": "rojizo",
+   "label": "rojizo",
+   "role": "l",
+   "searchPrior": "L-cone isolation",
+   "parentId": null,
+   "angleDeg": 11.1,
+   "maxScale": 0.217,
+   "threshold": 0.0412,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 3,
+   "staircase": {
+    "lo": 0.0391,
+    "hi": 0.0434,
+    "convergence": 0.0412,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "m",
+   "hue": "verdoso",
+   "label": "verdoso",
+   "role": "m",
+   "searchPrior": "M-cone isolation",
+   "parentId": null,
+   "angleDeg": -156.7,
+   "maxScale": 0.2204,
+   "threshold": 0.0419,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 5,
+   "order": 4,
+   "staircase": {
+    "lo": 0.0397,
+    "hi": 0.0441,
+    "convergence": 0.0419,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "red-end",
+   "hue": "rojo extremo",
+   "label": "rojo extremo",
+   "role": "red-end",
+   "searchPrior": "last red this display emits",
+   "parentId": null,
+   "angleDeg": -6.3,
+   "maxScale": 0.2299,
+   "threshold": 0.0388,
+   "thresholdNorm": 0.169,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 6,
+   "order": 5,
+   "staircase": {
+    "lo": 0.0362,
+    "hi": 0.0414,
+    "convergence": 0.0388,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "blue-end",
+   "hue": "azul extremo",
+   "label": "azul extremo",
+   "role": "blue-end",
+   "searchPrior": "first blue this display emits",
+   "parentId": null,
+   "angleDeg": 108,
+   "maxScale": 0.2093,
+   "threshold": 0.0398,
+   "thresholdNorm": 0.19,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 7,
+   "order": 6,
+   "staircase": {
+    "lo": 0.0377,
+    "hi": 0.0419,
+    "convergence": 0.0398,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "s:-",
+   "hue": "violáceo",
+   "label": "violáceo · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "s",
+   "angleDeg": 73.9,
+   "maxScale": 0.8658,
+   "threshold": 0.0308,
+   "thresholdNorm": 0.036,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 7,
+   "staircase": {
+    "lo": 0.0206,
+    "hi": 0.0411,
+    "convergence": 0.0308,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "l:+",
+   "hue": "magenta",
+   "label": "magenta · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "l",
+   "angleDeg": 31.7,
+   "maxScale": 0.6943,
+   "threshold": 0.0412,
+   "thresholdNorm": 0.059,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 8,
+   "staircase": {
+    "lo": 0.033,
+    "hi": 0.0495,
+    "convergence": 0.0412,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "m:-",
+   "hue": "cian",
+   "label": "cian · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "m",
+   "angleDeg": -177.4,
+   "maxScale": 0.2205,
+   "threshold": 0.0393,
+   "thresholdNorm": 0.178,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 9,
+   "staircase": {
+    "lo": 0.0367,
+    "hi": 0.0419,
+    "convergence": 0.0393,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "m:+",
+   "hue": "verdoso",
+   "label": "verdoso · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "m",
+   "angleDeg": -136.1,
+   "maxScale": 0.2527,
+   "threshold": 0.039,
+   "thresholdNorm": 0.154,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 10,
+   "staircase": {
+    "lo": 0.036,
+    "hi": 0.042,
+    "convergence": 0.039,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "red-end:-",
+   "hue": "anaranjado",
+   "label": "anaranjado · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "red-end",
+   "angleDeg": -26.9,
+   "maxScale": 0.3147,
+   "threshold": 0.0431,
+   "thresholdNorm": 0.137,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 11,
+   "staircase": {
+    "lo": 0.0398,
+    "hi": 0.0465,
+    "convergence": 0.0431,
+    "stop": "bisection"
+   }
+  },
+  {
+   "id": "blue-end:+",
+   "hue": "azulado",
+   "label": "azulado · al lado",
+   "role": "refine",
+   "searchPrior": null,
+   "parentId": "blue-end",
+   "angleDeg": 128.6,
+   "maxScale": 0.502,
+   "threshold": 0.0417,
+   "thresholdNorm": 0.083,
+   "thresholdKind": "estimate",
+   "closed": false,
+   "trials": 4,
+   "order": 12,
+   "staircase": {
+    "lo": 0.0358,
+    "hi": 0.0477,
+    "convergence": 0.0417,
+    "stop": "bisection"
+   }
+  }
+ ],
+ "trials": [
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.13164467534814375,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    121,
+    131,
+    84
+   ],
+   "comparison": [
+    137,
+    126,
+    163
+   ],
+   "side": "left",
+   "at": 17,
+   "lumEps": [
+    -0.070302,
+    0.059383
+   ],
+   "order": 1
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.07219224131994981,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    127,
+    132,
+    109
+   ],
+   "comparison": [
+    132,
+    127,
+    147
+   ],
+   "side": "left",
+   "at": 21,
+   "lumEps": [
+    0.003257,
+    0.016374
+   ],
+   "order": 2
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.03821942187526754,
+   "sNorm": 0.18000000000000002,
+   "judgment": "same",
+   "reference": [
+    129,
+    132,
+    120
+   ],
+   "comparison": [
+    129,
+    126,
+    137
+   ],
+   "side": "left",
+   "at": 31,
+   "lumEps": [
+    0.016552,
+    -0.012116
+   ],
+   "order": 3
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.055205831597608675,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    127,
+    132,
+    114
+   ],
+   "comparison": [
+    133,
+    127,
+    144
+   ],
+   "side": "right",
+   "at": 34,
+   "lumEps": [
+    -0.005549,
+    0.02534
+   ],
+   "order": 4
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.04671262673643811,
+   "sNorm": 0.22000000000000003,
+   "judgment": "different",
+   "reference": [
+    132,
+    135,
+    119
+   ],
+   "comparison": [
+    135,
+    131,
+    144
+   ],
+   "side": "right",
+   "at": 38,
+   "lumEps": [
+    0.062048,
+    0.070671
+   ],
+   "order": 5
+  },
+  {
+   "axisId": "s",
+   "hue": "violáceo",
+   "priorKey": "s",
+   "theta": 1.6489919591342226,
+   "s": 0.04246602430585283,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    125,
+    128,
+    115
+   ],
+   "comparison": [
+    130,
+    127,
+    139
+   ],
+   "side": "right",
+   "at": 44,
+   "lumEps": [
+    -0.056935,
+    -0.00158
+   ],
+   "order": 6
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.1651271533928844,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    96,
+    131,
+    155
+   ],
+   "comparison": [
+    147,
+    118,
+    78
+   ],
+   "side": "left",
+   "at": 19,
+   "lumEps": [
+    -0.079214,
+    -0.073807
+   ],
+   "order": 7
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.09055360024771081,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    111,
+    130,
+    145
+   ],
+   "comparison": [
+    137,
+    121,
+    102
+   ],
+   "side": "right",
+   "at": 26,
+   "lumEps": [
+    -0.046734,
+    -0.074167
+   ],
+   "order": 8
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.047940141307611595,
+   "sNorm": 0.18,
+   "judgment": "different",
+   "reference": [
+    121,
+    130,
+    138
+   ],
+   "comparison": [
+    140,
+    131,
+    122
+   ],
+   "side": "right",
+   "at": 30,
+   "lumEps": [
+    -0.010503,
+    0.06633
+   ],
+   "order": 9
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.023970070653805797,
+   "sNorm": 0.09,
+   "judgment": "same",
+   "reference": [
+    129,
+    134,
+    138
+   ],
+   "comparison": [
+    132,
+    127,
+    123
+   ],
+   "side": "left",
+   "at": 51,
+   "lumEps": [
+    0.062637,
+    -0.009533
+   ],
+   "order": 10
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.035955105980708696,
+   "sNorm": 0.13499999999999998,
+   "judgment": "same",
+   "reference": [
+    126,
+    133,
+    139
+   ],
+   "comparison": [
+    135,
+    129,
+    122
+   ],
+   "side": "right",
+   "at": 56,
+   "lumEps": [
+    0.032563,
+    0.010359
+   ],
+   "order": 11
+  },
+  {
+   "axisId": "control",
+   "hue": "anaranjado",
+   "priorKey": "control",
+   "theta": -0.6457718232379022,
+   "s": 0.041947623644160145,
+   "sNorm": 0.1575,
+   "judgment": "different",
+   "reference": [
+    120,
+    128,
+    135
+   ],
+   "comparison": [
+    135,
+    127,
+    119
+   ],
+   "side": "right",
+   "at": 68,
+   "lumEps": [
+    -0.045249,
+    -0.001847
+   ],
+   "order": 12
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.13456350590784663,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    91,
+    142,
+    135
+   ],
+   "comparison": [
+    157,
+    115,
+    124
+   ],
+   "side": "left",
+   "at": 13,
+   "lumEps": [
+    -0.002283,
+    0.014271
+   ],
+   "order": 13
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.07379289033656107,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    109,
+    136,
+    132
+   ],
+   "comparison": [
+    144,
+    120,
+    125
+   ],
+   "side": "left",
+   "at": 15,
+   "lumEps": [
+    -0.015177,
+    -0.018573
+   ],
+   "order": 14
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.03906682429582645,
+   "sNorm": 0.18000000000000002,
+   "judgment": "same",
+   "reference": [
+    119,
+    132,
+    130
+   ],
+   "comparison": [
+    134,
+    121,
+    123
+   ],
+   "side": "right",
+   "at": 18,
+   "lumEps": [
+    -0.021193,
+    -0.066826
+   ],
+   "order": 15
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.05642985731619376,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    119,
+    139,
+    136
+   ],
+   "comparison": [
+    136,
+    119,
+    121
+   ],
+   "side": "right",
+   "at": 20,
+   "lumEps": [
+    0.069825,
+    -0.075989
+   ],
+   "order": 16
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.047748340806010106,
+   "sNorm": 0.22000000000000003,
+   "judgment": "different",
+   "reference": [
+    118,
+    135,
+    132
+   ],
+   "comparison": [
+    137,
+    121,
+    124
+   ],
+   "side": "right",
+   "at": 32,
+   "lumEps": [
+    0.014595,
+    -0.052105
+   ],
+   "order": 17
+  },
+  {
+   "axisId": "l",
+   "hue": "rojizo",
+   "priorKey": "l",
+   "theta": 0.19383505597277387,
+   "s": 0.043407582550918276,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    117,
+    132,
+    129
+   ],
+   "comparison": [
+    143,
+    127,
+    130
+   ],
+   "side": "right",
+   "at": 40,
+   "lumEps": [
+    -0.03198,
+    0.058965
+   ],
+   "order": 18
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.07494209688418763,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    143,
+    118,
+    128
+   ],
+   "comparison": [
+    111,
+    137,
+    128
+   ],
+   "side": "left",
+   "at": 11,
+   "lumEps": [
+    -0.03048,
+    -0.003796
+   ],
+   "order": 19
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.03967522776221697,
+   "sNorm": 0.18,
+   "judgment": "same",
+   "reference": [
+    135,
+    123,
+    127
+   ],
+   "comparison": [
+    124,
+    137,
+    133
+   ],
+   "side": "right",
+   "at": 14,
+   "lumEps": [
+    -0.041613,
+    0.06547
+   ],
+   "order": 20
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.057308662323202295,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    146,
+    127,
+    134
+   ],
+   "comparison": [
+    117,
+    137,
+    131
+   ],
+   "side": "left",
+   "at": 25,
+   "lumEps": [
+    0.072476,
+    0.039613
+   ],
+   "order": 21
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.048491945042709636,
+   "sNorm": 0.22,
+   "judgment": "different",
+   "reference": [
+    136,
+    120,
+    126
+   ],
+   "comparison": [
+    121,
+    137,
+    132
+   ],
+   "side": "right",
+   "at": 42,
+   "lumEps": [
+    -0.05987,
+    0.046458
+   ],
+   "order": 22
+  },
+  {
+   "axisId": "m",
+   "hue": "verdoso",
+   "priorKey": "m",
+   "theta": -2.7353531862946308,
+   "s": 0.04408358640246331,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    137,
+    122,
+    128
+   ],
+   "comparison": [
+    118,
+    133,
+    128
+   ],
+   "side": "right",
+   "at": 50,
+   "lumEps": [
+    -0.037608,
+    -0.00973
+   ],
+   "order": 23
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.14253215425805066,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    89,
+    137,
+    141
+   ],
+   "comparison": [
+    153,
+    112,
+    107
+   ],
+   "side": "right",
+   "at": 12,
+   "lumEps": [
+    -0.054001,
+    -0.057118
+   ],
+   "order": 24
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.07816279427054391,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    114,
+    141,
+    143
+   ],
+   "comparison": [
+    141,
+    118,
+    115
+   ],
+   "side": "right",
+   "at": 24,
+   "lumEps": [
+    0.079767,
+    -0.062068
+   ],
+   "order": 25
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.041380302849111476,
+   "sNorm": 0.18,
+   "judgment": "different",
+   "reference": [
+    123,
+    136,
+    137
+   ],
+   "comparison": [
+    135,
+    122,
+    121
+   ],
+   "side": "right",
+   "at": 28,
+   "lumEps": [
+    0.053576,
+    -0.047541
+   ],
+   "order": 26
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.020690151424555738,
+   "sNorm": 0.09,
+   "judgment": "same",
+   "reference": [
+    128,
+    134,
+    135
+   ],
+   "comparison": [
+    131,
+    124,
+    124
+   ],
+   "side": "right",
+   "at": 36,
+   "lumEps": [
+    0.043716,
+    -0.053307
+   ],
+   "order": 27
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.031035227136833606,
+   "sNorm": 0.13499999999999998,
+   "judgment": "same",
+   "reference": [
+    124,
+    134,
+    135
+   ],
+   "comparison": [
+    138,
+    128,
+    127
+   ],
+   "side": "right",
+   "at": 46,
+   "lumEps": [
+    0.035868,
+    0.039553
+   ],
+   "order": 28
+  },
+  {
+   "axisId": "red-end",
+   "hue": "rojo extremo",
+   "priorKey": "red-end",
+   "theta": -0.1099181458985467,
+   "s": 0.03620776499297254,
+   "sNorm": 0.15749999999999997,
+   "judgment": "same",
+   "reference": [
+    123,
+    134,
+    135
+   ],
+   "comparison": [
+    137,
+    126,
+    125
+   ],
+   "side": "right",
+   "at": 54,
+   "lumEps": [
+    0.028892,
+    -0.003061
+   ],
+   "order": 29
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.1779261567881955,
+   "sNorm": 0.85,
+   "judgment": "different",
+   "reference": [
+    133,
+    133,
+    60
+   ],
+   "comparison": [
+    129,
+    129,
+    174
+   ],
+   "side": "left",
+   "at": 23,
+   "lumEps": [
+    0.00764,
+    0.067389
+   ],
+   "order": 30
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.1297814320102132,
+   "sNorm": 0.62,
+   "judgment": "different",
+   "reference": [
+    137,
+    137,
+    89
+   ],
+   "comparison": [
+    122,
+    122,
+    154
+   ],
+   "side": "left",
+   "at": 29,
+   "lumEps": [
+    0.077656,
+    -0.064557
+   ],
+   "order": 31
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.07117046271527822,
+   "sNorm": 0.34,
+   "judgment": "different",
+   "reference": [
+    134,
+    134,
+    110
+   ],
+   "comparison": [
+    125,
+    126,
+    145
+   ],
+   "side": "left",
+   "at": 35,
+   "lumEps": [
+    0.04599,
+    -0.033471
+   ],
+   "order": 32
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.037678480261029636,
+   "sNorm": 0.18,
+   "judgment": "same",
+   "reference": [
+    131,
+    131,
+    120
+   ],
+   "comparison": [
+    130,
+    130,
+    141
+   ],
+   "side": "left",
+   "at": 39,
+   "lumEps": [
+    0.011549,
+    0.027249
+   ],
+   "order": 33
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.05442447148815392,
+   "sNorm": 0.26,
+   "judgment": "different",
+   "reference": [
+    129,
+    129,
+    112
+   ],
+   "comparison": [
+    127,
+    127,
+    142
+   ],
+   "side": "left",
+   "at": 43,
+   "lumEps": [
+    -0.011349,
+    -0.014579
+   ],
+   "order": 34
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.04605147587459178,
+   "sNorm": 0.22,
+   "judgment": "different",
+   "reference": [
+    129,
+    129,
+    115
+   ],
+   "comparison": [
+    131,
+    131,
+    144
+   ],
+   "side": "left",
+   "at": 53,
+   "lumEps": [
+    -0.012929,
+    0.042847
+   ],
+   "order": 35
+  },
+  {
+   "axisId": "blue-end",
+   "hue": "azul extremo",
+   "priorKey": "blue-end",
+   "theta": 1.885267903805212,
+   "s": 0.04186497806781071,
+   "sNorm": 0.2,
+   "judgment": "different",
+   "reference": [
+    134,
+    134,
+    121
+   ],
+   "comparison": [
+    131,
+    131,
+    143
+   ],
+   "side": "left",
+   "at": 57,
+   "lumEps": [
+    0.068965,
+    0.052139
+   ],
+   "order": 36
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.1645047120299448,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    106,
+    138,
+    83
+   ],
+   "comparison": [
+    148,
+    117,
+    162
+   ],
+   "side": "right",
+   "at": 48,
+   "lumEps": [
+    -0.05216,
+    0.032306
+   ],
+   "order": 37
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0822523560149724,
+   "sNorm": 0.095,
+   "judgment": "different",
+   "reference": [
+    121,
+    136,
+    111
+   ],
+   "comparison": [
+    143,
+    126,
+    150
+   ],
+   "side": "right",
+   "at": 60,
+   "lumEps": [
+    0.010488,
+    0.077721
+   ],
+   "order": 38
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0411261780074862,
+   "sNorm": 0.0475,
+   "judgment": "different",
+   "reference": [
+    122,
+    129,
+    117
+   ],
+   "comparison": [
+    134,
+    127,
+    139
+   ],
+   "side": "right",
+   "at": 64,
+   "lumEps": [
+    -0.049611,
+    0.016237
+   ],
+   "order": 39
+  },
+  {
+   "axisId": "s:-",
+   "hue": "violáceo",
+   "priorKey": "refine",
+   "theta": 1.2889919591342225,
+   "s": 0.0205630890037431,
+   "sNorm": 0.02375,
+   "judgment": "same",
+   "reference": [
+    128,
+    132,
+    126
+   ],
+   "comparison": [
+    131,
+    127,
+    133
+   ],
+   "side": "right",
+   "at": 72,
+   "lumEps": [
+    0.014976,
+    0.001927
+   ],
+   "order": 40
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.13191949463775027,
+   "sNorm": 0.19000000000000003,
+   "judgment": "different",
+   "reference": [
+    96,
+    144,
+    123
+   ],
+   "comparison": [
+    153,
+    112,
+    134
+   ],
+   "side": "left",
+   "at": 47,
+   "lumEps": [
+    0.012268,
+    -0.012819
+   ],
+   "order": 41
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.06595974731887513,
+   "sNorm": 0.09500000000000001,
+   "judgment": "different",
+   "reference": [
+    117,
+    140,
+    130
+   ],
+   "comparison": [
+    147,
+    126,
+    136
+   ],
+   "side": "right",
+   "at": 66,
+   "lumEps": [
+    0.063755,
+    0.065807
+   ],
+   "order": 42
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.03297987365943757,
+   "sNorm": 0.04750000000000001,
+   "judgment": "same",
+   "reference": [
+    125,
+    136,
+    130
+   ],
+   "comparison": [
+    139,
+    128,
+    134
+   ],
+   "side": "left",
+   "at": 71,
+   "lumEps": [
+    0.05293,
+    0.046331
+   ],
+   "order": 43
+  },
+  {
+   "axisId": "l:+",
+   "hue": "magenta",
+   "priorKey": "refine",
+   "theta": 0.5538350559727738,
+   "s": 0.04946981048915635,
+   "sNorm": 0.07125000000000001,
+   "judgment": "different",
+   "reference": [
+    115,
+    131,
+    124
+   ],
+   "comparison": [
+    138,
+    122,
+    131
+   ],
+   "side": "left",
+   "at": 75,
+   "lumEps": [
+    -0.049445,
+    -0.011328
+   ],
+   "order": 44
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.04190143631072511,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    135,
+    122,
+    123
+   ],
+   "comparison": [
+    115,
+    128,
+    128
+   ],
+   "side": "right",
+   "at": 52,
+   "lumEps": [
+    -0.049155,
+    -0.077295
+   ],
+   "order": 45
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.020950718155362556,
+   "sNorm": 0.095,
+   "judgment": "same",
+   "reference": [
+    136,
+    129,
+    129
+   ],
+   "comparison": [
+    123,
+    130,
+    130
+   ],
+   "side": "left",
+   "at": 61,
+   "lumEps": [
+    0.028774,
+    -0.018753
+   ],
+   "order": 46
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.03142607723304383,
+   "sNorm": 0.1425,
+   "judgment": "same",
+   "reference": [
+    131,
+    122,
+    122
+   ],
+   "comparison": [
+    125,
+    135,
+    135
+   ],
+   "side": "right",
+   "at": 70,
+   "lumEps": [
+    -0.07138,
+    0.058257
+   ],
+   "order": 47
+  },
+  {
+   "axisId": "m:-",
+   "hue": "cian",
+   "priorKey": "refine",
+   "theta": -3.0953531862946306,
+   "s": 0.03666375677188447,
+   "sNorm": 0.16624999999999998,
+   "judgment": "same",
+   "reference": [
+    136,
+    124,
+    125
+   ],
+   "comparison": [
+    122,
+    135,
+    134
+   ],
+   "side": "right",
+   "at": 80,
+   "lumEps": [
+    -0.018606,
+    0.033245
+   ],
+   "order": 48
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.04800925868081006,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    140,
+    126,
+    136
+   ],
+   "comparison": [
+    119,
+    134,
+    124
+   ],
+   "side": "right",
+   "at": 58,
+   "lumEps": [
+    0.039217,
+    -0.004105
+   ],
+   "order": 49
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.02400462934040503,
+   "sNorm": 0.095,
+   "judgment": "same",
+   "reference": [
+    133,
+    126,
+    131
+   ],
+   "comparison": [
+    124,
+    132,
+    127
+   ],
+   "side": "left",
+   "at": 67,
+   "lumEps": [
+    -0.016626,
+    -0.006606
+   ],
+   "order": 50
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.03600694401060754,
+   "sNorm": 0.1425,
+   "judgment": "same",
+   "reference": [
+    131,
+    120,
+    128
+   ],
+   "comparison": [
+    120,
+    131,
+    123
+   ],
+   "side": "right",
+   "at": 74,
+   "lumEps": [
+    -0.079436,
+    -0.03543
+   ],
+   "order": 51
+  },
+  {
+   "axisId": "m:+",
+   "hue": "verdoso",
+   "priorKey": "refine",
+   "theta": -2.375353186294631,
+   "s": 0.0420081013457088,
+   "sNorm": 0.16625,
+   "judgment": "different",
+   "reference": [
+    141,
+    128,
+    137
+   ],
+   "comparison": [
+    123,
+    136,
+    127
+   ],
+   "side": "left",
+   "at": 77,
+   "lumEps": [
+    0.062563,
+    0.040899
+   ],
+   "order": 52
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.4699181458985467,
+   "s": 0.053103847090050324,
+   "sNorm": 0.16875,
+   "judgment": "different",
+   "reference": [
+    121,
+    135,
+    142
+   ],
+   "comparison": [
+    135,
+    123,
+    115
+   ],
+   "side": "left",
+   "at": 63,
+   "lumEps": [
+    0.04209,
+    -0.049416
+   ],
+   "order": 53
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.4699181458985467,
+   "s": 0.026551923545025162,
+   "sNorm": 0.084375,
+   "judgment": "same",
+   "reference": [
+    127,
+    135,
+    138
+   ],
+   "comparison": [
+    135,
+    128,
+    125
+   ],
+   "side": "right",
+   "at": 76,
+   "lumEps": [
+    0.060411,
+    0.019479
+   ],
+   "order": 54
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.4699181458985467,
+   "s": 0.03982788531753774,
+   "sNorm": 0.1265625,
+   "judgment": "same",
+   "reference": [
+    121,
+    131,
+    136
+   ],
+   "comparison": [
+    138,
+    129,
+    123
+   ],
+   "side": "left",
+   "at": 81,
+   "lumEps": [
+    -0.023492,
+    0.031475
+   ],
+   "order": 55
+  },
+  {
+   "axisId": "red-end:-",
+   "hue": "anaranjado",
+   "priorKey": "refine",
+   "theta": -0.4699181458985467,
+   "s": 0.04646586620379403,
+   "sNorm": 0.14765625,
+   "judgment": "different",
+   "reference": [
+    121,
+    133,
+    139
+   ],
+   "comparison": [
+    138,
+    127,
+    120
+   ],
+   "side": "left",
+   "at": 83,
+   "lumEps": [
+    0.009857,
+    0.014288
+   ],
+   "order": 56
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.245267903805212,
+   "s": 0.09538628772782747,
+   "sNorm": 0.19,
+   "judgment": "different",
+   "reference": [
+    138,
+    126,
+    100
+   ],
+   "comparison": [
+    118,
+    130,
+    150
+   ],
+   "side": "right",
+   "at": 62,
+   "lumEps": [
+    -0.017814,
+    -0.010612
+   ],
+   "order": 57
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.245267903805212,
+   "s": 0.04769314386391373,
+   "sNorm": 0.095,
+   "judgment": "different",
+   "reference": [
+    138,
+    132,
+    120
+   ],
+   "comparison": [
+    128,
+    134,
+    146
+   ],
+   "side": "right",
+   "at": 78,
+   "lumEps": [
+    0.071342,
+    0.072892
+   ],
+   "order": 58
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.245267903805212,
+   "s": 0.023846571931956866,
+   "sNorm": 0.0475,
+   "judgment": "same",
+   "reference": [
+    137,
+    134,
+    127
+   ],
+   "comparison": [
+    128,
+    131,
+    136
+   ],
+   "side": "right",
+   "at": 82,
+   "lumEps": [
+    0.078815,
+    0.018727
+   ],
+   "order": 59
+  },
+  {
+   "axisId": "blue-end:+",
+   "hue": "azulado",
+   "priorKey": "refine",
+   "theta": 2.245267903805212,
+   "s": 0.0357698578979353,
+   "sNorm": 0.07125,
+   "judgment": "same",
+   "reference": [
+    132,
+    128,
+    119
+   ],
+   "comparison": [
+    126,
+    131,
+    139
+   ],
+   "side": "left",
+   "at": 85,
+   "lumEps": [
+    -0.02317,
+    0.012989
+   ],
+   "order": 60
+  }
+ ],
+ "catches": {
+  "same": 15,
+  "missed": 0,
+  "trials": [
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     129,
+     129,
+     129
+    ],
+    "comparison": [
+     131,
+     131,
+     131
+    ],
+    "side": "right",
+    "at": 16,
+    "lumEps": [
+     0.000399,
+     0.036614
+    ],
+    "dEps": 0.036215,
+    "order": 1
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     168,
+     98,
+     98
+    ],
+    "comparison": [
+     168,
+     98,
+     98
+    ],
+    "side": "right",
+    "at": 22,
+    "lumEps": [
+     -0.078783,
+     -0.078113
+    ],
+    "dEps": 0.00067,
+    "order": 2
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     132,
+     132,
+     132
+    ],
+    "comparison": [
+     134,
+     134,
+     134
+    ],
+    "side": "left",
+    "at": 27,
+    "lumEps": [
+     0.05621,
+     0.079062
+    ],
+    "dEps": 0.022852,
+    "order": 3
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     100,
+     141,
+     100
+    ],
+    "comparison": [
+     101,
+     142,
+     101
+    ],
+    "side": "left",
+    "at": 33,
+    "lumEps": [
+     -0.034887,
+     -0.02042
+    ],
+    "dEps": 0.014467,
+    "order": 4
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     133,
+     133,
+     133
+    ],
+    "comparison": [
+     132,
+     132,
+     132
+    ],
+    "side": "left",
+    "at": 37,
+    "lumEps": [
+     0.072428,
+     0.046311
+    ],
+    "dEps": -0.026117,
+    "order": 5
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     175,
+     103,
+     103
+    ],
+    "comparison": [
+     176,
+     103,
+     103
+    ],
+    "side": "left",
+    "at": 41,
+    "lumEps": [
+     0.010954,
+     0.025394
+    ],
+    "dEps": 0.01444,
+    "order": 6
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     125,
+     125,
+     125
+    ],
+    "comparison": [
+     131,
+     131,
+     131
+    ],
+    "side": "left",
+    "at": 45,
+    "lumEps": [
+     -0.064617,
+     0.032656
+    ],
+    "dEps": 0.097273,
+    "order": 7
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     180,
+     105,
+     105
+    ],
+    "comparison": [
+     175,
+     102,
+     102
+    ],
+    "side": "left",
+    "at": 49,
+    "lumEps": [
+     0.071743,
+     0.007981
+    ],
+    "dEps": -0.063762,
+    "order": 8
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     99,
+     139,
+     99
+    ],
+    "comparison": [
+     106,
+     148,
+     106
+    ],
+    "side": "left",
+    "at": 55,
+    "lumEps": [
+     -0.067327,
+     0.074388
+    ],
+    "dEps": 0.141715,
+    "order": 9
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     128,
+     128,
+     128
+    ],
+    "comparison": [
+     125,
+     125,
+     125
+    ],
+    "side": "left",
+    "at": 59,
+    "lumEps": [
+     -0.020401,
+     -0.062579
+    ],
+    "dEps": -0.042178,
+    "order": 10
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     179,
+     105,
+     105
+    ],
+    "comparison": [
+     168,
+     98,
+     98
+    ],
+    "side": "left",
+    "at": 65,
+    "lumEps": [
+     0.060929,
+     -0.075797
+    ],
+    "dEps": -0.136726,
+    "order": 11
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     175,
+     103,
+     103
+    ],
+    "comparison": [
+     178,
+     104,
+     104
+    ],
+    "side": "left",
+    "at": 69,
+    "lumEps": [
+     0.015064,
+     0.048185
+    ],
+    "dEps": 0.033121,
+    "order": 12
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     124,
+     124,
+     196
+    ],
+    "comparison": [
+     118,
+     118,
+     187
+    ],
+    "side": "left",
+    "at": 73,
+    "lumEps": [
+     0.030584,
+     -0.068713
+    ],
+    "dEps": -0.099297,
+    "order": 13
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     117,
+     117,
+     186
+    ],
+    "comparison": [
+     126,
+     126,
+     199
+    ],
+    "side": "left",
+    "at": 79,
+    "lumEps": [
+     -0.078755,
+     0.07587
+    ],
+    "dEps": 0.154625,
+    "order": 14
+   },
+   {
+    "axisId": "catch",
+    "hue": "igual",
+    "priorKey": "catch",
+    "theta": 0,
+    "s": 0,
+    "sNorm": 0,
+    "judgment": "same",
+    "reference": [
+     128,
+     128,
+     128
+    ],
+    "comparison": [
+     129,
+     129,
+     129
+    ],
+    "side": "right",
+    "at": 84,
+    "lumEps": [
+     -0.017639,
+     0.007727
+    ],
+    "dEps": 0.025366,
+    "order": 15
+   }
+  ]
+ },
+ "pairLuminance": {
+  "source": "measured",
+  "weights": [
+   0.3,
+   0.62,
+   0.08
+  ]
+ },
+ "lumNoise": {
+  "amp": 0.08,
+  "seed": 1540483486
+ },
+ "luminance": {
+  "method": "",
+  "temporalHz": 1,
+  "count": 0,
+  "sampleCount": 0,
+  "matches": [],
+  "reading": "No hay franjas de brillo.",
+  "weights": [
+   0.21267,
+   0.71515,
+   0.07217
+  ],
+  "weightsSource": "standard",
+  "predicted": null,
+  "type": "normal",
+  "refreshHz": null,
+  "cyclesPerDeg": null,
+  "checks": null,
+  "calibratedWith": "standard-Y",
+  "measuredMatches": [],
+  "legacyMatches": false
+ }
+}

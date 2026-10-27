@@ -1,13 +1,15 @@
 <script lang="ts">
+  import { num } from "@/lib/format";
   import { Check, Copy, Download, RotateCcw } from "@lucide/svelte";
-  import { edgeFilename, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
-  import { buildTransformFile } from "@/lib/color/lut";
+  import { edgeFilename, edgeWindow, sessionReliability, type ConeId, type EdgeFile } from "@/lib/color/edges";
+  import { buildFilterTransforms, filterProfile } from "@/lib/color/lut";
   import type { UmbralProfile } from "@/lib/color/profile";
   import ConeCard from "./ConeCard.svelte";
   import Plates from "./Plates.svelte";
   import AssistCamera from "./AssistCamera.svelte";
   import EdgeTest from "./EdgeTest.svelte";
   import ImportJson from "./ImportJson.svelte";
+  import { STALE_EDGES_NOTE } from "@/lib/color/edgestore";
 
   let {
     profile,
@@ -19,7 +21,10 @@
     onMotion,
     onMotionV2,
     edgeFiles,
+    edgesStale = false,
     onEdgeFile,
+    onEdgeImport,
+    onValidate,
   }: {
     profile: UmbralProfile;
     copied: boolean;
@@ -30,13 +35,19 @@
     onMotion: () => void;
     onMotionV2?: () => void;
     edgeFiles: Partial<Record<ConeId, EdgeFile>>;
+    edgesStale?: boolean;
     onEdgeFile: (file: EdgeFile) => void;
+    onEdgeImport?: (file: EdgeFile) => void;
+    /** Validación 3AFC (solo con pesos de brillo medidos en esta pantalla). */
+    onValidate?: () => void;
   } = $props();
 
   type Matches = NonNullable<UmbralProfile["luminance"]>["matches"];
 
   const json = $derived(JSON.stringify(profile, null, 2));
   const edgeList = $derived(Object.values(edgeFiles) as EdgeFile[]);
+  /** Filtros solo desde la validación 3AFC (y bordes); null sin validación. */
+  const filtersBase = $derived(filterProfile(profile));
   const edgeReliability = $derived(sessionReliability(edgeList));
   let baking = $state(false);
   let measuring = $state<ConeId | null>(null);
@@ -56,7 +67,8 @@
     baking = true;
     window.setTimeout(() => {
       try {
-        const file = buildTransformFile(profile);
+        const file = buildFilterTransforms(profile, edgeList);
+        if (!file) return;
         const blob = new Blob([JSON.stringify(file, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -70,7 +82,14 @@
     }, 40);
   }
 
-  const elevated = $derived(profile.fit.pathways?.filter((pathway) => pathway.elevated) ?? []);
+  // Bordes solo si cabe una escala entre 2× el control y 0,8× el umbral del eje (Colorado, 7.ª ronda).
+  const elevated = $derived(
+    profile.fit.pathways?.filter((pathway) => {
+      if (!pathway.elevated) return false;
+      const axis = profile.axes.find((item) => item.id === pathway.id);
+      return edgeWindow(axis?.angleDeg ?? 0, pathway.threshold ?? axis?.threshold ?? 0, profile.fit.controlAbs ?? 0).offered;
+    }) ?? [],
+  );
   const peak = $derived(Math.max(...profile.axes.map((item) => item.threshold ?? 0), 0.0001));
 
   function brightnessStatus(matches: Matches): string {
@@ -97,7 +116,7 @@
         {@const place = match.kind === "cruce" ? "Franja" : match.kind === "extremo" ? "Dentro" : match.kind === "control" ? "Regla" : "Eje"}
         {@const against = match.kind === "control" ? "gris" : match.referenceHue}
         {@const taken = match.trials === 1 ? "1 muestra" : `${match.trials} muestras`}
-        {@const fan = match.span === "range" ? `${match.low.toFixed(2)}–${match.high.toFixed(2)}× · abanico ${match.width.toFixed(2)} · ${taken}` : `un corte · ${match.gain.toFixed(2)}× · ${taken}`}
+        {@const fan = match.span === "range" ? `${num(match.low, 2)}–${num(match.high, 2)}× · abanico ${num(match.width, 2)} · ${taken}` : `un corte · ${num(match.gain, 2)}× · ${taken}`}
         <li class="flex flex-col gap-0.5 text-sm">
           <span class="text-fg">{place} · {match.hue} frente a {against}</span>
           <span class="text-muted">{fan}</span>
@@ -123,6 +142,9 @@
   <div class="flex flex-col gap-8">
     <p class="text-lg leading-relaxed text-fg">{profile.summary.replace(/ Brillo, por movimiento:.*$/, "")}</p>
     <p class="text-sm text-muted">Pares iguales: {profile.catches.same} vistos iguales{profile.catches.missed ? `, ${profile.catches.missed} marcados distintos` : ""}.</p>
+    {#if profile.catches.obvious?.unreliable}
+      <p role="alert" class="rounded-2xl border border-border p-4 text-sm leading-relaxed text-fg" data-testid="obvious-unreliable">Perfil poco fiable: en {profile.catches.obvious.missed} de {profile.catches.obvious.shown} pares claramente distintos marcaste «iguales». Conviene repetir la calibración con calma.</p>
+    {/if}
     {#if profile.luminance?.matches?.length}
       {@render brightness(profile.luminance.matches)}
     {:else}
@@ -132,10 +154,10 @@
       {@const lum = profile.luminance}
       <section class="rounded-2xl border border-border p-4 text-sm text-fg" data-testid="weights-v2">
         <p class="font-semibold">Pesos de brillo medidos (prueba v2)</p>
-        <p class="mt-1 text-muted">R {lum.weights[0].toFixed(3)} · G {lum.weights[1].toFixed(3)} · B {lum.weights[2].toFixed(3)} (estándar 0.213 · 0.715 · 0.072)</p>
+        <p class="mt-1 text-muted">R {num(lum.weights[0], 3)} · G {num(lum.weights[1], 3)} · B {num(lum.weights[2], 3)} (estándar 0,213 · 0,715 · 0,072)</p>
         <p class="mt-1 text-muted">Confianza {lum.checks?.confidence === "high" ? "alta" : "baja"}{lum.checks?.withinNoise ? " · dentro del ruido de Y estándar" : ""} · {lum.measuredMatches.length} colores · refresco {lum.refreshHz ?? "—"} Hz. Aún no cambia los filtros (fase 2).</p>
         {#each lum.measuredMatches.filter((m) => m.atLeast) as m (m.id)}
-          <p class="mt-1 text-muted">{m.hue}: {m.atLeastSide === -1 ? "como mucho" : "al menos"} {m.efficiency.toFixed(2)}× (tope de contraste; cota, no igualación).</p>
+          <p class="mt-1 text-muted">{m.hue}: {m.atLeastSide === -1 ? "como mucho" : "al menos"} {num(m.efficiency, 2)}× (tope de contraste; cota, no igualación).</p>
         {/each}
       </section>
     {/if}
@@ -146,7 +168,7 @@
       {@render stat("Confianza", profile.confidence === "high" ? "Alta" : "Baja")}
       {@render stat(
         "Sobre el control",
-        profile.fit.timesControl == null ? "—" : `${profile.fit.timesControlKind === "at-least" ? "≥ " : ""}${profile.fit.timesControl.toFixed(1)}×`,
+        profile.fit.timesControl == null ? "—" : `${profile.fit.timesControlKind === "at-least" ? "≥ " : ""}${num(profile.fit.timesControl, 1)}×`,
       )}
       {@render stat("Líneas altas", profile.fit.elevatedCount == null ? "—" : String(profile.fit.elevatedCount))}
       {@render stat(
@@ -165,7 +187,7 @@
         <li class="flex flex-col gap-1">
           <div class="flex items-baseline justify-between gap-3 text-sm">
             <span class="text-fg">{axis.label ?? axis.hue}</span>
-            <span class="text-muted">{axis.thresholdKind === "upper-bound" ? "fino" : axis.closed ? "bajo" : "medido"}{axis.threshold != null ? ` · ${axis.threshold.toFixed(3)}` : ""}{axis.thresholdKind === "upper-bound" ? " o menos" : ""}</span>
+            <span class="text-muted">{axis.thresholdKind === "upper-bound" ? "fino" : axis.closed ? "bajo" : "medido"}{axis.threshold != null ? ` · ${num(axis.threshold, 3)}` : ""}{axis.thresholdKind === "upper-bound" ? " o menos" : ""}</span>
           </div>
           <div class="h-2 overflow-hidden rounded-full bg-surface">
             <div class="h-full bg-fg" style:width={`${width}%`}></div>
@@ -173,14 +195,28 @@
         </li>
       {/each}
     </ul>
-    {#if profile.fit.pathways?.length}
-      <ConeCard {profile} edgeFiles={edgeList} />
+    {#if !filtersBase}
+      <section role="alert" class="flex flex-col gap-3 rounded-2xl border border-border p-4" data-testid="filters-need-validation">
+        <p class="text-base leading-relaxed text-fg">Sin validación no hay filtros. Los filtros y los bordes salen solo de la validación «elige el distinto entre 3», no de este perfil.</p>
+        {#if onValidate}
+          <button type="button" onclick={onValidate} class="h-12 rounded-xl bg-accent px-4 text-base font-semibold text-accent-fg">Hacer la validación</button>
+        {:else}
+          <p class="text-sm text-fg">Haz antes la prueba de brillo en esta pantalla; la validación va después.</p>
+        {/if}
+      </section>
+    {:else if filtersBase.fit.pathways?.length}
+      <ConeCard profile={filtersBase} edgeFiles={edgeList} />
     {/if}
     {#if edgeReliability}
       <p class="text-sm text-muted" data-testid="edge-reliability">Fiabilidad de bordes: {edgeReliability.status} · {edgeReliability.catches} controles en {edgeReliability.rounds} {edgeReliability.rounds === 1 ? "ronda" : "rondas"}{edgeReliability.none ? `, ${edgeReliability.none} sin ver` : ""}.</p>
     {/if}
-    <Plates {profile} edgeFiles={edgeList} />
-    <AssistCamera {profile} edgeFiles={edgeList} />
+    {#each edgeList.filter((f) => f.warnings?.length) as f (f.cone)}
+      <p role="alert" class="text-sm text-fg" data-testid="edge-imbalance">Bordes de {f.name}: un lado tuvo muy pocos ensayos frente al otro ({f.warnings!.join("; ").replace("side-imbalance: ", "").replace("minus", "lado −").replace("plus", "lado +")}). El borde con menos ensayos es poco seguro.</p>
+    {/each}
+    {#if filtersBase}
+      <Plates profile={filtersBase} edgeFiles={edgeList} />
+      <div id="camara" class="scroll-mt-4"><AssistCamera profile={filtersBase} edgeFiles={edgeList} /></div>
+    {/if}
     <p class="text-sm leading-relaxed text-muted">{profile.disclaimer}</p>
     <div class="flex flex-col gap-3 sm:flex-row">
       <button
@@ -193,15 +229,18 @@
         onclick={onCopy}
         class="inline-flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl border border-border text-base text-fg"
       >{#if copied}<Check class="size-4" aria-hidden="true" />{:else}<Copy class="size-4" aria-hidden="true" />{/if}{copied ? "Copiado" : "Copiar JSON"}</button>
-      <ImportJson onProfile={onImport} />
+      <ImportJson onProfile={onImport} edgeProfile={profile} onEdges={onEdgeImport} />
     </div>
     <button
       type="button"
-      disabled={baking}
+      disabled={baking || !filtersBase}
       onclick={downloadTransforms}
       class="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-border text-base text-fg disabled:opacity-50"
     ><Download class="size-4" aria-hidden="true" />{baking ? "Preparando transformaciones…" : "Descargar JSON transformaciones"}</button>
-    {#each elevated as pathway (pathway.id)}
+    {#if edgesStale}
+      <p class="text-sm text-muted" data-testid="edges-stale">{STALE_EDGES_NOTE}.</p>
+    {/if}
+    {#each filtersBase ? elevated : [] as pathway (pathway.id)}
       {@const cone = pathway.id as ConeId}
       {@const name = cone === "l" ? "rojos" : cone === "m" ? "verdes" : "azules"}
       {@const file = edgeFiles[cone]}

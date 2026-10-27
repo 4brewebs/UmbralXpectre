@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { num } from "@/lib/format";
   import { untrack } from "svelte";
-  import { ANCHOR, cssRgb, toSrgb8 } from "@/lib/color/space";
+  import { ANCHOR, cssRgb, lumNoiseAmp, toSrgb8 } from "@/lib/color/space";
   import type { UmbralProfile } from "@/lib/color/profile";
   import { questPlusEnabled } from "@/lib/color/motion2";
-  import { applyAnswer, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
+  import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
   const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
 
@@ -37,19 +38,7 @@
   // Inicial, como useState(() => startRun(...)); EdgeTest se monta con {#key cone}.
   let run = $state.raw<EdgeRun>(
     untrack(() => {
-      const pathway = profile.fit.pathways.find((item) => item.id === cone);
-      const axis = profile.axes.find((item) => item.id === cone);
-      return startRun({
-      cone,
-      peakDeg: axis?.angleDeg ?? 0,
-      floor: profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02,
-      sourceThreshold: pathway?.threshold ?? axis?.threshold ?? 0,
-      sourceTimes: pathway?.timesControl ?? null,
-      profileSchema: profile.schema,
-      profileCreatedAt: profile.createdAt,
-      // Control acotado en el último peldaño: no es un suelo medido (Colorado).
-      controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
-      });
+      return startRun({ ...edgeInputFromProfile(profile, cone), lumNoise: lumNoiseAmp(window.location.search) });
     }),
   );
 
@@ -128,7 +117,7 @@
 
 {#snippet edgeSlider(label: string, min: number, max: number, value: number, onChange: (value: number) => void)}
   <label class="flex flex-col gap-2 text-sm text-fg">
-    <span class="flex items-baseline justify-between">{label}<span class="text-muted">{value.toFixed(1)}°</span></span>
+    <span class="flex items-baseline justify-between">{label}<span class="text-muted">{num(value, 1)}°</span></span>
     <input type="range" {min} {max} step={0.5} {value} oninput={(event) => onChange(Number(event.currentTarget.value))} />
   </label>
 {/snippet}
@@ -143,10 +132,13 @@
   {#if run.phase === "done" && run.band === "none"}
     <p class="text-lg leading-relaxed text-fg">A este contraste separas el tono de partida. No hay tramo que marcar.</p>
   {/if}
+  {#if run.phase === "done" && run.band === "unmeasurable"}
+    <p class="text-lg leading-relaxed text-fg">Sin banda medible: se ve el tono de partida incluso al contraste más bajo.</p>
+  {/if}
 
   {#if showDiscs}
     <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? (probe ? `Probando este borde. Quedan ${probe.left}.` : phaseLabel(run)) : "Pausa en gris. No juzgues el cambio."}</p>
-    <p class="text-sm text-muted">Pregunta {run.trials.length + 1} · tono {run.angle.toFixed(1)}°</p>
+    <p class="text-sm text-muted">Pregunta {run.trials.length + 1} · tono {num(run.angle, 1)}°</p>
     <div class="mx-auto grid w-full max-w-xs grid-cols-2 gap-x-16 gap-y-10 py-4">
       {#each discsOf(run) as rgb, index (`${run.trials.length}-${index}`)}
         <button
@@ -168,7 +160,7 @@
     {@const d = draft}
     <div class="flex flex-col gap-5">
       <p class="text-base leading-relaxed text-fg">{run.minus.toEnd && run.plus.toEnd ? "Por ninguno de los dos lados ha vuelto el color. El fallo sigue hasta el límite de la pantalla en los dos sentidos." : run.minus.toEnd || run.plus.toEnd ? "Un lado tiene un corte. En el otro el fallo sigue hasta el límite de la pantalla." : run.minus.found && run.plus.found ? "Los dos cortes han quedado acotados. Puedes moverlos y probarlos." : "Un lado no ha encontrado el corte. Puedes probar el que sí, o guardar así."}</p>
-      <p class="text-sm text-muted">Centro del contraste: {run.depthBound === "at-least" ? "≥ " : ""}{((run.depthLo + run.depthHi) / 2).toFixed(3)}</p>
+      <p class="text-sm text-muted">Centro del contraste: {run.depthBound === "at-least" ? "≥ " : ""}{num(((run.depthLo + run.depthHi) / 2), 3)}</p>
       {@render edgeSlider("Un borde", sector.lo, sector.hi, d.minus, (value) => (draft = { ...d, minus: value }))}
       {@render edgeSlider("El otro borde", sector.lo, sector.hi, d.plus, (value) => (draft = { ...d, plus: value }))}
       {#if note}

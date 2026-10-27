@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { num } from "@/lib/format";
   import { onMount } from "svelte";
   import {
     BLOCK_MS,
@@ -225,8 +226,8 @@
           {shade}
           progress={totalTargets ? doneTargets / totalTargets : 0}
           labels={{
-            tl: refreshHz == null ? "— hz" : `${refreshHz.toFixed(1)} hz`,
-            tr: `${CYCLES_PER_DEG.toFixed(1)} c/°`,
+            tl: refreshHz == null ? "— hz" : `${num(refreshHz, 1)} hz`,
+            tr: `${num(CYCLES_PER_DEG, 1)} c/°`,
             bottom: `bloque ${block} · ensayo ${motion.log.length + 1}`,
           }}
         >

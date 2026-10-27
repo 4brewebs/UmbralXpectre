@@ -8,7 +8,7 @@ UmbralXpectre es una herramienta open source (licencia MIT) de ayuda para person
 No es un diagnóstico médico. Las láminas son elementos visuales para probar y enseñar los filtros, no un test.
 
 ## Stack
-- Svelte 5 (runes) + Vite, SPA 100 % cliente, sin SvelteKit y sin router.
+- Svelte 5 (runes) + Vite, SPA 100 % cliente, sin SvelteKit; router por hash propio en `src/lib/router.ts` (`#/inicio`, `#/nuevo`, `#/importar`, `#/perfiles`, `#/sesiones` y las fases `#/perfil`, `#/movimiento`, `#/repaso`, `#/resultado`, `#/camara`).
 - Tailwind CSS 4 (`src/styles.css`).
 - Iconos: `@lucide/svelte`.
 - TypeScript estricto; `svelte-check` como typecheck.

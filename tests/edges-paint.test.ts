@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseProfile } from "../src/lib/color/profile";
 import { parseEdgeFile } from "../src/lib/color/edges";
-import { colorFor, edgeNotches } from "../src/lib/color/spectrum";
+import { colorFor, edgeNotches, measuredRegion } from "../src/lib/color/spectrum";
 import { deltaE00Linear as deltaE00 } from "../src/lib/color/deltaE";
 import { thetaOf, killLuminance } from "../src/lib/color/space";
 import type { Vec3 } from "../src/lib/color/space";
@@ -26,21 +26,21 @@ test("tInner no baja del umbral de origen aunque la profundidad se midiera en el
   assert.ok(n.tInner >= open.sourceThreshold);
 });
 
-test("mapa intermedio en bordes cambia el rojo de forma visible (no es identidad)", () => {
-  const out = colorFor("correct", red, profile, "edges", [open]);
-  assert.ok(deltaE00(red, out) > 1, `ΔE00 ${deltaE00(red, out)}`);
+test("Bordes usa la región medida: un rojo saturado (fuera de la escala de fallo) no cambia en ningún filtro", () => {
+  for (const kind of ["assist", "extreme"] as const) assert.deepEqual(colorFor(kind, red, profile, "edges", [open]), red);
 });
 
-test("con un lado cerrado, la asistencia va hacia ese lado y no hacia el abierto", () => {
+test("con un lado cerrado: ese lado llega al borde; el abierto (toEnd) llega al primer eje sano", () => {
   const oneSide = {
     ...open,
-    minus: { found: true, toEnd: false, angleDeg: -10, insideDeg: -10, outsideDeg: -14 },
-    confirmed: { minus: -10, plus: 14 },
+    minus: { found: true, toEnd: false, angleDeg: -8, insideDeg: -8, outsideDeg: -12 },
+    confirmed: { minus: -8, plus: 14 },
   };
-  const [n] = edgeNotches([oneSide]);
-  assert.equal(n.loOpen, false);
-  assert.equal(n.hiOpen, true);
-  const out = colorFor("assist", red, profile, "edges", [oneSide]);
-  const deg = (v: Vec3) => (thetaOf(killLuminance(v)) * 180) / Math.PI;
-  assert.ok(deg(out) < deg(red), `${deg(out)} < ${deg(red)}`);
+  const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
+  const [sec] = measuredRegion(profile.axes, floor, [oneSide]).filter((s) => s.axis === "l");
+  assert.equal(sec.minus.source, "edge");
+  // borde en −8° (el eje sano «refine» en −9,5° lo limitaría si el borde estuviera más allá)
+  assert.ok(Math.abs(sec.loDeg + 8) < 1e-9, `${sec.loDeg}`);
+  assert.equal(sec.plus.source, "toEnd");
+  assert.ok(Math.abs((((sec.hiDeg - sec.plus.healthyDeg! + 540) % 360) - 180)) < 1e-9, `${sec.hiDeg} vs ${sec.plus.healthyDeg}`);
 });

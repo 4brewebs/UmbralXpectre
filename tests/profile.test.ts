@@ -52,3 +52,17 @@ test("edges.v1 sigue cargando y encaja con el perfil migrado", () => {
   assert.equal(edgeFitsProfile(edge, p), true);
   assert.equal(edgeFitsProfile(edge, { ...p, createdAt: "2020-01-01T00:00:00.000Z" }), false);
 });
+
+test("calibración: ejes QUEST+ sin converger (IC pegado al techo o ancho) quedan abiertos, no cerrados", async () => {
+  const fs = await import("node:fs");
+  const { parseProfile } = await import("../src/lib/color/profile");
+  const { qpConverged } = await import("../src/lib/color/session");
+  const p = parseProfile(fs.readFileSync(new URL("./fixtures/perfil-v3-qp-2140Z.json", import.meta.url), "utf8"))!;
+  const closed = (id: string) => p.axes.find((a) => a.id === id)!.closed;
+  assert.equal(closed("l"), false);
+  assert.equal(closed("red-end"), false);
+  assert.ok(!p.closedAxes.includes("rojizo") && p.measuredAxes.includes("rojizo"));
+  // l a 20,9 ΔE00 con 13 ensayos (IC ancho): abierto.
+  assert.equal(qpConverged({ lo: 12, hi: 40 }), false);
+  assert.equal(qpConverged({ lo: 1.7, hi: 3.07 }), true);
+});

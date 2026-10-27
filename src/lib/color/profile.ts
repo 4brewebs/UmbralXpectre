@@ -11,10 +11,16 @@ import {
   round3,
   roundMatrix,
   type Vec3,
+  measuredLumWeights,
+  pairLuminanceOf,
+  type LumNoise,
+  type PairLuminance,
 } from "./space";
+export { measuredLumWeights } from "./space";
 import { readHistory, type HistoryLog } from "./history";
 import type { DeviceFingerprint } from "./device";
-import { axisNorm, isClosed, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
+import { BUILD, type BuildInfo } from "../env";
+import { axisNorm, isClosed, qpConverged, qpResumeOf, ABS_CLOSE, type Axis, type QpResume, type Session, type TrialRecord } from "./session";
 import { orderLuminance, type LuminanceResult } from "./motion";
 import { predictedLumWeights, typeFromProfile, type ObserverType } from "./cones";
 import type { WeightsSource } from "./lumweights";
@@ -43,14 +49,22 @@ export interface UmbralProfile {
   calibrationResume?: QpResume;
   /** Historial completo de sesiones (`umbral.history.v1`, ver `history.ts`). Opcional: perfiles previos no lo traen. */
   history?: HistoryLog;
+  /** Pesos de luminancia con que se igualaron los pares de esta calibración (C1): fuente y valores. */
+  pairLuminance?: PairLuminance;
+  /** Ruido de luminancia de los pares: amplitud y semilla (los ε de cada ensayo, en los ensayos). */
+  lumNoise?: LumNoise;
   disclaimer: string;
   createdAt: string;
+  /** Build que generó el perfil: entorno, rama y commit. */
+  build?: BuildInfo;
   hardware: HardwareSnapshot;
   method: {
     space: string;
     anchorLinear: number;
     procedure: string;
     priorsRole: string;
+    /** Búsqueda del perfil: escalera sí/no (por defecto) o QUEST+ (legado). */
+    search?: "staircase" | "quest+";
   };
   summary: string;
   confidence: "high" | "low";
@@ -99,20 +113,67 @@ export interface UmbralProfile {
     threshold: number | null;
     thresholdNorm: number | null;
     /** Solo con QUEST+ (`?qp=1`): umbral en ΔE00 (CIEDE2000), IC 95 % y γ (falsas alarmas) usada. */
-    quest?: { deltaE00: number; lo: number; hi: number; gamma: number; trials: number; resumable: boolean };
+    quest?: {
+      deltaE00: number;
+      lo: number;
+      hi: number;
+      gamma: number;
+      trials: number;
+      resumable: boolean;
+      /** «Al menos» el alcance del gamut (`deltaE00` = alcance): resultado válido, no un fallo. */
+      atLeast?: boolean;
+      reason?: "gamut-limit";
+    };
     thresholdKind: Axis["thresholdKind"];
+    /** Escalera: horquilla final y punto de convergencia (= umbral del perfil, antes de la validación). */
+    staircase?: { lo: number; hi: number; convergence: number; stop: "bisection" | "confirm" };
+    /** Solo tras el repaso con pesos personales: el umbral original (pares con la Y estándar). */
+    thresholdStandardY?: number | null;
+    thresholdSource?: "review-measured" | "review-unreliable" | "validation-3afc";
     closed: boolean;
     trials: number;
     order: number;
   }>;
   trials: Array<TrialRecord & { order: number }>;
   /** Identical pairs, kept out of the color sequence. A miss is "different" on two cards of the same color. */
-  catches: { same: number; missed: number; trials: Array<TrialRecord & { order: number }> };
+  catches: {
+    same: number;
+    missed: number;
+    /** Solo QUEST+: pares obvios (+20 % de Y); «igual» en ellos es un fallo de atención. */
+    obvious?: { shown: number; missed: number; unreliable?: true };
+    trials: Array<TrialRecord & { order: number }> };
   /**
    * Luminancia. `matches` son las igualaciones de la prueba antigua a 1 Hz (legado: los filtros
    * de fase 1 las siguen leyendo igual). Los campos v3 son los pesos personales.
    */
   luminance?: LuminanceResult & LuminanceV3;
+  /** Validación 3AFC de l y m con los pesos personales (`validation.ts`); sustituye al repaso. */
+  validation?: {
+    method: string;
+    pairLuminance: PairLuminance;
+    gamma: number;
+    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; lapse: number; trials: number; stop: "ci" | "cap" | null; ratio: number; label: "confirmado" | "nuevo" }>;
+    /** Razón frente al original fuera de [½, 2]: solo aviso. */
+    warnings?: string[];
+    trials: unknown[];
+  };
+  /** Repaso sí/no (legado, `review.ts`): los perfiles antiguos lo traen. */
+  review?: {
+    /** La escala s de los pares con pesos personales no se renormaliza respecto a la de la Y estándar. */
+    scaleNormalized: false;
+    method: string;
+    pairLuminance: PairLuminance;
+    lumNoise?: LumNoise;
+    axes: Array<{ id: string; threshold: number; thresholdStandardY: number; lo: number; hi: number; trials: number }>;
+    catches: { shown: number; falseAlarms: number };
+    /** γ estimada con los catch (`gammaOf`). */
+    gamma?: number;
+    status?: "review-measured" | "review-unreliable" | "partial";
+    unreliable?: Array<{ id: string; reasons: string[] }>;
+    /** Avisos que no rechazan (razón frente al original fuera de [½, 2]). */
+    warnings?: string[];
+    trials: unknown[];
+  };
 }
 
 /** Igualación de la prueba de movimiento v2 (Anstis-Cavanagh), en el formato que lee lumweights. */
@@ -158,6 +219,7 @@ export interface LuminanceV3 {
   searchMethod?: "staircase" | "quest+";
   /** Interfaz de la última prueba de brillo (legacy|v2|v3). */
   ui?: "legacy" | "v2" | "v3";
+  build?: BuildInfo;
   fixationWeber?: number;
   /** Dispositivo en que se midieron estos pesos (no valen en otra pantalla). */
   device?: DeviceFingerprint;
@@ -281,6 +343,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
     disclaimer:
       "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
     createdAt: now.toISOString(),
+    build: BUILD,
     hardware,
     method: {
       space: "linear sRGB, constant CIE Y, anchor 0.22",
@@ -288,6 +351,7 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       procedure:
         "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
       priorsRole: "Cone-isolation directions only choose where to look first. They are not the output.",
+      search: session.questPlus ? "quest+" : "staircase",
     },
     summary: summarize({
       confidence: scored.confidence,
@@ -353,17 +417,19 @@ export function buildProfile(session: Session, hardware: HardwareSnapshot, now =
       closed: isClosed(a),
       trials: a.trials,
       order: index + 1,
-      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced } } : {}),
+      ...(!a.qpEstimate && a.phase === "done" && a.threshold != null ? { staircase: { lo: r4(a.lo), hi: r4(a.hi), convergence: r4(a.threshold), stop: a.thresholdKind === "upper-bound" ? ("confirm" as const) : ("bisection" as const) } } : {}),
+      ...(a.qpEstimate ? { quest: { deltaE00: r4(a.qpEstimate.deltaE00), lo: r4(a.qpEstimate.lo), hi: r4(a.qpEstimate.hi), gamma: r4(a.qpEstimate.gamma), trials: a.qpLog?.length ?? 0, resumable: !!a.qpForced, ...(a.qpBound ? { deltaE00: r4(a.qpReach ?? a.qpEstimate.deltaE00), atLeast: true, reason: a.qpBound } : {}) } } : {}),
     })),
     trials: orderColorTrials(session.log, session.axes),
     catches: {
       same: session.catchHits,
       missed: session.catchMisses,
+      ...(session.obviousShown ? { obvious: { shown: session.obviousShown, missed: session.obviousMissed ?? 0, ...((session.obviousMissed ?? 0) >= 1 ? { unreliable: true as const } : {}) } } : {}),
       trials: orderCatchTrials(session.log),
     },
   };
   const resume = qpResumeOf(session, now.getTime());
-  return { ...built, luminance: emptyLuminance(built), ...(resume ? { calibrationResume: resume } : {}) };
+  return { ...built, pairLuminance: pairLuminanceOf(session.lumWeights), ...(session.lumNoise ? { lumNoise: session.lumNoise } : {}), luminance: emptyLuminance(built), ...(resume ? { calibrationResume: resume } : {}) };
 }
 
 const ROLE_RANK: Record<string, number> = {
@@ -405,6 +471,32 @@ function orderCatchTrials(log: TrialRecord[]): Array<TrialRecord & { order: numb
 }
 
 const LINE_NOTE = 1.6;
+
+/** Recalcula T y las vías (`fit`) desde `axes[].threshold` (tras el repaso). El resumen de texto no cambia. */
+export function refitProfile(profile: UmbralProfile): UmbralProfile {
+  const scored = scoreCones(
+    profile.axes
+      .filter((a) => a.threshold != null)
+      .map((a) => ({ id: a.id, hue: a.label ?? a.hue, role: a.role, parentId: a.parentId, angleRad: (a.angleDeg * Math.PI) / 180, threshold: a.threshold, thresholdKind: a.thresholdKind, maxScale: a.maxScale, searchPrior: a.searchPrior })),
+  );
+  return {
+    ...profile,
+    fit: {
+      ...profile.fit,
+      severity: scored.severity,
+      timesControl: scored.timesControl,
+      timesControlKind: scored.timesControlKind,
+      peakAbs: scored.peakAbs,
+      confusionAngleDeg: scored.confusionAngleDeg,
+      shiftFromNearestPriorDeg: scored.shift,
+      nearestSearchPrior: scored.nearestPrior,
+      confusionDirectionLinearRgb: scored.confusionDir ? round3(scored.confusionDir) : null,
+      elevatedCount: scored.elevatedCount,
+      pathways: scored.pathways,
+      attenuationMatrix: scored.matrix,
+    },
+  };
+}
 
 /** Pure red and pure blue, and the probes spawned from them, stay out of the three-cone reading. */
 function isReferenceAxis(axis: { role: string; parentId?: string | null }): boolean {
@@ -692,7 +784,14 @@ export function parseProfile(raw: string): UmbralProfile | null {
     const schema = (parsed as { schema?: string })?.schema;
     if (schema !== "umbral.profile.v3" && schema !== "umbral.profile.v2" && schema !== "umbral.profile.v1") return null;
     if (!parsed.fit || !Array.isArray(parsed.axes) || parsed.axes.length === 0) return null;
-    const axes = orderAxes(parsed.axes).map((axis, index) => ({ ...axis, order: index + 1 }));
+    // Un eje QUEST+ reanudable no convergió: se muestra abierto aunque un perfil antiguo lo guardara cerrado.
+    const unconverged = (axis: UmbralProfile["axes"][number]) => !!axis.quest && (axis.quest.atLeast === true || !qpConverged(axis.quest));
+    const reopened = new Set(parsed.axes.filter((axis) => axis.closed && unconverged(axis)).map((axis) => axis.label ?? axis.hue));
+    const axes = orderAxes(parsed.axes).map((axis, index) => ({ ...axis, ...(unconverged(axis) ? { closed: false } : {}), order: index + 1 }));
+    if (reopened.size && Array.isArray(parsed.closedAxes)) {
+      parsed.closedAxes = parsed.closedAxes.filter((name) => !reopened.has(name));
+      parsed.measuredAxes = [...(parsed.measuredAxes ?? []), ...[...reopened].filter((name) => !(parsed.measuredAxes ?? []).includes(name))];
+    }
     const rank = new Map(axes.map((axis) => [axis.id, axis.order]));
     const sourceTrials = Array.isArray(parsed.trials) ? parsed.trials : [];
     const trials = sourceTrials
@@ -723,6 +822,7 @@ export function parseProfile(raw: string): UmbralProfile | null {
       catches: {
         same: parsed.catches?.same ?? catchTrials.filter((trial) => trial.judgment === "same").length,
         missed: parsed.catches?.missed ?? catchTrials.filter((trial) => trial.judgment === "different").length,
+        ...(parsed.catches?.obvious ? { obvious: parsed.catches.obvious } : {}),
         trials: catchTrials,
       },
       luminance: parsed.luminance

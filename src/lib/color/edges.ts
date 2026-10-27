@@ -1,4 +1,4 @@
-import { ANCHOR, addScaled, dirFromTheta, maxScale, toSrgb8, type Vec3 } from "./space";
+import { ANCHOR, addScaled, dirFromTheta, hueName, isoDir, lumEps, maxScale, noiseOf, measuredLumWeights, pairLuminanceOf, toSrgb8, withLum, type LumNoise, type PairLuminance, type Vec3 } from "./space";
 import { createQuestPlus, detect3, grid, type JsQuest, type QuestPlus } from "./questplus";
 import { deltaE00Linear } from "./deltaE";
 
@@ -14,8 +14,8 @@ import { deltaE00Linear } from "./deltaE";
  * sesión (`sessionReliability`): < 5 catch ⇒ «indeterminada», > 25 % «ninguno» ⇒ no fiable. `reliability` por ronda
  * se guarda igual (dato en bruto; su `unreliable` es solo orientativo).
  */
-/** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: β fijo al nominal 3.5; sesgo simulado −0,9 % (< 3 %, regla de Colorado). */
-export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: true, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, maxTrials: 45, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
+/** Parada (Colorado): IC < 1 ΔE00, máx. 45. `fixedSlope`: con la ventana 1,5× control el β fijo sesga −7,7 % (≥ 3 %), así que se marginaliza β (−2,7 %), regla de Colorado. */
+export const QP_EDGES = { gamma: 0.25, betas: [1.75, 3.5, 7], nominalBeta: 3.5, fixedSlope: false, lapses: [0.02, 0.035, 0.05], stepDeg: 0.5, stopDeltaE: 1, fallbackDeg: 8, minTrials: 8, maxTrials: 20, sideImbalance: 1 / 3, catchEvery: 6, catchNoneMax: 0.25, catchLum: 1.25, sessionCatchMin: 5, catchPerRound: 2 };
 
 type QpCtx = { Q: JsQuest; scale: number };
 
@@ -34,7 +34,6 @@ const GEO_STEP = 0.5;
 /** Tope de la búsqueda a cada lado del pico (°): dos lados juntos quedan por debajo de 170°. */
 const MAX_SPAN = 84;
 /** Escala del disco respecto al umbral de la banda cuando el suelo es la propia banda. */
-const BAND_FLOOR_SCALE = 0.8;
 const EDGE_GAP = 2;
 const DEPTH_TRIALS = 8;
 
@@ -43,6 +42,10 @@ export type EdgePhase = "peak" | "minus" | "plus" | "depth" | "confirm" | "done"
 
 export interface EdgeTrial {
   order: number;
+  /** ε de los cuatro discos (ruido de luminancia), en orden de disco. */
+  lumEps?: number[];
+  /** Solo catch con ruido activo: ε del impar − media de los otros. */
+  dEps?: number;
   phase: "edge" | "depth" | "confirm";
   side: "peak" | "minus" | "plus" | "center";
   angleDeg: number;
@@ -65,20 +68,33 @@ export interface EdgeFile {
   schema: "umbral.edges.v1";
   /** «band»: el control del perfil estaba acotado y el suelo es el umbral de la propia banda. */
   floorFrom?: "band";
+  /** La escala pedida no cabe en el gamut: banda abierta por construcción. */
+  scaleLimited?: boolean;
+  /** Ventana de escala: [2× control, 0,8× eje]. */
+  scaleWindow?: { lo: number; hi: number };
+  /** Veces que se bajó la escala porque el pico se veía. */
+  scaleLowered?: number;
   /** Observaciones del registro (no son errores), p. ej. pico visto por debajo del umbral calibrado. */
   notes?: string[];
+  /** Avisos (no cambian el resultado): `side-imbalance`. */
+  warnings?: string[];
   createdAt: string;
   basedOn: { schema: string; createdAt: string };
+  /** Pesos de luminancia con que se igualaron los discos (C1): fuente y valores. */
+  pairLuminance?: PairLuminance;
+  /** Ruido de luminancia: amplitud y semilla (los ε de cada ensayo van en `trials[].lumEps`). */
+  lumNoise?: LumNoise;
   cone: ConeId;
   name: EdgeName;
-  offeredBecause: "estimate >= 1.6× control";
+  offeredBecause: "estimate >= 1.6× control" | "1.5× control < 0.8× axis";
   floor: number;
   edgeScale: number;
   startAngleDeg: number;
   sourceThreshold: number;
   sourceTimes: number | null;
   /** `closed` means both sides reached a repeated miss and a repeated hit. The angles are trials, not midpoints. */
-  band: "none" | "open" | "closed";
+  /** «unmeasurable»: el pico se vio incluso a la escala mínima (sin banda medible); distinto de «none». */
+  band: "none" | "open" | "closed" | "unmeasurable";
   minus: EdgeBound;
   plus: EdgeBound;
   depth: { angleDeg: number; scale: number; bound: "estimate" | "at-least"; ceiling: number } | null;
@@ -134,6 +150,10 @@ interface Side {
 }
 
 export interface EdgeRun {
+  /** Ruido de luminancia por disco (sin él, ?lumnoise=0, todo como antes). */
+  lumNoise?: LumNoise;
+  /** Pesos personales de luminancia medidos (C1); sin ellos, Y estándar. */
+  lumWeights?: Vec3;
   cone: ConeId;
   name: EdgeName;
   floor: number;
@@ -163,6 +183,8 @@ export interface EdgeRun {
   depthAngle: number;
   depthBound: "estimate" | "at-least";
   depthSaw: boolean;
+  /** «Visto» por debajo de la escala del borde pendiente de una segunda respuesta coherente (escala). */
+  depthPending?: number | null;
   trials: EdgeTrial[];
   band: EdgeFile["band"] | null;
   /** jsQuestPlus cargado: activa QUEST+ en el refinamiento. */
@@ -171,6 +193,13 @@ export interface EdgeRun {
   catchTrial?: boolean;
   catches?: { shown: number; none: number };
   floorFrom?: "band";
+  /** El gamut no deja la escala pedida: la banda queda abierta (archivos anteriores). */
+  scaleLimited?: boolean;
+  /** Escala mínima a la que se baja si el pico se ve (umbral del control). */
+  scaleFloor?: number;
+  scaleWindow?: { lo: number; hi: number };
+  /** Veces que se bajó la escala porque el pico se veía. */
+  scaleLowered?: number;
 }
 
 export interface EdgeAnswer {
@@ -211,12 +240,18 @@ export function scaleAt(floor: number, angleDeg: number): number {
   return Math.max(0.01, Math.min(floor * 2, room * 0.82));
 }
 
-export function discEnds(angleDeg: number, scale: number): { positive: [number, number, number]; negative: [number, number, number] } {
-  const dir = dirFromTheta(rad(angleDeg));
+/** Con pesos personales, la escala se recorta a lo que cabe en el gamut por los dos lados (un canal recortado rompe la igualación). */
+function isoReach(dir: Vec3, scale: number): number {
+  return Math.min(scale, maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]]));
+}
+
+export function discEnds(angleDeg: number, scale: number, w?: Vec3): { positive: [number, number, number]; negative: [number, number, number] } {
+  const dir = isoDir(dirFromTheta(rad(angleDeg)), w);
   const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
+  const sc = w ? isoReach(dir, scale) : scale;
   return {
-    positive: toSrgb8(addScaled(gray, dir, scale)),
-    negative: toSrgb8(addScaled(gray, dir, -scale)),
+    positive: toSrgb8(addScaled(gray, dir, sc)),
+    negative: toSrgb8(addScaled(gray, dir, -sc)),
   };
 }
 
@@ -224,13 +259,27 @@ export function discEnds(angleDeg: number, scale: number): { positive: [number, 
  * Los cuatro discos del ensayo (sRGB 8 bits). En un catch obvio el disco distinto, además del tono,
  * lleva un 25 % más de luminancia Y (≥ 20 %, Colorado): obvio para cualquier daltónico.
  */
-export function discsOf(run: Pick<EdgeRun, "angle" | "scale" | "oddIndex" | "oddSign" | "catchTrial">): Array<[number, number, number]> {
-  const dir = dirFromTheta(rad(run.angle));
+/** ε de los cuatro discos del ensayo en curso (o null sin ruido). */
+export function discEps(run: Pick<EdgeRun, "lumNoise"> & { trials?: unknown[] }): number[] | null {
+  const n = run.lumNoise;
+  if (!n || !n.amp) return null;
+  const t = run.trials?.length ?? 0;
+  return [0, 1, 2, 3].map((i) => lumEps(n, t, i));
+}
+
+export function discsOf(run: Pick<EdgeRun, "angle" | "scale" | "oddIndex" | "oddSign" | "catchTrial" | "lumWeights" | "lumNoise"> & { trials?: unknown[] }): Array<[number, number, number]> {
+  const dir = isoDir(dirFromTheta(rad(run.angle)), run.lumWeights);
   const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
-  const odd = addScaled(gray, dir, run.oddSign * run.scale);
-  const other = toSrgb8(addScaled(gray, dir, -run.oddSign * run.scale));
+  const sc = run.lumWeights ? isoReach(dir, run.scale) : run.scale;
+  const odd = addScaled(gray, dir, run.oddSign * sc);
+  const otherLin = addScaled(gray, dir, -run.oddSign * sc);
   const k = run.catchTrial ? QP_EDGES.catchLum : 1;
-  const oddRgb = toSrgb8(odd.map((v) => Math.min(1, v * k)) as Vec3);
+  const oddLin = odd.map((v) => Math.min(1, v * k)) as Vec3;
+  const eps = discEps(run);
+  // Ruido después de igualar (pesos personales incluidos): cada disco, el impar también, su propio ε.
+  if (eps) return [0, 1, 2, 3].map((i) => toSrgb8(withLum(i === run.oddIndex ? oddLin : otherLin, eps[i])));
+  const other = toSrgb8(otherLin);
+  const oddRgb = toSrgb8(oddLin);
   return [0, 1, 2, 3].map((i) => (i === run.oddIndex ? oddRgb : other));
 }
 
@@ -242,14 +291,25 @@ export function classify(picked: number[], none: boolean, oddIndex: number): Ans
 }
 
 /**
- * Last angle this display still paints as that hue.
- * Red ends where rojizo becomes orange or magenta. Green ends where verdoso becomes cyan or yellow.
- * Blue ends where the violet–blue run becomes magenta or cyan. Past these there is no more of that color to test.
+ * Tramo fino de la búsqueda, derivado del perfil (Colorado, generalización 26/10): desde el pico medido se
+ * camina en pasos de 1° mientras la pantalla siga pintando el mismo nombre de tono (hueName a escala 0,1),
+ * hasta ±SECTOR_SPAN. Ya no hay ventanas fijas por cono; `cone` solo se conserva por compatibilidad.
  */
-export function sectorOf(cone: ConeId): { lo: number; hi: number } {
-  if (cone === "l") return { lo: -18, hi: 14 };
-  if (cone === "m") return { lo: -160, hi: -82 };
-  return { lo: 50, hi: 152 };
+const SECTOR_SPAN = 80;
+export function sectorOf(_cone: ConeId, peak: number): { lo: number; hi: number } {
+  // Violáceo y azulado son un mismo tramo azul (la pantalla no tiene otro azul que probar entre ellos).
+  const family = (n: string) => (n === "violáceo" || n === "azulado" ? "azul" : n);
+  const name = (deg: number) => family(hueName(addScaled([ANCHOR, ANCHOR, ANCHOR], dirFromTheta((deg * Math.PI) / 180), 0.1)));
+  const at = name(peak);
+  const walk = (sign: 1 | -1) => {
+    let last = peak;
+    for (let d = 1; d <= SECTOR_SPAN; d++) {
+      if (name(peak + sign * d) !== at) break;
+      last = peak + sign * d;
+    }
+    return last;
+  };
+  return { lo: walk(-1), hi: walk(1) };
 }
 
 function snap(deg: number): number {
@@ -306,6 +366,32 @@ function atEnd(cursor: number, limit: number): boolean {
   return Math.abs(cursor - limit) < 0.05;
 }
 
+/** Ventana de escala de Bordes (Colorado, 8.ª ronda): ≥ 1,5× el umbral del control y ≤ 0,8× el umbral del eje. */
+export const EDGE_SCALE = { timesControl: 1.5, timesAxis: 0.8, lowerStep: 0.8 } as const;
+
+export interface EdgeWindow {
+  /** 1,5 × umbral del control: por encima se ve en ángulos sanos. */
+  lo: number;
+  /** 0,8 × umbral del eje: por debajo no se ve en el pico. */
+  hi: number;
+  /** Escala inicial: media geométrica de la ventana, sin salir del gamut en el pico. */
+  scale: number;
+  offered: boolean;
+}
+
+/**
+ * La escala debe ser invisible en el pico y visible en ángulos sanos: entre 1,5× el control y 0,8× el umbral del eje.
+ * Si 1,5× control ≥ 0,8× eje, la prueba de Bordes no se ofrece para ese eje.
+ */
+export function edgeWindow(peakDeg: number, axisThreshold: number, controlThreshold: number): EdgeWindow {
+  const lo = EDGE_SCALE.timesControl * controlThreshold;
+  const hi = EDGE_SCALE.timesAxis * axisThreshold;
+  const offered = controlThreshold > 0 && axisThreshold > 0 && lo < hi;
+  const room = roomAt(peakDeg);
+  const scale = offered ? Math.max(0.001, Math.min(Math.sqrt(lo * hi), room)) : 0;
+  return { lo, hi, scale, offered: offered && room > lo };
+}
+
 function roomAt(angleDeg: number): number {
   const dir = dirFromTheta(rad(angleDeg));
   return Math.min(maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]])) * 0.82;
@@ -334,6 +420,33 @@ function place(run: EdgeRun, phase: EdgePhase, angle: number, scale: number): Ed
   };
 }
 
+/** Entrada de Bordes sacada SIEMPRE del perfil en que se basa (basedOn); ningún umbral fijo. */
+export function edgeInputFromProfile(
+  profile: {
+    schema: string;
+    createdAt: string;
+    fit: { controlAbs?: number | null; controlBounded?: boolean; timesControlKind?: string | null; pathways?: Array<{ id: string; threshold?: number | null; timesControl?: number | null }> };
+    axes: Array<{ id: string; angleDeg: number; threshold: number | null; thresholdSource?: string }>;
+    luminance?: { weightsSource?: string; weights?: Vec3 } | null;
+  },
+  cone: ConeId,
+): Parameters<typeof startRun>[0] {
+  const pathway = profile.fit.pathways?.find((item) => item.id === cone);
+  const axis = profile.axes.find((item) => item.id === cone);
+  return {
+    cone,
+    peakDeg: axis?.angleDeg ?? 0,
+    floor: profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02,
+    // Tras la validación 3AFC se parte de su umbral (el del eje); si no, del de la vía.
+    sourceThreshold: (axis?.thresholdSource === "validation-3afc" ? axis.threshold : null) ?? pathway?.threshold ?? axis?.threshold ?? 0,
+    sourceTimes: pathway?.timesControl ?? null,
+    profileSchema: profile.schema,
+    profileCreatedAt: profile.createdAt,
+    controlBounded: profile.fit.controlBounded ?? profile.fit.timesControlKind === "at-least",
+    lumWeights: measuredLumWeights(profile),
+  };
+}
+
 export function startRun(input: {
   cone: ConeId;
   peakDeg: number;
@@ -346,11 +459,18 @@ export function startRun(input: {
   questPlus?: JsQuest;
   /** El control del perfil está acotado (último peldaño): no se hereda; el suelo es el umbral de la banda. */
   controlBounded?: boolean;
+  /** Pesos personales de luminancia medidos (C1). */
+  lumWeights?: Vec3 | null;
+  /** Ruido de luminancia por disco: `true` = ±8 %, número = amplitud (0 se registra), ausente = sin ruido. La UI pasa `lumNoiseAmp`. */
+  lumNoise?: boolean | number;
 }): EdgeRun {
   const fromBand = input.controlBounded === true && input.sourceThreshold > 0;
   const floor = fromBand ? input.sourceThreshold : input.floor > 0 ? input.floor : 0.02;
   // Con el suelo de la banda, el disco va por debajo de su umbral (0,8×): dentro no se ve, fuera sí.
-  const edgeScale = fromBand ? Math.max(0.01, Math.min(input.sourceThreshold * BAND_FLOOR_SCALE, roomAt(input.peakDeg))) : scaleAt(floor, input.peakDeg);
+  const control = input.floor > 0 ? input.floor : 0.02;
+  const win = edgeWindow(input.peakDeg, input.sourceThreshold, control);
+  // Fuera de la ventana no se ofrece (la UI no lo lanza); si se fuerza, se usa la cota inferior.
+  const edgeScale = win.offered ? win.scale : Math.max(0.001, Math.min(win.lo, roomAt(input.peakDeg)));
   const rolled = roll(input.seed ?? ((Date.now() >>> 0) || 1));
   const peak = input.peakDeg;
   return {
@@ -360,6 +480,8 @@ export function startRun(input: {
     edgeScale,
     peak,
     ...(fromBand ? { floorFrom: "band" as const } : {}),
+    scaleFloor: Math.min(control, edgeScale),
+    scaleWindow: { lo: win.lo, hi: win.hi },
     sourceThreshold: input.sourceThreshold,
     sourceTimes: input.sourceTimes,
     profileSchema: input.profileSchema,
@@ -385,11 +507,13 @@ export function startRun(input: {
     trials: [],
     band: null,
     ...(input.questPlus ? { questPlus: input.questPlus } : {}),
+    ...(noiseOf(input.lumNoise, rolled.rng ^ 0x5bd1e995) ? { lumNoise: noiseOf(input.lumNoise, rolled.rng ^ 0x5bd1e995)! } : {}),
+    ...(input.lumWeights ? { lumWeights: [input.lumWeights[0], input.lumWeights[1], input.lumWeights[2]] as Vec3 } : {}),
   };
 }
 
 function pushTrial(run: EdgeRun, input: EdgeAnswer, kind: AnswerKind, phase: EdgeTrial["phase"], side: EdgeTrial["side"]): EdgeRun {
-  const ends = discEnds(run.angle, run.scale);
+  const ends = discEnds(run.angle, run.scale, run.lumWeights);
   const trial: EdgeTrial = {
     order: run.trials.length + 1,
     phase,
@@ -405,6 +529,7 @@ function pushTrial(run: EdgeRun, input: EdgeAnswer, kind: AnswerKind, phase: Edg
     check: run.edgeConfirm,
     positive: ends.positive,
     negative: ends.negative,
+    ...(run.lumNoise?.amp ? { lumEps: discEps(run)! } : {}),
   };
   return { ...run, trials: [...run.trials, trial] };
 }
@@ -489,8 +614,10 @@ function questStep(side: Side, peak: number): Side {
   const gray: Vec3 = [ANCHOR, ANCHOR, ANCHOR];
   const at = (d: number) => addScaled(gray, dirFromTheta(rad(peak + sign * d)), side.qpScale ?? 0);
   const ciDe = side.qpScale ? deltaE00Linear(at(est.lo), at(est.hi)) : NaN;
-  const narrow = Number.isFinite(ciDe) ? ciDe < QP_EDGES.stopDeltaE : est.width < QP_EDGES.fallbackDeg;
-  if ((side.qpTrials ?? 0) > 0 && (narrow || (side.qpTrials ?? 0) >= QP_EDGES.maxTrials)) {
+  // Además (Colorado, 26/10): mínimo 8 ensayos QUEST+ y anchura < 8° también con escala (a escala baja 13° < 1 ΔE00).
+  const narrow = (Number.isFinite(ciDe) ? ciDe < QP_EDGES.stopDeltaE : true) && est.width < QP_EDGES.fallbackDeg;
+  const n = side.qpTrials ?? 0;
+  if ((n >= QP_EDGES.minTrials && narrow) || n >= QP_EDGES.maxTrials) {
     const edge = snap(peak + sign * est.mean);
     const qpCi = { deg: round1(est.width), deltaE00: round4(Number.isFinite(ciDe) ? ciDe : NaN) };
     return { ...side, qpCi, inside: snap(peak + sign * est.lo), outside: snap(peak + sign * est.hi), status: "done", confirm: null, found: true, edge, cursor: edge };
@@ -568,7 +695,7 @@ function beginDepth(run: EdgeRun): EdgeRun {
   const recovered = run.minus.found && run.plus.found && !run.minus.toEnd && !run.plus.toEnd;
   const ceiling = depthCeiling(run.floor, run.sourceThreshold, depthAngle);
   const next = place(
-    { ...run, depthAngle, depthLo: 0, depthHi: ceiling, depthLeft: DEPTH_TRIALS, depthBound: "estimate", band: recovered ? "closed" : "open" },
+    { ...run, depthAngle, depthLo: run.floor, depthHi: ceiling, depthLeft: DEPTH_TRIALS, depthBound: "estimate", band: recovered ? "closed" : "open" },
     "depth",
     depthAngle,
     run.edgeScale,
@@ -589,15 +716,23 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
         const again = place(run, "peak", run.peak, run.edgeScale);
         return { ...again, peakSeen: 1, edgeConfirm: "outside" };
       }
-      return { ...run, phase: "done", band: "none", edgeConfirm: null };
+      // Pico visto dos veces: no se cierra. Se baja la escala y se repite (Colorado, 7.ª ronda).
+      const floorScale = run.scaleFloor ?? 0.001;
+      const lowered = Math.max(floorScale, run.edgeScale * EDGE_SCALE.lowerStep);
+      if (lowered < run.edgeScale - 1e-6) {
+        const next = { ...run, edgeScale: lowered, depthHi: lowered, depthCursor: lowered, peakSeen: 0, scaleLowered: (run.scaleLowered ?? 0) + 1 };
+        return place(next, "peak", run.peak, lowered);
+      }
+      // Visto aún a la escala mínima: sin banda medible (no es «none»).
+      return { ...run, phase: "done", band: "unmeasurable", edgeConfirm: null };
     }
-    const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone).lo);
+    const first = reach(run.peak, searchBounds(run).lo, -1, run.peak, sectorOf(run.cone, run.peak).lo);
     return place({ ...run, minus: { ...blankSide("minus", run.peak), cursor: first } }, "minus", first, run.edgeScale);
   }
   if (run.phase === "minus" || run.phase === "plus") {
     const current = run.phase === "minus" ? run.minus : run.plus;
     const bounds = searchBounds(run);
-    const sector = sectorOf(run.cone);
+    const sector = sectorOf(run.cone, run.peak);
     const limit = run.phase === "minus" ? bounds.lo : bounds.hi;
     const sectorEnd = run.phase === "minus" ? sector.lo : sector.hi;
     const stepped = advanceSide(current, kind, run.peak, limit, run.questPlus ? { Q: run.questPlus, scale: run.edgeScale } : undefined, raw, sectorEnd);
@@ -622,9 +757,14 @@ function afterSearch(run: EdgeRun, kind: "seen" | "none", raw?: AnswerKind): Edg
   if (run.phase === "depth") {
     let lo = run.depthLo;
     let hi = run.depthHi;
+    // Un «visto» por debajo de la escala del borde solo cuenta con 2 respuestas coherentes a esa escala.
+    if (kind === "seen" && run.scale < run.edgeScale - 1e-9 && run.depthPending !== run.scale && run.depthLeft > 1) {
+      return { ...place({ ...run, depthLeft: run.depthLeft - 1 }, "depth", run.depthAngle, run.scale), depthPending: run.scale };
+    }
     const saw = run.depthSaw || kind === "seen";
     if (kind === "seen") hi = run.scale;
     else lo = run.scale;
+    run = { ...run, depthPending: null };
     const ceiling = Math.max(run.depthHi, run.edgeScale);
     const left = run.depthLeft - 1;
     const stuck = Math.abs(hi - lo) < 0.004 || run.scale >= ceiling - 1e-3;
@@ -649,7 +789,10 @@ export function applyAnswer(run: EdgeRun, input: EdgeAnswer): EdgeRun {
     // Catch obvio: no toca el QUEST+; solo cuenta para la fiabilidad. Vuelve al cursor del lado.
     const last = recorded.trials.length - 1;
     const odd = discsOf(run)[run.oddIndex];
-    const trials = recorded.trials.map((t, i) => (i === last ? { ...t, catch: true as const, ...(run.oddSign > 0 ? { positive: odd } : { negative: odd }) } : t));
+    const de = discEps(run);
+    // Δε de la trampa (ruido activo): ε del impar − media de los otros tres.
+    const dEps = de ? { dEps: Math.round((de[run.oddIndex] - (de.reduce((a, b) => a + b, 0) - de[run.oddIndex]) / 3) * 1e6) / 1e6 } : {};
+    const trials = recorded.trials.map((t, i) => (i === last ? { ...t, catch: true as const, ...(run.oddSign > 0 ? { positive: odd } : { negative: odd }), ...dEps } : t));
     const c = run.catches ?? { shown: 0, none: 0 };
     const catches = { shown: c.shown + 1, none: c.none + (kind === "none" ? 1 : 0) };
     const side = run.phase === "minus" ? run.minus : run.plus;
@@ -684,16 +827,45 @@ function boundOf(side: Side): EdgeBound {
   };
 }
 
+/**
+ * Profundidad (Colorado, 26/10): max(estimación, edgeScale si el pico falló a esa escala), nunca por debajo de floor
+ * y con el umbral de perfil del eje como techo.
+ */
+export function depthScale(estimate: number, failedAt: number, floor: number, ceiling: number): number {
+  const v = Math.max(floor, estimate, failedAt);
+  return ceiling > 0 ? Math.min(ceiling, v) : v;
+}
+
+/** El pico (tono de partida) falló a la escala del borde: último ensayo de pico a esa escala no visto (sin catches). */
+export function peakFailed(trials: Array<{ side?: string; scale: number; kind: string; catch?: boolean }>, edgeScale: number): boolean {
+  const at = trials.filter((t) => t.side === "peak" && !t.catch && Math.abs(t.scale - edgeScale) < 1e-4);
+  return at.length > 0 && at[at.length - 1].kind !== "seen";
+}
+
+/** Profundidad efectiva de un archivo (también los ya guardados), con el umbral del eje del perfil como techo. */
+export function fileDepth(file: EdgeFile, floor: number, axisThreshold: number): number | null {
+  if (!file.depth) return null;
+  return depthScale(file.depth.scale, peakFailed((file as any).trials ?? [], file.edgeScale) ? file.edgeScale : 0, floor, axisThreshold);
+}
+
 export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus: number | null }): EdgeFile {
   const minus = boundOf(run.minus);
   const plus = boundOf(run.plus);
   const ceiling = depthCeiling(run.floor, run.sourceThreshold, run.depthAngle);
   const depth =
-    run.phase === "peak" || run.phase === "minus" || run.phase === "plus" || run.band === "none"
+    run.phase === "peak" || run.phase === "minus" || run.phase === "plus" || run.band === "none" || run.band === "unmeasurable"
       ? null
       : {
           angleDeg: round1(run.depthAngle),
-          scale: round4(run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2),
+          // Nunca por debajo del control (floor): una media entre aciertos bajo el umbral del control no es una profundidad.
+          scale: round4(
+            depthScale(
+              run.depthBound === "at-least" ? run.depthLo : (run.depthLo + run.depthHi) / 2,
+              peakFailed(run.trials, run.edgeScale) ? run.edgeScale : 0,
+              run.floor,
+              run.sourceThreshold,
+            ),
+          ),
           bound: run.depthBound,
           ceiling: round4(ceiling),
         };
@@ -703,14 +875,19 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     basedOn: { schema: run.profileSchema, createdAt: run.profileCreatedAt },
     cone: run.cone,
     name: run.name,
-    offeredBecause: "estimate >= 1.6× control",
+    offeredBecause: run.scaleWindow ? "1.5× control < 0.8× axis" : "estimate >= 1.6× control",
     floor: round4(run.floor),
+    pairLuminance: pairLuminanceOf(run.lumWeights),
+    ...(run.lumNoise ? { lumNoise: run.lumNoise } : {}),
     ...(run.floorFrom === "band" ? { floorFrom: "band" as const } : {}),
     edgeScale: round4(run.edgeScale),
     startAngleDeg: round1(run.peak),
     sourceThreshold: round4(run.sourceThreshold),
     sourceTimes: run.sourceTimes,
-    band: run.band ?? (run.phase === "done" ? "none" : "open"),
+    band: run.scaleLimited && run.band === "closed" ? "open" : (run.band ?? (run.phase === "done" ? "none" : "open")),
+    ...(run.scaleLimited ? { scaleLimited: true } : {}),
+    ...(run.scaleWindow ? { scaleWindow: { lo: round4(run.scaleWindow.lo), hi: round4(run.scaleWindow.hi) } } : {}),
+    ...(run.scaleLowered ? { scaleLowered: run.scaleLowered } : {}),
     minus,
     plus,
     depth,
@@ -718,7 +895,17 @@ export function edgeFile(run: EdgeRun, confirmed?: { minus: number | null; plus:
     trials: run.trials,
     ...(run.questPlus ? { reliability: reliabilityOf(run) } : {}),
     ...(notesOf(run).length ? { notes: notesOf(run) } : {}),
+    ...(sideBalance(run) ? { warnings: [sideBalance(run)!] } : {}),
   };
+}
+
+/** Aviso: un lado con menos de ⅓ de los ensayos (sin catch) del otro. */
+export function sideBalance(run: Pick<EdgeRun, "trials">): string | null {
+  const n = (side: string) => run.trials.filter((t) => t.side === side && !t.catch).length;
+  const minus = n("minus");
+  const plus = n("plus");
+  if (!minus && !plus) return null;
+  return Math.min(minus, plus) < Math.max(minus, plus) * QP_EDGES.sideImbalance ? `side-imbalance: minus ${minus}, plus ${plus}` : null;
 }
 
 /** Registro, no error: el pico se vio a una escala menor que el umbral calibrado (ruido entre sesiones o día). */

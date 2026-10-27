@@ -12,6 +12,12 @@ import {
   addScaled,
   angDist,
   dirFromTheta,
+  isoDir,
+  fromSrgb8,
+  lumEps,
+  noiseOf,
+  withLum,
+  type LumNoise,
   hueName,
   killLuminance,
   maxScale,
@@ -23,7 +29,7 @@ import {
   type Vec3,
 } from "./space";
 import type { JsQuest } from "./questplus";
-import { QP_CALIB, gammaOf, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
+import { QP_CALIB, entropyOf, gammaOf, logWidth, pairDeltaE, posteriorOf, stepAxis, stepForDeltaE, type QpLog } from "./calibqp";
 
 export type Judgment = "same" | "different";
 export type Phase = "descend" | "confirm" | "bisect" | "done";
@@ -72,6 +78,11 @@ export interface Axis {
   qpDe?: number;
   qpReach?: number;
   qpEstimate?: { deltaE00: number; lo: number; hi: number; gamma: number };
+  /**
+   * «Al menos» el alcance: el posterior sigue por encima del par más fuerte que da la pantalla. Resultado válido
+   * (umbral = alcance del gamut), nunca «cerrado» como umbral medido.
+   */
+  qpBound?: "gamut-limit";
   /** Cerrado por el tope de sesión, no por su regla de parada: se puede reanudar. */
   qpForced?: boolean;
 }
@@ -88,6 +99,10 @@ export interface TrialRecord {
   comparison: [number, number, number];
   side: "left" | "right";
   at: number;
+  /** ε aplicados [referencia, comparación] (ruido de luminancia). */
+  lumEps?: [number, number];
+  /** Solo trampas (catch) con ruido activo: ε comparación − ε referencia. */
+  dEps?: number;
 }
 
 export interface Session {
@@ -104,8 +119,16 @@ export interface Session {
   catchSlot: number;
   catchHits: number;
   catchMisses: number;
+  /** Solo QUEST+: el catch pendiente es un par obvio (+20 % de Y), no idéntico. No entra en γ. */
+  catchObvious?: boolean;
+  obviousShown?: number;
+  obviousMissed?: number;
   /** jsQuestPlus cargado: QUEST+ sí/no por eje (flag `?qp=1`). Pares y catch no cambian. */
   questPlus?: JsQuest;
+  /** Pesos personales de luminancia medidos (C1); sin ellos, Y estándar. */
+  lumWeights?: Vec3;
+  /** Ruido de luminancia por estímulo (sin él, ?lumnoise=0, todo como antes). */
+  lumNoise?: LumNoise;
 }
 
 export interface Stimulus {
@@ -117,12 +140,16 @@ export interface Stimulus {
   sNorm: number;
   reference: [number, number, number];
   comparison: [number, number, number];
+  /** ε aplicados [referencia, comparación]. */
+  lumEps?: [number, number];
   side: "left" | "right";
   step: number;
   priorsDone: number;
   priorTotal: number;
   refining: boolean;
   catch: boolean;
+  /** Catch de par obvio (respuesta esperada «distinto»). */
+  obvious?: boolean;
 }
 
 function gray(): Vec3 {
@@ -168,8 +195,8 @@ function nextRand(state: number): { state: number; value: number } {
   return { state: a, value: ((t ^ (t >>> 14)) >>> 0) / 4294967296 };
 }
 
-function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchPrior: string): Axis {
-  const dir = normalize(killLuminance(primary));
+function endAxis(id: "red-end" | "blue-end", primary: Vec3, hue: string, searchPrior: string, w?: Vec3): Axis {
+  const dir = normalize(w ? killLuminance(primary, w) : killLuminance(primary));
   const theta = thetaOf(dir);
   const aligned = dirFromTheta(theta);
   const opposite: Vec3 = [-aligned[0], -aligned[1], -aligned[2]];
@@ -191,6 +218,11 @@ function initQp(axis: Axis, Q: JsQuest, gamma: number): Axis {
 function qpThreshold(axis: Axis, Q: JsQuest, gamma: number): number {
   const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog ?? []);
   axis.qpEstimate = { deltaE00: res.estimate.mean, lo: res.estimate.lo, hi: res.estimate.hi, gamma };
+  if (res.bound) {
+    axis.qpBound = "gamut-limit";
+    return axis.maxS;
+  }
+  delete axis.qpBound;
   return stepForDeltaE(axis.theta, res.estimate.mean, axis.maxS);
 }
 
@@ -212,6 +244,7 @@ export interface QpResume {
     open: boolean;
     threshold: number | null;
     qpEstimate: Axis["qpEstimate"] | null;
+    qpBound?: Axis["qpBound"];
     /** Posterior marginal de α (ΔE00); se puede reconstruir exacto desde `qpLog` y γ. */
     posterior: { alphas: number[]; probs: number[] };
   }>;
@@ -222,7 +255,8 @@ export const QP_RESUME_KEY = "umbral.calib.qp.resume";
 /** Null si todos los ejes pararon por su regla (nada que reanudar). */
 export function qpResumeOf(session: Session, now = 0): QpResume | null {
   const Q = session.questPlus;
-  if (!Q || !session.axes.some((a) => a.qpForced)) return null;
+  const reopen = (a: Axis) => !!a.qpForced || (a.phase === "done" && !!a.qpLog && !a.qpBound && !isClosed(a));
+  if (!Q || !session.axes.some(reopen)) return null;
   const gamma = sessionGamma(session);
   return {
     schema: "umbral.calib.qp.v1",
@@ -238,9 +272,10 @@ export function qpResumeOf(session: Session, now = 0): QpResume | null {
       searchPrior: a.searchPrior,
       maxS: a.maxS,
       qpLog: a.qpLog ?? [],
-      open: !!a.qpForced,
+      open: reopen(a),
       threshold: a.threshold,
       qpEstimate: a.qpEstimate ?? null,
+      ...(a.qpBound ? { qpBound: a.qpBound } : {}),
       posterior: posteriorOf(Q, a.qpReach ?? pairDeltaE(a.theta, a.maxS), gamma, a.qpLog ?? []),
     })),
   };
@@ -262,19 +297,20 @@ function resumeAxes(resume: QpResume, Q: JsQuest, gamma: number): Axis[] {
     const base = axisFromPrior(r.id, r.theta, r.priorKey, r.hue, r.searchPrior, r.maxS, "bisect", 0, r.parentId ?? undefined);
     const qpReach = pairDeltaE(r.theta, r.maxS);
     if (!r.open) {
-      return { ...base, phase: "done", threshold: r.threshold, thresholdKind: r.threshold == null ? null : "estimate", cursor: r.threshold ?? 0, qpLog: r.qpLog, qpReach, qpEstimate: r.qpEstimate ?? undefined, trials: r.qpLog.length };
+      return { ...base, phase: "done", threshold: r.threshold, thresholdKind: r.threshold == null ? null : "estimate", cursor: r.threshold ?? 0, qpLog: r.qpLog, qpReach, qpEstimate: r.qpEstimate ?? undefined, trials: r.qpLog.length, ...(r.qpBound ? { qpBound: r.qpBound } : {}) };
     }
     const next = stepAxis(Q, qpReach, gamma, r.qpLog);
     return { ...base, qpLog: r.qpLog, qpReach, qpDe: next.nextDe, cursor: stepForDeltaE(r.theta, next.nextDe, r.maxS), trials: r.qpLog.length };
   });
 }
 
-export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null): Session {
+export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | null, lumWeights?: Vec3 | null, lumNoise: boolean | number = false): Session {
+  const w = lumWeights ?? undefined;
   const priors = searchPriors();
   const axes = disambiguate([
     ...priors.map((p) => axisFromPrior(p.key, p.theta, p.key, p.hue, p.searchPrior, p.maxS, "descend", DESCEND[DESCEND_START] * p.maxS)),
-    endAxis("red-end", [1, 0, 0], "rojo extremo", "last red this display emits"),
-    endAxis("blue-end", [0, 0, 1], "azul extremo", "first blue this display emits"),
+    endAxis("red-end", [1, 0, 0], "rojo extremo", "last red this display emits", w),
+    endAxis("blue-end", [0, 0, 1], "azul extremo", "first blue this display emits", w),
   ]);
   let rngState = (now || 1) >>> 0;
   const startRoll = nextRand(rngState);
@@ -303,12 +339,14 @@ export function createSession(now = 0, questPlus?: JsQuest, resume?: QpResume | 
     side: "left",
     startedAt: now,
     rngState,
-    pendingCatch: catchRoll.value < 0.34,
+    pendingCatch: questPlus ? false : catchRoll.value < 0.34,
     sinceCatch: 0,
     catchSlot: Math.floor(catchRoll.value * 4),
     catchHits: 0,
     catchMisses: 0,
     ...(resumed ? { catchHits: resume!.catchHits, catchMisses: resume!.catchMisses, note: "Sigo donde lo dejaste: solo quedan las vías sin cerrar." } : {}),
+    ...(w ? { lumWeights: w } : {}),
+    ...(noiseOf(lumNoise, (now || 1) ^ 0x5bd1e995) ? { lumNoise: noiseOf(lumNoise, (now || 1) ^ 0x5bd1e995)! } : {}),
   };
 }
 
@@ -328,14 +366,23 @@ export function activeAxis(session: Session): Axis | null {
   return session.axes.find((a) => a.id === session.activeId) ?? null;
 }
 
-function catchColor(slot: number): Vec3 {
+function catchColor(slot: number, w?: Vec3): Vec3 {
   if (slot % 4 === 0) return gray();
   const primary: Vec3 = slot % 4 === 1 ? [1, 0, 0] : slot % 4 === 2 ? [0, 0, 1] : [0, 1, 0];
-  const dir = normalize(killLuminance(primary));
+  const dir = normalize(w ? killLuminance(primary, w) : killLuminance(primary));
   return addScaled(gray(), dir, maxScale(dir) * 0.42);
 }
 
 export function stimulusOf(session: Session): Stimulus | null {
+  const raw = rawStimulus(session);
+  if (!raw || !session.lumNoise?.amp) return raw;
+  // Ruido de luminancia, después de igualar (con los pesos personales si los hay): cada estímulo su ε.
+  const n = session.lumNoise;
+  const eps: [number, number] = [lumEps(n, session.log.length, 0), lumEps(n, session.log.length, 1)];
+  return { ...raw, reference: toSrgb8(withLum(fromSrgb8(raw.reference), eps[0])), comparison: toSrgb8(withLum(fromSrgb8(raw.comparison), eps[1])), lumEps: eps };
+}
+
+function rawStimulus(session: Session): Stimulus | null {
   const axis = activeAxis(session);
   if (!axis || session.complete) return null;
   const priors = session.axes.filter((a) => a.priorKey !== "refine");
@@ -346,7 +393,26 @@ export function stimulusOf(session: Session): Stimulus | null {
     side: session.side,
   };
   if (session.pendingCatch) {
-    const rgb = toSrgb8(catchColor(session.catchSlot));
+    const base = catchColor(session.catchSlot, session.lumWeights);
+    const rgb = toSrgb8(base);
+    if (session.questPlus && session.catchObvious) {
+      const k = QP_CALIB.obviousLum;
+      const bright = toSrgb8([Math.min(1, base[0] * k), Math.min(1, base[1] * k), Math.min(1, base[2] * k)]);
+      return {
+        axisId: "catch",
+        hue: "obvio",
+        priorKey: "catch",
+        phase: axis.phase,
+        s: 0,
+        sNorm: 0,
+        reference: rgb,
+        comparison: bright,
+        refining: false,
+        catch: true,
+        obvious: true,
+        ...shared,
+      };
+    }
     return {
       axisId: "catch",
       hue: "igual",
@@ -361,9 +427,12 @@ export function stimulusOf(session: Session): Stimulus | null {
       ...shared,
     };
   }
-  const dir = dirFromTheta(axis.theta);
-  const positive = toSrgb8(addScaled(gray(), dir, axis.cursor));
-  const negative = toSrgb8(addScaled(gray(), dir, -axis.cursor));
+  const dir = isoDir(dirFromTheta(axis.theta), session.lumWeights);
+  // Con pesos personales la dirección cambia y su gamut también: el par se recorta a lo que cabe sin saturar un canal
+  // (un canal recortado rompería la igualación). Sin pesos, el cursor tal cual.
+  const reach = session.lumWeights ? Math.min(axis.cursor, maxScale(dir), maxScale([-dir[0], -dir[1], -dir[2]])) : axis.cursor;
+  const positive = toSrgb8(addScaled(gray(), dir, reach));
+  const negative = toSrgb8(addScaled(gray(), dir, -reach));
   return {
     axisId: axis.id,
     hue: axis.hue,
@@ -395,10 +464,38 @@ function draw(session: Session): { session: Session; value: number } {
   return { session: { ...session, rngState: rolled.state }, value: rolled.value };
 }
 
+/**
+ * Con QUEST+, eje no elevado: su IC entero está por debajo de 1,6× el umbral del control (en ΔE00).
+ * El control mismo nunca se relaja.
+ */
+function notElevated(axes: Axis[], axis: Axis, Q: JsQuest, gamma: number): boolean {
+  if (axis.priorKey === "control") return false;
+  const control = axes.find((a) => a.priorKey === "control" && a.qpLog);
+  if (!control?.qpLog || control.qpLog.length < QP_CALIB.relaxedMinTrials) return false;
+  const c = control.qpEstimate?.deltaE00 ?? stepAxis(Q, control.qpReach ?? 0, gamma, control.qpLog).estimate.mean;
+  const own = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog ?? []).estimate;
+  return own.hi <= c * 1.6;
+}
+
 function pickNext(session: Session, axes: Axis[], currentId: string): { session: Session; axis: Axis | null } {
   const open = axes.filter((axis) => axis.phase !== "done" && axis.id !== currentId);
   const pool = open.length ? open : axes.filter((axis) => axis.phase !== "done");
   if (!pool.length) return { session, axis: null };
+  const Q = session.questPlus;
+  if (Q && pool.every((a) => a.qpLog)) {
+    // Con QUEST+: el eje de mayor entropía del posterior (no por turnos). Nunca el mismo dos veces si hay otro.
+    const gamma = sessionGamma(session);
+    let best = pool[0];
+    let bestH = -Infinity;
+    for (const a of pool) {
+      const h = entropyOf(Q, a.qpReach ?? 0, gamma, a.qpLog ?? []);
+      if (h > bestH + 1e-12) {
+        bestH = h;
+        best = a;
+      }
+    }
+    return { session, axis: best };
+  }
   const rolled = draw(session);
   return { session: rolled.session, axis: pool[Math.floor(rolled.value * pool.length)] ?? pool[0] };
 }
@@ -454,6 +551,7 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
       comparison: stim.comparison,
       side: stim.side,
       at: now,
+      ...(stim.lumEps ? { lumEps: stim.lumEps } : {}),
     },
   ];
 
@@ -464,10 +562,12 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   if (Q && axis.qpLog) {
     const gamma = sessionGamma(session);
     axis.qpLog = [...axis.qpLog, [axis.qpDe ?? QP_CALIB.deMin, judgment === "different" ? 0 : 1]];
-    const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog);
+    const res = stepAxis(Q, axis.qpReach ?? 0, gamma, axis.qpLog, notElevated(axes, axis, Q, gamma));
     if (res.done) {
       finish(axis, qpThreshold(axis, Q, gamma), "estimate");
-      note = "Límite medido en este ángulo. Las otras vías siguen su propio margen.";
+      note = axis.qpBound
+        ? "Ni el par más fuerte de esta pantalla basta en este ángulo: queda como «al menos»."
+        : "Límite medido en este ángulo. Las otras vías siguen su propio margen.";
     } else {
       axis.qpDe = res.nextDe;
       axis.cursor = stepForDeltaE(axis.theta, res.nextDe, axis.maxS);
@@ -547,7 +647,22 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
   let sinceCatch = next.session.sinceCatch;
   let catchSlot = session.catchSlot;
   let scheduled = next.session;
-  if (next.axis && sinceCatch >= 3) {
+  let catchObvious = false;
+  if (Q) {
+    // QUEST+: catch 1 de cada 8–10 ensayos, mitad idénticos y mitad obvios (Colorado, 6.ª ronda).
+    if (next.axis && sinceCatch >= QP_CALIB.catchMin) {
+      const rolled = draw(scheduled);
+      scheduled = rolled.session;
+      if (rolled.value < 0.5 || sinceCatch >= QP_CALIB.catchMax) {
+        pendingCatch = true;
+        sinceCatch = 0;
+        catchSlot = Math.floor(rolled.value * 8) % 4;
+        const kind = draw(scheduled);
+        scheduled = kind.session;
+        catchObvious = kind.value < 0.5;
+      }
+    }
+  } else if (next.axis && sinceCatch >= 3) {
     const rolled = draw(scheduled);
     scheduled = rolled.session;
     if (rolled.value < 0.55 || sinceCatch >= 5) {
@@ -567,10 +682,11 @@ export function answer(session: Session, judgment: Judgment, now = 0): Session {
     pendingCatch: next.axis ? pendingCatch : false,
     sinceCatch,
     catchSlot,
+    ...(Q ? { catchObvious: next.axis ? catchObvious : false } : {}),
   };
 }
 
-/** Tope por sesión (80 con QUEST+, 160 en escalera): lo abierto se cierra como estimación; con QUEST+ queda reanudable. */
+/** Tope por sesión (60 con QUEST+, 160 en escalera): lo abierto se cierra como estimación; con QUEST+ queda reanudable. */
 function applyCap(session: Session, axes: Axis[], trials: number): void {
   const Q = session.questPlus;
   if (trials < (Q ? QP_CALIB.sessionCap : SESSION_CAP)) return;
@@ -583,6 +699,7 @@ function applyCap(session: Session, axes: Axis[], trials: number): void {
 }
 
 function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
+  if (stim.obvious) return answerObvious(session, stim, judgment, now);
   const hit = judgment === "same";
   const log: TrialRecord[] = [
     ...session.log,
@@ -598,6 +715,7 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
       comparison: stim.comparison,
       side: stim.side,
       at: now,
+      ...(stim.lumEps ? { lumEps: stim.lumEps, dEps: dEpsOf(stim.lumEps) } : {}),
     },
   ];
   const counted = { ...session, catchHits: session.catchHits + (hit ? 1 : 0), catchMisses: session.catchMisses + (hit ? 0 : 1) };
@@ -619,11 +737,55 @@ function answerCatch(session: Session, stim: Stimulus, judgment: Judgment, now: 
   };
 }
 
+/** Δε de una trampa (comparación − referencia), solo con ruido activo. */
+function dEpsOf(eps: [number, number]): number {
+  return Math.round((eps[1] - eps[0]) * 1e6) / 1e6;
+}
+
+/** Catch obvio (+20 % de Y): «igual» es un fallo de atención; no entra en γ (que solo usa pares idénticos). */
+function answerObvious(session: Session, stim: Stimulus, judgment: Judgment, now: number): Session {
+  const log: TrialRecord[] = [
+    ...session.log,
+    { axisId: "catch", hue: stim.hue, priorKey: "catch", theta: 0, s: 0, sNorm: 0, judgment, reference: stim.reference, comparison: stim.comparison, side: stim.side, at: now, ...(stim.lumEps ? { lumEps: stim.lumEps, dEps: dEpsOf(stim.lumEps) } : {}) },
+  ];
+  const axes = session.axes.map((a) => ({ ...a }));
+  applyCap(session, axes, log.length);
+  const next = pickNext(session, axes, session.activeId ?? "");
+  return {
+    ...next.session,
+    axes,
+    log,
+    activeId: next.axis?.id ?? null,
+    complete: !next.axis,
+    note: "",
+    side: log.length % 2 === 0 ? "left" : "right",
+    pendingCatch: false,
+    catchObvious: false,
+    sinceCatch: 0,
+    obviousShown: (session.obviousShown ?? 0) + 1,
+    obviousMissed: (session.obviousMissed ?? 0) + (judgment === "same" ? 1 : 0),
+  };
+}
+
 export function axisNorm(axis: Axis): number {
   if (axis.threshold == null || axis.maxS <= 0) return 0;
   return axis.threshold / axis.maxS;
 }
 
+/**
+ * IC de QUEST+ convergido: anchura ln(hi/lo) < ln 2,2 y sin pegarse al techo de la rejilla (10 ΔE00 en perfiles
+ * antiguos, QP_CALIB.deMax ahora) ni al alcance del eje. Si no, el eje queda abierto.
+ */
+export function qpConverged(e: { lo: number; hi: number }, reach?: number): boolean {
+  const ceiling = Math.min(QP_CALIB.deMax, reach ?? Infinity);
+  if (e.hi >= ceiling - 1e-6 || Math.abs(e.hi - 10) < 1e-6) return false;
+  return logWidth(e) < QP_CALIB.relaxedLogWidth;
+}
+
 export function isClosed(axis: Axis): boolean {
+  if (axis.qpBound) return false;
+  // QUEST+ sin converger (cortado por el tope de sesión o IC ancho): abierto, no cerrado (Colorado, 7.ª ronda).
+  if (axis.qpForced) return false;
+  if (axis.qpLog && axis.qpEstimate && !qpConverged(axis.qpEstimate, axis.qpReach)) return false;
   return axis.phase === "done" && axis.threshold != null && axis.threshold <= ABS_CLOSE * 1.25;
 }

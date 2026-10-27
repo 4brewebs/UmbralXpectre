@@ -1,0 +1,7473 @@
+{
+  "schema": "umbral.profile.v3",
+  "disclaimer": "Perfil relativo a los colores que esta pantalla recibió en esta sesión. No es un diagnóstico clínico ni una plantilla de protanomalía, deuteranomalía o tritanomalía.",
+  "createdAt": "2026-10-26T07:21:35.267Z",
+  "build": {
+    "env": "qa",
+    "branch": "develop",
+    "commit": "df4c0ee"
+  },
+  "hardware": {
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36",
+    "language": "es-ES",
+    "screen": {
+      "width": 346,
+      "height": 768,
+      "colorDepth": 24,
+      "pixelRatio": 3.125
+    },
+    "viewport": {
+      "width": 345,
+      "height": 700
+    },
+    "gamut": "srgb",
+    "colorScheme": "dark",
+    "forcedColors": false,
+    "reducedMotion": false,
+    "maxTouchPoints": 5,
+    "capturedAt": "2026-10-26T07:21:35.260Z"
+  },
+  "method": {
+    "space": "linear sRGB, constant CIE Y, anchor 0.22",
+    "anchorLinear": 0.22,
+    "procedure": "All three pathways are measured, interleaved, and shuffled. Each pair is the same step on both sides of gray. Some pairs are the same color on both cards. A pathway that stays visible at the small step is confirmed once later and then sampled less — it is not dropped. One, two, three, or none may come back high. Pure red and pure blue are references and do not change that reading.",
+    "priorsRole": "Cone-isolation directions only choose where to look first. They are not the output."
+  },
+  "summary": "Las tres vías quedan medidas. violáceo 0.009. rojizo 0.057. verdoso 0.024. Control 0.011. Quedan por encima «rojizo» y «verdoso». No elijo un ángulo: pueden ir altas una, dos o las tres. También mido «rojo extremo» 0.042.",
+  "confidence": "high",
+  "closedAxes": [
+    "violáceo",
+    "anaranjado",
+    "verdoso",
+    "azul extremo"
+  ],
+  "measuredAxes": [
+    "rojizo",
+    "rojo extremo"
+  ],
+  "fit": {
+    "method": "Peak absolute distance in linear sRGB (unit direction × scale), compared with the control. Gamut fraction is not the rank: a short-gamut axis must not look worse just because it clips sooner.",
+    "severity": 0.814,
+    "timesControl": 5.4,
+    "timesControlKind": "estimate",
+    "controlBounded": false,
+    "peakAbs": 0.0568,
+    "controlAbs": 0.0105,
+    "confusionAngleDeg": null,
+    "shiftFromNearestPriorDeg": null,
+    "nearestSearchPrior": null,
+    "confusionDirectionLinearRgb": null,
+    "elevatedCount": 2,
+    "pathways": [
+      {
+        "id": "s",
+        "hue": "violáceo",
+        "threshold": 0.0094,
+        "kind": "estimate",
+        "timesControl": 0.9,
+        "elevated": false,
+        "sameLineAs": null
+      },
+      {
+        "id": "l",
+        "hue": "rojizo",
+        "threshold": 0.0568,
+        "kind": "estimate",
+        "timesControl": 5.4,
+        "elevated": true,
+        "sameLineAs": null
+      },
+      {
+        "id": "m",
+        "hue": "verdoso",
+        "threshold": 0.0237,
+        "kind": "estimate",
+        "timesControl": 2.2,
+        "elevated": true,
+        "sameLineAs": null
+      }
+    ],
+    "attenuationMatrix": [
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ]
+    ]
+  },
+  "axes": [
+    {
+      "id": "s",
+      "hue": "violáceo",
+      "label": "violáceo",
+      "role": "s",
+      "searchPrior": "S-cone isolation",
+      "parentId": null,
+      "angleDeg": 94.5,
+      "maxScale": 0.2123,
+      "threshold": 0.0094,
+      "thresholdNorm": 0.044,
+      "thresholdKind": "estimate",
+      "closed": true,
+      "trials": 12,
+      "order": 1,
+      "quest": {
+        "deltaE00": 3.7427,
+        "lo": 2.5962,
+        "hi": 5.2168,
+        "gamma": 0.05,
+        "trials": 12,
+        "resumable": true
+      }
+    },
+    {
+      "id": "control",
+      "hue": "anaranjado",
+      "label": "anaranjado",
+      "role": "control",
+      "searchPrior": "control, off the cone axes",
+      "parentId": null,
+      "angleDeg": -37,
+      "maxScale": 0.2663,
+      "threshold": 0.0105,
+      "thresholdNorm": 0.04,
+      "thresholdKind": "estimate",
+      "closed": true,
+      "trials": 12,
+      "order": 2,
+      "quest": {
+        "deltaE00": 2.795,
+        "lo": 2.0573,
+        "hi": 4.1341,
+        "gamma": 0.05,
+        "trials": 12,
+        "resumable": true
+      }
+    },
+    {
+      "id": "l",
+      "hue": "rojizo",
+      "label": "rojizo",
+      "role": "l",
+      "searchPrior": "L-cone isolation",
+      "parentId": null,
+      "angleDeg": 11.1,
+      "maxScale": 0.217,
+      "threshold": 0.0568,
+      "thresholdNorm": 0.262,
+      "thresholdKind": "estimate",
+      "closed": false,
+      "trials": 13,
+      "order": 3,
+      "quest": {
+        "deltaE00": 20.892,
+        "lo": 14.8597,
+        "hi": 29.8593,
+        "gamma": 0.05,
+        "trials": 13,
+        "resumable": true
+      }
+    },
+    {
+      "id": "m",
+      "hue": "verdoso",
+      "label": "verdoso",
+      "role": "m",
+      "searchPrior": "M-cone isolation",
+      "parentId": null,
+      "angleDeg": -156.7,
+      "maxScale": 0.2204,
+      "threshold": 0.0237,
+      "thresholdNorm": 0.107,
+      "thresholdKind": "estimate",
+      "closed": true,
+      "trials": 13,
+      "order": 4,
+      "quest": {
+        "deltaE00": 9.9356,
+        "lo": 7.395,
+        "hi": 13.2281,
+        "gamma": 0.05,
+        "trials": 13,
+        "resumable": true
+      }
+    },
+    {
+      "id": "red-end",
+      "hue": "rojo extremo",
+      "label": "rojo extremo",
+      "role": "red-end",
+      "searchPrior": "last red this display emits",
+      "parentId": null,
+      "angleDeg": 0,
+      "maxScale": 0.2227,
+      "threshold": 0.0415,
+      "thresholdNorm": 0.187,
+      "thresholdKind": "estimate",
+      "closed": false,
+      "trials": 11,
+      "order": 5,
+      "quest": {
+        "deltaE00": 14.1057,
+        "lo": 10.4827,
+        "hi": 21.0642,
+        "gamma": 0.05,
+        "trials": 11,
+        "resumable": true
+      }
+    },
+    {
+      "id": "blue-end",
+      "hue": "azul extremo",
+      "label": "azul extremo",
+      "role": "blue-end",
+      "searchPrior": "first blue this display emits",
+      "parentId": null,
+      "angleDeg": 107.7,
+      "maxScale": 0.2093,
+      "threshold": 0.0071,
+      "thresholdNorm": 0.034,
+      "thresholdKind": "estimate",
+      "closed": true,
+      "trials": 11,
+      "order": 6,
+      "quest": {
+        "deltaE00": 2.5027,
+        "lo": 1.8315,
+        "hi": 3.6802,
+        "gamma": 0.05,
+        "trials": 11,
+        "resumable": false
+      }
+    }
+  ],
+  "trials": [
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.005099876931381612,
+      "sNorm": 0.02401862201486438,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        128
+      ],
+      "comparison": [
+        129,
+        129,
+        130
+      ],
+      "side": "right",
+      "at": 1792999035561,
+      "order": 1
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.02719279760079532,
+      "sNorm": 0.12806848790432926,
+      "judgment": "different",
+      "reference": [
+        128,
+        130,
+        122
+      ],
+      "comparison": [
+        130,
+        128,
+        136
+      ],
+      "side": "right",
+      "at": 1792999046125,
+      "order": 2
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.01315092500090013,
+      "sNorm": 0.061936219440667635,
+      "judgment": "different",
+      "reference": [
+        129,
+        130,
+        126
+      ],
+      "comparison": [
+        130,
+        129,
+        133
+      ],
+      "side": "left",
+      "at": 1792999058026,
+      "order": 3
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.008173640035174614,
+      "sNorm": 0.03849496235534389,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "right",
+      "at": 1792999064784,
+      "order": 4
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.002524138154053986,
+      "sNorm": 0.011887800637396142,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        128
+      ],
+      "comparison": [
+        129,
+        129,
+        130
+      ],
+      "side": "right",
+      "at": 1792999074506,
+      "order": 5
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.007262294267935681,
+      "sNorm": 0.03420284515277671,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "right",
+      "at": 1792999162175,
+      "order": 6
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.01036148655765313,
+      "sNorm": 0.04879894799205431,
+      "judgment": "different",
+      "reference": [
+        129,
+        130,
+        126
+      ],
+      "comparison": [
+        130,
+        129,
+        132
+      ],
+      "side": "right",
+      "at": 1792999171138,
+      "order": 7
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.009201540463408783,
+      "sNorm": 0.043336010911389194,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        132
+      ],
+      "side": "left",
+      "at": 1792999198368,
+      "order": 8
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.008173640035174614,
+      "sNorm": 0.03849496235534389,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999210815,
+      "order": 9
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.009201540463408783,
+      "sNorm": 0.043336010911389194,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        132
+      ],
+      "side": "left",
+      "at": 1792999243871,
+      "order": 10
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.011671186148189237,
+      "sNorm": 0.05496717123378404,
+      "judgment": "different",
+      "reference": [
+        129,
+        130,
+        126
+      ],
+      "comparison": [
+        130,
+        129,
+        132
+      ],
+      "side": "left",
+      "at": 1792999259429,
+      "order": 11
+    },
+    {
+      "axisId": "s",
+      "hue": "violáceo",
+      "priorKey": "s",
+      "theta": 1.6489919591342226,
+      "s": 0.01036148655765313,
+      "sNorm": 0.04879894799205431,
+      "judgment": "different",
+      "reference": [
+        129,
+        130,
+        126
+      ],
+      "comparison": [
+        130,
+        129,
+        132
+      ],
+      "side": "right",
+      "at": 1792999286727,
+      "order": 12
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.007706083221039401,
+      "sNorm": 0.028933894267993303,
+      "judgment": "different",
+      "reference": [
+        128,
+        129,
+        131
+      ],
+      "comparison": [
+        130,
+        129,
+        127
+      ],
+      "side": "left",
+      "at": 1792999033875,
+      "order": 13
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.00167213062383976,
+      "sNorm": 0.006278319255670795,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        129
+      ],
+      "comparison": [
+        129,
+        129,
+        129
+      ],
+      "side": "left",
+      "at": 1792999044606,
+      "order": 14
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.004802649689235643,
+      "sNorm": 0.018032423778549862,
+      "judgment": "same",
+      "reference": [
+        128,
+        129,
+        130
+      ],
+      "comparison": [
+        130,
+        129,
+        128
+      ],
+      "side": "right",
+      "at": 1792999056242,
+      "order": 15
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.0124215366870064,
+      "sNorm": 0.046638923930458986,
+      "judgment": "different",
+      "reference": [
+        127,
+        129,
+        132
+      ],
+      "comparison": [
+        131,
+        129,
+        126
+      ],
+      "side": "left",
+      "at": 1792999061877,
+      "order": 16
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.006844547201164848,
+      "sNorm": 0.02569910022384647,
+      "judgment": "same",
+      "reference": [
+        128,
+        129,
+        131
+      ],
+      "comparison": [
+        130,
+        129,
+        128
+      ],
+      "side": "right",
+      "at": 1792999119997,
+      "order": 17
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.01101785121348272,
+      "sNorm": 0.041368530929048575,
+      "judgment": "different",
+      "reference": [
+        127,
+        129,
+        131
+      ],
+      "comparison": [
+        131,
+        129,
+        127
+      ],
+      "side": "right",
+      "at": 1792999165971,
+      "order": 18
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.00867850127613162,
+      "sNorm": 0.032585015127096995,
+      "judgment": "different",
+      "reference": [
+        128,
+        129,
+        131
+      ],
+      "comparison": [
+        131,
+        129,
+        127
+      ],
+      "side": "left",
+      "at": 1792999187763,
+      "order": 19
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.007706083221039401,
+      "sNorm": 0.028933894267993303,
+      "judgment": "same",
+      "reference": [
+        128,
+        129,
+        131
+      ],
+      "comparison": [
+        130,
+        129,
+        127
+      ],
+      "side": "right",
+      "at": 1792999204853,
+      "order": 20
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.009776722843955334,
+      "sNorm": 0.036708488208660114,
+      "judgment": "same",
+      "reference": [
+        127,
+        129,
+        131
+      ],
+      "comparison": [
+        131,
+        129,
+        127
+      ],
+      "side": "right",
+      "at": 1792999241878,
+      "order": 21
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.01101785121348272,
+      "sNorm": 0.041368530929048575,
+      "judgment": "same",
+      "reference": [
+        127,
+        129,
+        131
+      ],
+      "comparison": [
+        131,
+        129,
+        127
+      ],
+      "side": "right",
+      "at": 1792999245831,
+      "order": 22
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.0124215366870064,
+      "sNorm": 0.046638923930458986,
+      "judgment": "different",
+      "reference": [
+        127,
+        129,
+        132
+      ],
+      "comparison": [
+        131,
+        129,
+        126
+      ],
+      "side": "right",
+      "at": 1792999251307,
+      "order": 23
+    },
+    {
+      "axisId": "control",
+      "hue": "anaranjado",
+      "priorKey": "control",
+      "theta": -0.6457718232379022,
+      "s": 0.0124215366870064,
+      "sNorm": 0.046638923930458986,
+      "judgment": "different",
+      "reference": [
+        127,
+        129,
+        132
+      ],
+      "comparison": [
+        131,
+        129,
+        126
+      ],
+      "side": "right",
+      "at": 1792999273706,
+      "order": 24
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.005052555698523878,
+      "sNorm": 0.0232795995611923,
+      "judgment": "same",
+      "reference": [
+        128,
+        130,
+        129
+      ],
+      "comparison": [
+        130,
+        129,
+        129
+      ],
+      "side": "left",
+      "at": 1792999037447,
+      "order": 25
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.02685494780187435,
+      "sNorm": 0.12373390188395203,
+      "judgment": "same",
+      "reference": [
+        122,
+        131,
+        130
+      ],
+      "comparison": [
+        136,
+        127,
+        129
+      ],
+      "side": "left",
+      "at": 1792999051437,
+      "order": 26
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.06550919421423332,
+      "sNorm": 0.301832953435678,
+      "judgment": "different",
+      "reference": [
+        110,
+        134,
+        130
+      ],
+      "comparison": [
+        145,
+        124,
+        128
+      ],
+      "side": "left",
+      "at": 1792999076865,
+      "order": 27
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.050292022388107885,
+      "sNorm": 0.2317199873045866,
+      "judgment": "different",
+      "reference": [
+        115,
+        133,
+        130
+      ],
+      "comparison": [
+        141,
+        125,
+        128
+      ],
+      "side": "left",
+      "at": 1792999100316,
+      "order": 28
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.03438398778320953,
+      "sNorm": 0.1584238778691542,
+      "judgment": "different",
+      "reference": [
+        120,
+        132,
+        130
+      ],
+      "comparison": [
+        138,
+        126,
+        129
+      ],
+      "side": "right",
+      "at": 1792999107162,
+      "order": 29
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.023764569287699773,
+      "sNorm": 0.10949501396362393,
+      "judgment": "same",
+      "reference": [
+        123,
+        131,
+        130
+      ],
+      "comparison": [
+        135,
+        127,
+        129
+      ],
+      "side": "right",
+      "at": 1792999124379,
+      "order": 30
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.03897080772242621,
+      "sNorm": 0.179557604603815,
+      "judgment": "same",
+      "reference": [
+        118,
+        132,
+        130
+      ],
+      "comparison": [
+        139,
+        126,
+        128
+      ],
+      "side": "right",
+      "at": 1792999179354,
+      "order": 31
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.050292022388107885,
+      "sNorm": 0.2317199873045866,
+      "judgment": "different",
+      "reference": [
+        115,
+        133,
+        130
+      ],
+      "comparison": [
+        141,
+        125,
+        128
+      ],
+      "side": "right",
+      "at": 1792999200232,
+      "order": 32
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.04423203196333379,
+      "sNorm": 0.20379864237520445,
+      "judgment": "same",
+      "reference": [
+        117,
+        132,
+        130
+      ],
+      "comparison": [
+        140,
+        126,
+        128
+      ],
+      "side": "left",
+      "at": 1792999231242,
+      "order": 33
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.050292022388107885,
+      "sNorm": 0.2317199873045866,
+      "judgment": "same",
+      "reference": [
+        115,
+        133,
+        130
+      ],
+      "comparison": [
+        141,
+        125,
+        128
+      ],
+      "side": "left",
+      "at": 1792999248343,
+      "order": 34
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.06550919421423332,
+      "sNorm": 0.301832953435678,
+      "judgment": "different",
+      "reference": [
+        110,
+        134,
+        130
+      ],
+      "comparison": [
+        145,
+        124,
+        128
+      ],
+      "side": "right",
+      "at": 1792999257285,
+      "order": 35
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.05731172779799687,
+      "sNorm": 0.2640632093748536,
+      "judgment": "same",
+      "reference": [
+        113,
+        133,
+        130
+      ],
+      "comparison": [
+        143,
+        125,
+        128
+      ],
+      "side": "left",
+      "at": 1792999283475,
+      "order": 36
+    },
+    {
+      "axisId": "l",
+      "hue": "rojizo",
+      "priorKey": "l",
+      "theta": 0.1938350559727739,
+      "s": 0.06550919421423332,
+      "sNorm": 0.301832953435678,
+      "judgment": "different",
+      "reference": [
+        110,
+        134,
+        130
+      ],
+      "comparison": [
+        145,
+        124,
+        128
+      ],
+      "side": "left",
+      "at": 1792999292705,
+      "order": 37
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.004637014025731136,
+      "sNorm": 0.021037371975126003,
+      "judgment": "same",
+      "reference": [
+        130,
+        129,
+        129
+      ],
+      "comparison": [
+        128,
+        129,
+        129
+      ],
+      "side": "right",
+      "at": 1792999039197,
+      "order": 38
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02507379605573655,
+      "sNorm": 0.11375569957863263,
+      "judgment": "same",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        122,
+        131,
+        128
+      ],
+      "side": "right",
+      "at": 1792999049715,
+      "order": 39
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.06304509377391615,
+      "sNorm": 0.2860252484829289,
+      "judgment": "different",
+      "reference": [
+        144,
+        124,
+        132
+      ],
+      "comparison": [
+        112,
+        134,
+        127
+      ],
+      "side": "right",
+      "at": 1792999079821,
+      "order": 40
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.047834912709232014,
+      "sNorm": 0.21701915208313946,
+      "judgment": "different",
+      "reference": [
+        141,
+        125,
+        131
+      ],
+      "comparison": [
+        116,
+        133,
+        127
+      ],
+      "side": "right",
+      "at": 1792999102202,
+      "order": 41
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.032295819750436945,
+      "sNorm": 0.14652083637474794,
+      "judgment": "different",
+      "reference": [
+        137,
+        127,
+        130
+      ],
+      "comparison": [
+        121,
+        132,
+        128
+      ],
+      "side": "right",
+      "at": 1792999112117,
+      "order": 42
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02213409808181121,
+      "sNorm": 0.10041877210142049,
+      "judgment": "different",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        123,
+        131,
+        128
+      ],
+      "side": "left",
+      "at": 1792999126344,
+      "order": 43
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.013560256037601972,
+      "sNorm": 0.061520657206983735,
+      "judgment": "same",
+      "reference": [
+        133,
+        128,
+        130
+      ],
+      "comparison": [
+        126,
+        130,
+        129
+      ],
+      "side": "left",
+      "at": 1792999130882,
+      "order": 44
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02507379605573655,
+      "sNorm": 0.11375569957863263,
+      "judgment": "different",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        122,
+        131,
+        128
+      ],
+      "side": "right",
+      "at": 1792999174964,
+      "order": 45
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02213409808181121,
+      "sNorm": 0.10041877210142049,
+      "judgment": "different",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        123,
+        131,
+        128
+      ],
+      "side": "right",
+      "at": 1792999189892,
+      "order": 46
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.019558752731528024,
+      "sNorm": 0.08873485270896707,
+      "judgment": "same",
+      "reference": [
+        134,
+        128,
+        130
+      ],
+      "comparison": [
+        124,
+        131,
+        128
+      ],
+      "side": "right",
+      "at": 1792999195411,
+      "order": 47
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02507379605573655,
+      "sNorm": 0.11375569957863263,
+      "judgment": "different",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        122,
+        131,
+        128
+      ],
+      "side": "left",
+      "at": 1792999254109,
+      "order": 48
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02213409808181121,
+      "sNorm": 0.10041877210142049,
+      "judgment": "different",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        123,
+        131,
+        128
+      ],
+      "side": "left",
+      "at": 1792999270737,
+      "order": 49
+    },
+    {
+      "axisId": "m",
+      "hue": "verdoso",
+      "priorKey": "m",
+      "theta": -2.7353531862946308,
+      "s": 0.02213409808181121,
+      "sNorm": 0.10041877210142049,
+      "judgment": "same",
+      "reference": [
+        135,
+        127,
+        130
+      ],
+      "comparison": [
+        123,
+        131,
+        128
+      ],
+      "side": "left",
+      "at": 1792999277770,
+      "order": 50
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.0056268102434820656,
+      "sNorm": 0.025270854845530273,
+      "judgment": "same",
+      "reference": [
+        128,
+        130,
+        130
+      ],
+      "comparison": [
+        131,
+        129,
+        129
+      ],
+      "side": "left",
+      "at": 1792999040955,
+      "order": 51
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.030158237027585202,
+      "sNorm": 0.1354451984948355,
+      "judgment": "same",
+      "reference": [
+        121,
+        131,
+        131
+      ],
+      "comparison": [
+        136,
+        127,
+        127
+      ],
+      "side": "right",
+      "at": 1792999053057,
+      "order": 52
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.07479708479156305,
+      "sNorm": 0.3359250073922338,
+      "judgment": "different",
+      "reference": [
+        108,
+        134,
+        134
+      ],
+      "comparison": [
+        147,
+        124,
+        124
+      ],
+      "side": "left",
+      "at": 1792999104096,
+      "order": 53
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.05701870689752482,
+      "sNorm": 0.2560796264911005,
+      "judgment": "different",
+      "reference": [
+        114,
+        133,
+        133
+      ],
+      "comparison": [
+        143,
+        125,
+        125
+      ],
+      "side": "left",
+      "at": 1792999110321,
+      "order": 54
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.03872788411062429,
+      "sNorm": 0.1739327781610882,
+      "judgment": "different",
+      "reference": [
+        119,
+        132,
+        132
+      ],
+      "comparison": [
+        139,
+        126,
+        126
+      ],
+      "side": "left",
+      "at": 1792999122201,
+      "order": 55
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.026655728807255738,
+      "sNorm": 0.11971490495352557,
+      "judgment": "same",
+      "reference": [
+        122,
+        131,
+        131
+      ],
+      "comparison": [
+        136,
+        127,
+        127
+      ],
+      "side": "right",
+      "at": 1792999128823,
+      "order": 56
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.043975017281389625,
+      "sNorm": 0.1974984459152438,
+      "judgment": "different",
+      "reference": [
+        117,
+        132,
+        132
+      ],
+      "comparison": [
+        140,
+        126,
+        126
+      ],
+      "side": "right",
+      "at": 1792999185643,
+      "order": 57
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.03872788411062429,
+      "sNorm": 0.1739327781610882,
+      "judgment": "different",
+      "reference": [
+        119,
+        132,
+        132
+      ],
+      "comparison": [
+        139,
+        126,
+        126
+      ],
+      "side": "left",
+      "at": 1792999202783,
+      "order": 58
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.0341552573845855,
+      "sNorm": 0.15339642074786755,
+      "judgment": "same",
+      "reference": [
+        120,
+        131,
+        131
+      ],
+      "comparison": [
+        137,
+        127,
+        127
+      ],
+      "side": "right",
+      "at": 1792999227712,
+      "order": 59
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.043975017281389625,
+      "sNorm": 0.1974984459152438,
+      "judgment": "different",
+      "reference": [
+        117,
+        132,
+        132
+      ],
+      "comparison": [
+        140,
+        126,
+        126
+      ],
+      "side": "right",
+      "at": 1792999268259,
+      "order": 60
+    },
+    {
+      "axisId": "red-end",
+      "hue": "rojo extremo",
+      "priorKey": "red-end",
+      "theta": 5.551115123125783e-17,
+      "s": 0.03872788411062429,
+      "sNorm": 0.1739327781610882,
+      "judgment": "same",
+      "reference": [
+        119,
+        132,
+        132
+      ],
+      "comparison": [
+        139,
+        126,
+        126
+      ],
+      "side": "right",
+      "at": 1792999280523,
+      "order": 61
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.005815139117905297,
+      "sNorm": 0.02778974406328416,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        128
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "right",
+      "at": 1792999043097,
+      "order": 62
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.031227878710482868,
+      "sNorm": 0.1492337052318362,
+      "judgment": "different",
+      "reference": [
+        130,
+        130,
+        120
+      ],
+      "comparison": [
+        128,
+        128,
+        137
+      ],
+      "side": "left",
+      "at": 1792999054584,
+      "order": 63
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.015036480379826168,
+      "sNorm": 0.07185725618865033,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        125
+      ],
+      "comparison": [
+        129,
+        129,
+        133
+      ],
+      "side": "right",
+      "at": 1792999059608,
+      "order": 64
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.009329921661475138,
+      "sNorm": 0.04458640280927282,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        132
+      ],
+      "side": "left",
+      "at": 1792999066601,
+      "order": 65
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.0028755374623367184,
+      "sNorm": 0.013741795080477456,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        128
+      ],
+      "comparison": [
+        129,
+        129,
+        130
+      ],
+      "side": "left",
+      "at": 1792999071546,
+      "order": 66
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.008287057109850787,
+      "sNorm": 0.03960269762274038,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999164030,
+      "order": 67
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.007362564333812237,
+      "sNorm": 0.035184674749416445,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999172960,
+      "order": 68
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.006542632361298935,
+      "sNorm": 0.03126633346755625,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999177125,
+      "order": 69
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.005169429070198583,
+      "sNorm": 0.024703985218820893,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        128
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999183583,
+      "order": 70
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.006542632361298935,
+      "sNorm": 0.03126633346755625,
+      "judgment": "same",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999239678,
+      "order": 71
+    },
+    {
+      "axisId": "blue-end",
+      "hue": "azul extremo",
+      "priorKey": "blue-end",
+      "theta": 1.8792049419833348,
+      "s": 0.008287057109850787,
+      "sNorm": 0.03960269762274038,
+      "judgment": "different",
+      "reference": [
+        129,
+        129,
+        127
+      ],
+      "comparison": [
+        129,
+        129,
+        131
+      ],
+      "side": "left",
+      "at": 1792999266129,
+      "order": 72
+    }
+  ],
+  "catches": {
+    "same": 1,
+    "missed": 0,
+    "obvious": {
+      "shown": 7,
+      "missed": 1
+    },
+    "trials": [
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "same",
+        "reference": [
+          122,
+          122,
+          193
+        ],
+        "comparison": [
+          133,
+          133,
+          209
+        ],
+        "side": "left",
+        "at": 1792999047855,
+        "order": 1
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          129,
+          129,
+          129
+        ],
+        "comparison": [
+          140,
+          140,
+          140
+        ],
+        "side": "right",
+        "at": 1792999069546,
+        "order": 2
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          193,
+          103,
+          103
+        ],
+        "comparison": [
+          209,
+          112,
+          112
+        ],
+        "side": "left",
+        "at": 1792999117566,
+        "order": 3
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          102,
+          138,
+          102
+        ],
+        "comparison": [
+          111,
+          150,
+          111
+        ],
+        "side": "left",
+        "at": 1792999169087,
+        "order": 4
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          193,
+          103,
+          103
+        ],
+        "comparison": [
+          209,
+          112,
+          112
+        ],
+        "side": "left",
+        "at": 1792999193524,
+        "order": 5
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          122,
+          122,
+          193
+        ],
+        "comparison": [
+          133,
+          133,
+          209
+        ],
+        "side": "right",
+        "at": 1792999237027,
+        "order": 6
+      },
+      {
+        "axisId": "catch",
+        "hue": "obvio",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "different",
+        "reference": [
+          193,
+          103,
+          103
+        ],
+        "comparison": [
+          209,
+          112,
+          112
+        ],
+        "side": "right",
+        "at": 1792999263541,
+        "order": 7
+      },
+      {
+        "axisId": "catch",
+        "hue": "igual",
+        "priorKey": "catch",
+        "theta": 0,
+        "s": 0,
+        "sNorm": 0,
+        "judgment": "same",
+        "reference": [
+          193,
+          103,
+          103
+        ],
+        "comparison": [
+          193,
+          103,
+          103
+        ],
+        "side": "right",
+        "at": 1792999295158,
+        "order": 8
+      }
+    ]
+  },
+  "luminance": {
+    "method": "",
+    "temporalHz": 1,
+    "count": 0,
+    "sampleCount": 0,
+    "matches": [],
+    "reading": "No hay franjas de brillo.",
+    "weights": [
+      0.10028,
+      0.81949,
+      0.08023
+    ],
+    "weightsSource": "measured",
+    "predicted": null,
+    "type": "unknown",
+    "refreshHz": 90.1,
+    "cyclesPerDeg": 1,
+    "checks": {
+      "controlError": null,
+      "catches": {
+        "shown": 50,
+        "missed": 0
+      },
+      "residuals": [
+        0.1506,
+        0.0373,
+        0.0729,
+        -0.005
+      ],
+      "cond": 2.5,
+      "withinNoise": false,
+      "confidence": "high",
+      "blocks": [
+        {
+          "trials": 16,
+          "still": 1,
+          "unreliable": false
+        },
+        {
+          "trials": 11,
+          "still": 3,
+          "unreliable": false
+        },
+        {
+          "trials": 12,
+          "still": 2,
+          "unreliable": false
+        },
+        {
+          "trials": 11,
+          "still": 3,
+          "unreliable": false
+        },
+        {
+          "trials": 12,
+          "still": 6,
+          "unreliable": false
+        },
+        {
+          "trials": 12,
+          "still": 4,
+          "unreliable": false
+        },
+        {
+          "trials": 11,
+          "still": 3,
+          "unreliable": false
+        },
+        {
+          "trials": 10,
+          "still": 2,
+          "unreliable": false
+        },
+        {
+          "trials": 11,
+          "still": 2,
+          "unreliable": false
+        },
+        {
+          "trials": 7,
+          "still": 1,
+          "unreliable": false
+        }
+      ],
+      "unreliableBlocks": 0
+    },
+    "calibratedWith": "standard-Y",
+    "measuredMatches": [
+      {
+        "id": "rojo",
+        "hue": "rojo #FF0000",
+        "kind": "test",
+        "test": [
+          0.263379,
+          0.055868,
+          0.055868
+        ],
+        "ref": [
+          0.1,
+          0.1,
+          0.1
+        ],
+        "gain": 1.5006,
+        "efficiency": 0.6664,
+        "width": 0.0901,
+        "reversals": 0,
+        "trials": 18,
+        "bound": "converged",
+        "atLeast": false
+      },
+      {
+        "id": "verde",
+        "hue": "verde #00FF00",
+        "kind": "test",
+        "test": [
+          0.02735,
+          0.128937,
+          0.02735
+        ],
+        "ref": [
+          0.1,
+          0.1,
+          0.1
+        ],
+        "gain": 0.9379,
+        "efficiency": 1.0662,
+        "width": 0.0901,
+        "reversals": 0,
+        "trials": 14,
+        "bound": "converged",
+        "atLeast": false
+      },
+      {
+        "id": "azul",
+        "hue": "azul #0000FF",
+        "kind": "test",
+        "test": [
+          0.078859,
+          0.078859,
+          0.371766
+        ],
+        "ref": [
+          0.1,
+          0.1,
+          0.1
+        ],
+        "gain": 1.0482,
+        "efficiency": 0.954,
+        "width": 0.0901,
+        "reversals": 0,
+        "trials": 16,
+        "bound": "converged",
+        "atLeast": false
+      },
+      {
+        "id": "amarillo",
+        "hue": "amarillo #FFFF00",
+        "kind": "test",
+        "test": [
+          0.106029,
+          0.106029,
+          0.022491
+        ],
+        "ref": [
+          0.1,
+          0.1,
+          0.1
+        ],
+        "gain": 1.0017,
+        "efficiency": 0.9983,
+        "width": 0.0901,
+        "reversals": 0,
+        "trials": 15,
+        "bound": "converged",
+        "atLeast": false
+      }
+    ],
+    "legacyMatches": false,
+    "temporalHzV2": 11.26,
+    "viewingCm": 40,
+    "deviceType": "phone",
+    "cssPxPerMm": 6.25,
+    "stimulusDeg": {
+      "width": 4,
+      "height": 2
+    },
+    "sizingHeuristic": "phone-0.16mm-per-css-px",
+    "searchMethod": "quest+",
+    "ui": "v3",
+    "fixationWeber": -0.4,
+    "build": {
+      "env": "qa",
+      "branch": "develop",
+      "commit": "df4c0ee"
+    },
+    "device": {
+      "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36",
+      "screen": [
+        346,
+        768
+      ],
+      "dpr": 3.125,
+      "gamut": "srgb",
+      "refreshHz": 90.1,
+      "key": "a5d7a996"
+    }
+  },
+  "calibrationResume": {
+    "schema": "umbral.calib.qp.v1",
+    "savedAt": 1792999295267,
+    "catchHits": 1,
+    "catchMisses": 0,
+    "axes": [
+      {
+        "id": "s",
+        "theta": 1.6489919591342226,
+        "priorKey": "s",
+        "parentId": null,
+        "hue": "violáceo",
+        "searchPrior": "S-cone isolation",
+        "maxS": 0.21233012152926412,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            10.482711575296614,
+            0
+          ],
+          [
+            5.2167808280438175,
+            0
+          ],
+          [
+            3.2760854994929547,
+            0
+          ],
+          [
+            1.0238511403176058,
+            1
+          ],
+          [
+            2.9163751335188803,
+            1
+          ],
+          [
+            4.134080311845333,
+            0
+          ],
+          [
+            3.68016311640881,
+            0
+          ],
+          [
+            3.2760854994929547,
+            1
+          ],
+          [
+            3.68016311640881,
+            1
+          ],
+          [
+            4.64398437900346,
+            0
+          ],
+          [
+            4.134080311845333,
+            0
+          ]
+        ],
+        "open": true,
+        "threshold": 0.00936113732940612,
+        "qpEstimate": {
+          "deltaE00": 3.742747324898781,
+          "lo": 2.596160546091863,
+          "hi": 5.2167808280438175,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747541325,
+            0.0000022498510747543926,
+            0.0000022498510787984446,
+            0.000002249854732998363,
+            0.0000022502966039278674,
+            0.0000022630384734925635,
+            0.000002393754627457482,
+            0.0000030265699066217923,
+            0.000004801299617408803,
+            0.000008154138287027054,
+            0.00001292379408342985,
+            0.000018563494828408966,
+            0.00002559570748715263,
+            0.00003945044778614459,
+            0.00007294598808894602,
+            0.00014710448350657484,
+            0.00034546163713449385,
+            0.0011641855781297085,
+            0.005737685616210842,
+            0.03010485144688415,
+            0.1097066473981728,
+            0.22862234608371979,
+            0.2721253504477166,
+            0.19934564740970737,
+            0.09929007378789306,
+            0.03726567512647888,
+            0.011572612575528772,
+            0.0032080756619924113,
+            0.0008405432803310192,
+            0.00021798206516479628,
+            0.000058373901373777245,
+            0.00001677556170086389,
+            0.0000053350768094375594,
+            0.000001915211349971405,
+            7.825967070536696e-7,
+            3.635234072232424e-7,
+            1.9043184123799206e-7,
+            1.112186193861803e-7,
+            7.151421803158063e-8,
+            5.000907419534225e-8,
+            3.759472664854088e-8,
+            3.005477340770296e-8,
+            2.529115492479085e-8,
+            2.2190164290060257e-8,
+            2.01259807572465e-8,
+            1.8729255998127608e-8,
+            1.7772847696581242e-8
+          ]
+        }
+      },
+      {
+        "id": "control",
+        "theta": -0.6457718232379022,
+        "priorKey": "control",
+        "parentId": null,
+        "hue": "anaranjado",
+        "searchPrior": "control, off the cone axes",
+        "maxS": 0.26633411837562,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            0
+          ],
+          [
+            0.45358003679742587,
+            1
+          ],
+          [
+            1.2919940099556333,
+            1
+          ],
+          [
+            3.2760854994929547,
+            0
+          ],
+          [
+            1.8314540328476263,
+            1
+          ],
+          [
+            2.9163751335188803,
+            0
+          ],
+          [
+            2.311105146803081,
+            0
+          ],
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            2.596160546091863,
+            1
+          ],
+          [
+            2.9163751335188803,
+            1
+          ],
+          [
+            3.2760854994929547,
+            0
+          ],
+          [
+            3.2760854994929547,
+            0
+          ]
+        ],
+        "open": true,
+        "threshold": 0.010546557895118977,
+        "qpEstimate": {
+          "deltaE00": 2.7950204060134936,
+          "lo": 2.0573484978115415,
+          "hi": 4.134080311845333,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            4.1217245010584054e-7,
+            4.1217245010584054e-7,
+            4.1217245010584054e-7,
+            4.121724501058869e-7,
+            4.12172450826974e-7,
+            4.121731024004132e-7,
+            4.122518915656466e-7,
+            4.145238700993824e-7,
+            4.3783161895938143e-7,
+            5.506677081047381e-7,
+            8.671163866570905e-7,
+            0.00000146495223826909,
+            0.0000023149504690751116,
+            0.00000330101404297291,
+            0.00000429052413874944,
+            0.000005187270827055976,
+            0.0000059747043718798746,
+            0.00000695995148929555,
+            0.000009423033993333118,
+            0.000015779381646715017,
+            0.000029540009908176335,
+            0.00006456899947587223,
+            0.00019103442305607655,
+            0.0007131962844148574,
+            0.002976672488354434,
+            0.014041964781422061,
+            0.061172979009685685,
+            0.17226098650843605,
+            0.26979229979286595,
+            0.24455513430025902,
+            0.14304188762107234,
+            0.06083766558249347,
+            0.020990832389930984,
+            0.006451927384726652,
+            0.0019089801398215825,
+            0.0005787507137031612,
+            0.00018870486021617226,
+            0.00006851965168976819,
+            0.00002831258696675815,
+            0.00001343391220261124,
+            0.0000073044041840807,
+            0.000004502721460112811,
+            0.000003096268249168132,
+            0.0000023314969681688493,
+            0.0000018876912901336433,
+            0.0000016166452911885313,
+            0.0000014445238637899583,
+            0.0000013319886098736973,
+            0.0000012568167668193915,
+            0.0000012058142515500106,
+            0.000001170819155483471,
+            0.0000011466134501405948,
+            0.0000011297742804655946,
+            0.000001118011895028824,
+            0.0000011097719015178005,
+            0.000001103987634867201
+          ]
+        }
+      },
+      {
+        "id": "l",
+        "theta": 0.1938350559727739,
+        "priorKey": "l",
+        "parentId": null,
+        "hue": "rojizo",
+        "searchPrior": "L-cone isolation",
+        "maxS": 0.21703791275459136,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            10.482711575296614,
+            1
+          ],
+          [
+            23.662276399482206,
+            0
+          ],
+          [
+            18.75136299970318,
+            0
+          ],
+          [
+            13.22809540376591,
+            0
+          ],
+          [
+            9.331722073424883,
+            1
+          ],
+          [
+            14.859669814115277,
+            1
+          ],
+          [
+            18.75136299970318,
+            0
+          ],
+          [
+            16.69248521761237,
+            1
+          ],
+          [
+            18.75136299970318,
+            1
+          ],
+          [
+            23.662276399482206,
+            0
+          ],
+          [
+            21.064186055150603,
+            1
+          ],
+          [
+            23.662276399482206,
+            0
+          ]
+        ],
+        "open": true,
+        "threshold": 0.05678070447948104,
+        "qpEstimate": {
+          "deltaE00": 20.89200474426904,
+          "lo": 14.859669814115277,
+          "hi": 29.85934006047216,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474324e-8,
+            4.035211815474769e-8,
+            4.035211822413461e-8,
+            4.035218092207161e-8,
+            4.0359762443694455e-8,
+            4.057838456425056e-8,
+            4.282118281498192e-8,
+            5.367888446925402e-8,
+            8.412929591681828e-8,
+            1.4165631022753986e-7,
+            2.2344775892671638e-7,
+            3.183321537546964e-7,
+            4.1354752316130806e-7,
+            4.997394107723062e-7,
+            5.722648984766015e-7,
+            6.302138372550698e-7,
+            6.748532823281636e-7,
+            7.084971944842913e-7,
+            7.373800562838727e-7,
+            8.023354081165489e-7,
+            0.000001084648902313235,
+            0.0000021810390903477097,
+            0.000005909541076645215,
+            0.000016779279048787762,
+            0.000049702437058917946,
+            0.00018708781285138888,
+            0.0009813078833041623,
+            0.00648535748145008,
+            0.0385186337166502,
+            0.1379694383352226,
+            0.2577772014254583,
+            0.26582021446681314,
+            0.17124053166387251,
+            0.0785230116856182,
+            0.02880900468156363,
+            0.009330148968194766,
+            0.002889924646118575,
+            0.0009125028562459792,
+            0.0003084730247878476,
+            0.00011563312310769062,
+            0.000049120757913333416
+          ]
+        }
+      },
+      {
+        "id": "m",
+        "theta": -2.7353531862946308,
+        "priorKey": "m",
+        "parentId": null,
+        "hue": "verdoso",
+        "searchPrior": "M-cone isolation",
+        "maxS": 0.22041793201231652,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            10.482711575296614,
+            1
+          ],
+          [
+            23.662276399482206,
+            0
+          ],
+          [
+            18.75136299970318,
+            0
+          ],
+          [
+            13.22809540376591,
+            0
+          ],
+          [
+            9.331722073424883,
+            0
+          ],
+          [
+            5.860226905777299,
+            1
+          ],
+          [
+            10.482711575296614,
+            0
+          ],
+          [
+            9.331722073424883,
+            0
+          ],
+          [
+            8.307109876118204,
+            1
+          ],
+          [
+            10.482711575296614,
+            0
+          ],
+          [
+            9.331722073424883,
+            0
+          ],
+          [
+            9.331722073424883,
+            1
+          ]
+        ],
+        "open": true,
+        "threshold": 0.023670229013752167,
+        "qpEstimate": {
+          "deltaE00": 9.93562052719623,
+          "lo": 7.3949989027666785,
+          "hi": 13.22809540376591,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.0000060424796818304155,
+            0.000006042479681831115,
+            0.0000060424796927062796,
+            0.000006042489519490397,
+            0.000006043677787874706,
+            0.000006077942908636748,
+            0.000006429461559680515,
+            0.000008131212770562185,
+            0.000012903772028750016,
+            0.000021920106182963887,
+            0.00003473945794778876,
+            0.00004961089574747055,
+            0.0000645343169587554,
+            0.00007805934855605268,
+            0.00008995646966399165,
+            0.00010505968932206576,
+            0.0001434874494558421,
+            0.00024326328829325805,
+            0.00046089222379119257,
+            0.001030365914458656,
+            0.003272560231490373,
+            0.014494832841848118,
+            0.0632680189623427,
+            0.1782458614357782,
+            0.2763439797065201,
+            0.24572343043592482,
+            0.13877908366877742,
+            0.05514452596135391,
+            0.016817013162010896,
+            0.0042364481089694735,
+            0.0009437245738689268,
+            0.00019886798446152356,
+            0.00004227513696198419,
+            0.000009583371556989762,
+            0.0000024168533754242073,
+            6.970539956685658e-7,
+            2.3314622096888472e-7,
+            9.071063698072696e-8,
+            4.0861349421018765e-8,
+            2.11038716087574e-8,
+            1.2337448325094655e-8
+          ]
+        }
+      },
+      {
+        "id": "red-end",
+        "theta": 5.551115123125783e-17,
+        "priorKey": "red-end",
+        "parentId": null,
+        "hue": "rojo extremo",
+        "searchPrior": "last red this display emits",
+        "maxS": 0.22266006741268965,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            10.482711575296614,
+            1
+          ],
+          [
+            23.662276399482206,
+            0
+          ],
+          [
+            18.75136299970318,
+            0
+          ],
+          [
+            13.22809540376591,
+            0
+          ],
+          [
+            9.331722073424883,
+            1
+          ],
+          [
+            14.859669814115277,
+            0
+          ],
+          [
+            13.22809540376591,
+            0
+          ],
+          [
+            11.77566596028372,
+            1
+          ],
+          [
+            14.859669814115277,
+            0
+          ],
+          [
+            13.22809540376591,
+            1
+          ]
+        ],
+        "open": true,
+        "threshold": 0.04153528647049662,
+        "qpEstimate": {
+          "deltaE00": 14.105716858229444,
+          "lo": 10.482711575296614,
+          "hi": 21.064186055150603,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.000001828241942481423,
+            0.0000018282419424816346,
+            0.000001828241945763697,
+            0.000001828244911431117,
+            0.000001828603524054544,
+            0.0000018389445421366634,
+            0.0000019450308668249597,
+            0.000002458609679670988,
+            0.000003898940852867292,
+            0.000006620019093643249,
+            0.000010488826366253468,
+            0.000014976941476157434,
+            0.00001948071197396837,
+            0.000023557663867263183,
+            0.000026988183056524366,
+            0.00002972921869809985,
+            0.0000318407068726348,
+            0.000033432512130477906,
+            0.0000348116190166178,
+            0.00003803794248791293,
+            0.00005263682654105922,
+            0.00011740285405268275,
+            0.0004572623912923095,
+            0.002739298207870706,
+            0.017375688351042147,
+            0.07534053711275204,
+            0.18552219699901687,
+            0.2624487490973852,
+            0.23014793177131437,
+            0.13641696953078533,
+            0.05951755060141853,
+            0.02077516221177409,
+            0.006283351542097422,
+            0.001771325469318576,
+            0.000496156327658663,
+            0.00014563318269914872,
+            0.000046686008871255876,
+            0.00001682283505927211,
+            0.00000692572318304047,
+            0.000003273447027091447,
+            0.0000017684344534507111
+          ]
+        }
+      },
+      {
+        "id": "blue-end",
+        "theta": 1.8792049419833348,
+        "priorKey": "blue-end",
+        "parentId": null,
+        "hue": "azul extremo",
+        "searchPrior": "first blue this display emits",
+        "maxS": 0.20925486412047475,
+        "qpLog": [
+          [
+            2.0573484978115415,
+            1
+          ],
+          [
+            10.482711575296614,
+            0
+          ],
+          [
+            5.2167808280438175,
+            0
+          ],
+          [
+            3.2760854994929547,
+            0
+          ],
+          [
+            1.0238511403176058,
+            1
+          ],
+          [
+            2.9163751335188803,
+            0
+          ],
+          [
+            2.596160546091863,
+            0
+          ],
+          [
+            2.311105146803081,
+            0
+          ],
+          [
+            1.8314540328476263,
+            1
+          ],
+          [
+            2.311105146803081,
+            1
+          ],
+          [
+            2.9163751335188803,
+            0
+          ]
+        ],
+        "open": false,
+        "threshold": 0.007093479104720576,
+        "qpEstimate": {
+          "deltaE00": 2.5027210357425824,
+          "lo": 1.8314540328476263,
+          "hi": 3.68016311640881,
+          "gamma": 0.05
+        },
+        "posterior": {
+          "alphas": [
+            0.10000000000000002,
+            0.11233415968473338,
+            0.12618963432075175,
+            0.1417540653234544,
+            0.15923823810005053,
+            0.17887893666646668,
+            0.20094215035726173,
+            0.22572667605626337,
+            0.2535681647320837,
+            0.28484366707978676,
+            0.3199767398292579,
+            0.35944318187380236,
+            0.4037774779020037,
+            0.45358003679742587,
+            0.5095253228340927,
+            0.572370989786603,
+            0.6429681416559714,
+            0.7222728589697816,
+            0.8113591467546036,
+            0.9114334795320065,
+            1.0238511403176058,
+            1.1501345748983427,
+            1.2919940099556333,
+            1.4513506142607515,
+            1.6303625166090303,
+            1.8314540328476263,
+            2.0573484978115415,
+            2.311105146803081,
+            2.596160546091863,
+            2.9163751335188803,
+            3.2760854994929547,
+            3.68016311640881,
+            4.134080311845333,
+            4.64398437900346,
+            5.2167808280438175,
+            5.860226905777299,
+            6.583036650223583,
+            7.3949989027666785,
+            8.307109876118204,
+            9.331722073424883,
+            10.482711575296614,
+            11.77566596028372,
+            13.22809540376591,
+            14.859669814115277,
+            16.69248521761237,
+            18.75136299970318,
+            21.064186055150603,
+            23.662276399482206,
+            26.580819355637303,
+            29.85934006047216,
+            33.54223874433834,
+            37.67939203289955,
+            42.32682841447406,
+            47.547487020598396,
+            53.4120699957969,
+            60.000000000000036
+          ],
+          "probs": [
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.00001781216691803714,
+            0.000017812166918039278,
+            0.000017812166951367585,
+            0.000017812197066770723,
+            0.000017815838663147214,
+            0.000017920848390961868,
+            0.000018998121053279376,
+            0.000024213349515015996,
+            0.00003883951959927405,
+            0.00006648562431875647,
+            0.00010646234591793206,
+            0.0001630947946960805,
+            0.00029385810858184044,
+            0.0008098762190992021,
+            0.0035421693495838536,
+            0.01807238312846201,
+            0.07031200803481054,
+            0.16966263664529016,
+            0.2478678972091883,
+            0.23064822533733922,
+            0.14782646405516245,
+            0.07071871332190754,
+            0.027084134567069394,
+            0.008833667948062132,
+            0.0026041364775979065,
+            0.000735245623886278,
+            0.00020934135119783577,
+            0.00006241894064163867,
+            0.000019900535085807012,
+            0.000006852964846140833,
+            0.000002565611735455716,
+            0.0000010493331854417385,
+            4.6991072396452804e-7,
+            2.301874822713052e-7,
+            1.2289301432359384e-7,
+            7.112625370214342e-8,
+            4.435711707576887e-8,
+            2.9628616823445522e-8,
+            2.107718869668856e-8,
+            1.5882880223503936e-8,
+            1.2609705000009129e-8,
+            1.0486391546544243e-8,
+            9.077867965634951e-9,
+            8.127635954638889e-9,
+            7.478528957493065e-9,
+            7.0310551159690505e-9,
+            6.720534805351311e-9
+          ]
+        }
+      }
+    ]
+  },
+  "history": {
+    "format": "umbral.history.v1",
+    "sessions": [
+      {
+        "id": "calibration-mvoxhim4-zqt5",
+        "kind": "calibration",
+        "date": "2026-10-26T07:21:35.356Z",
+        "deviceType": "phone",
+        "viewingCm": 40,
+        "stimulusDeg": null,
+        "backgroundY": 0.22,
+        "device": {
+          "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36",
+          "screen": [
+            346,
+            768
+          ],
+          "dpr": 3.125,
+          "gamut": "srgb",
+          "refreshHz": null,
+          "key": "12077c70"
+        },
+        "engine": {
+          "version": "0.1.0",
+          "method": "quest+"
+        },
+        "build": {
+          "env": "qa",
+          "branch": "develop",
+          "commit": "df4c0ee"
+        },
+        "count": 80,
+        "packed": {
+          "encoding": "columns-v1",
+          "keys": [
+            "axisId",
+            "hue",
+            "priorKey",
+            "theta",
+            "s",
+            "sNorm",
+            "judgment",
+            "reference",
+            "comparison",
+            "side",
+            "at"
+          ],
+          "rows": [
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.007706083221039401,
+              0.028933894267993303,
+              "different",
+              [
+                128,
+                129,
+                131
+              ],
+              [
+                130,
+                129,
+                127
+              ],
+              "left",
+              1792999033875
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.005099876931381612,
+              0.02401862201486438,
+              "same",
+              [
+                129,
+                129,
+                128
+              ],
+              [
+                129,
+                129,
+                130
+              ],
+              "right",
+              1792999035561
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.005052555698523878,
+              0.0232795995611923,
+              "same",
+              [
+                128,
+                130,
+                129
+              ],
+              [
+                130,
+                129,
+                129
+              ],
+              "left",
+              1792999037447
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.004637014025731136,
+              0.021037371975126003,
+              "same",
+              [
+                130,
+                129,
+                129
+              ],
+              [
+                128,
+                129,
+                129
+              ],
+              "right",
+              1792999039197
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.0056268102434820656,
+              0.025270854845530273,
+              "same",
+              [
+                128,
+                130,
+                130
+              ],
+              [
+                131,
+                129,
+                129
+              ],
+              "left",
+              1792999040955
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.005815139117905297,
+              0.02778974406328416,
+              "same",
+              [
+                129,
+                129,
+                128
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "right",
+              1792999043097
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.00167213062383976,
+              0.006278319255670795,
+              "same",
+              [
+                129,
+                129,
+                129
+              ],
+              [
+                129,
+                129,
+                129
+              ],
+              "left",
+              1792999044606
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.02719279760079532,
+              0.12806848790432926,
+              "different",
+              [
+                128,
+                130,
+                122
+              ],
+              [
+                130,
+                128,
+                136
+              ],
+              "right",
+              1792999046125
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "same",
+              [
+                122,
+                122,
+                193
+              ],
+              [
+                133,
+                133,
+                209
+              ],
+              "left",
+              1792999047855
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02507379605573655,
+              0.11375569957863263,
+              "same",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                122,
+                131,
+                128
+              ],
+              "right",
+              1792999049715
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.02685494780187435,
+              0.12373390188395203,
+              "same",
+              [
+                122,
+                131,
+                130
+              ],
+              [
+                136,
+                127,
+                129
+              ],
+              "left",
+              1792999051437
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.030158237027585202,
+              0.1354451984948355,
+              "same",
+              [
+                121,
+                131,
+                131
+              ],
+              [
+                136,
+                127,
+                127
+              ],
+              "right",
+              1792999053057
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.031227878710482868,
+              0.1492337052318362,
+              "different",
+              [
+                130,
+                130,
+                120
+              ],
+              [
+                128,
+                128,
+                137
+              ],
+              "left",
+              1792999054584
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.004802649689235643,
+              0.018032423778549862,
+              "same",
+              [
+                128,
+                129,
+                130
+              ],
+              [
+                130,
+                129,
+                128
+              ],
+              "right",
+              1792999056242
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.01315092500090013,
+              0.061936219440667635,
+              "different",
+              [
+                129,
+                130,
+                126
+              ],
+              [
+                130,
+                129,
+                133
+              ],
+              "left",
+              1792999058026
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.015036480379826168,
+              0.07185725618865033,
+              "different",
+              [
+                129,
+                129,
+                125
+              ],
+              [
+                129,
+                129,
+                133
+              ],
+              "right",
+              1792999059608
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.0124215366870064,
+              0.046638923930458986,
+              "different",
+              [
+                127,
+                129,
+                132
+              ],
+              [
+                131,
+                129,
+                126
+              ],
+              "left",
+              1792999061877
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.008173640035174614,
+              0.03849496235534389,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "right",
+              1792999064784
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.009329921661475138,
+              0.04458640280927282,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                132
+              ],
+              "left",
+              1792999066601
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                129,
+                129,
+                129
+              ],
+              [
+                140,
+                140,
+                140
+              ],
+              "right",
+              1792999069546
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.0028755374623367184,
+              0.013741795080477456,
+              "same",
+              [
+                129,
+                129,
+                128
+              ],
+              [
+                129,
+                129,
+                130
+              ],
+              "left",
+              1792999071546
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.002524138154053986,
+              0.011887800637396142,
+              "same",
+              [
+                129,
+                129,
+                128
+              ],
+              [
+                129,
+                129,
+                130
+              ],
+              "right",
+              1792999074506
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.06550919421423332,
+              0.301832953435678,
+              "different",
+              [
+                110,
+                134,
+                130
+              ],
+              [
+                145,
+                124,
+                128
+              ],
+              "left",
+              1792999076865
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.06304509377391615,
+              0.2860252484829289,
+              "different",
+              [
+                144,
+                124,
+                132
+              ],
+              [
+                112,
+                134,
+                127
+              ],
+              "right",
+              1792999079821
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.050292022388107885,
+              0.2317199873045866,
+              "different",
+              [
+                115,
+                133,
+                130
+              ],
+              [
+                141,
+                125,
+                128
+              ],
+              "left",
+              1792999100316
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.047834912709232014,
+              0.21701915208313946,
+              "different",
+              [
+                141,
+                125,
+                131
+              ],
+              [
+                116,
+                133,
+                127
+              ],
+              "right",
+              1792999102202
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.07479708479156305,
+              0.3359250073922338,
+              "different",
+              [
+                108,
+                134,
+                134
+              ],
+              [
+                147,
+                124,
+                124
+              ],
+              "left",
+              1792999104096
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.03438398778320953,
+              0.1584238778691542,
+              "different",
+              [
+                120,
+                132,
+                130
+              ],
+              [
+                138,
+                126,
+                129
+              ],
+              "right",
+              1792999107162
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.05701870689752482,
+              0.2560796264911005,
+              "different",
+              [
+                114,
+                133,
+                133
+              ],
+              [
+                143,
+                125,
+                125
+              ],
+              "left",
+              1792999110321
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.032295819750436945,
+              0.14652083637474794,
+              "different",
+              [
+                137,
+                127,
+                130
+              ],
+              [
+                121,
+                132,
+                128
+              ],
+              "right",
+              1792999112117
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                193,
+                103,
+                103
+              ],
+              [
+                209,
+                112,
+                112
+              ],
+              "left",
+              1792999117566
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.006844547201164848,
+              0.02569910022384647,
+              "same",
+              [
+                128,
+                129,
+                131
+              ],
+              [
+                130,
+                129,
+                128
+              ],
+              "right",
+              1792999119997
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.03872788411062429,
+              0.1739327781610882,
+              "different",
+              [
+                119,
+                132,
+                132
+              ],
+              [
+                139,
+                126,
+                126
+              ],
+              "left",
+              1792999122201
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.023764569287699773,
+              0.10949501396362393,
+              "same",
+              [
+                123,
+                131,
+                130
+              ],
+              [
+                135,
+                127,
+                129
+              ],
+              "right",
+              1792999124379
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02213409808181121,
+              0.10041877210142049,
+              "different",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                123,
+                131,
+                128
+              ],
+              "left",
+              1792999126344
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.026655728807255738,
+              0.11971490495352557,
+              "same",
+              [
+                122,
+                131,
+                131
+              ],
+              [
+                136,
+                127,
+                127
+              ],
+              "right",
+              1792999128823
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.013560256037601972,
+              0.061520657206983735,
+              "same",
+              [
+                133,
+                128,
+                130
+              ],
+              [
+                126,
+                130,
+                129
+              ],
+              "left",
+              1792999130882
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.007262294267935681,
+              0.03420284515277671,
+              "same",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "right",
+              1792999162175
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.008287057109850787,
+              0.03960269762274038,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999164030
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.01101785121348272,
+              0.041368530929048575,
+              "different",
+              [
+                127,
+                129,
+                131
+              ],
+              [
+                131,
+                129,
+                127
+              ],
+              "right",
+              1792999165971
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                102,
+                138,
+                102
+              ],
+              [
+                111,
+                150,
+                111
+              ],
+              "left",
+              1792999169087
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.01036148655765313,
+              0.04879894799205431,
+              "different",
+              [
+                129,
+                130,
+                126
+              ],
+              [
+                130,
+                129,
+                132
+              ],
+              "right",
+              1792999171138
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.007362564333812237,
+              0.035184674749416445,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999172960
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02507379605573655,
+              0.11375569957863263,
+              "different",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                122,
+                131,
+                128
+              ],
+              "right",
+              1792999174964
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.006542632361298935,
+              0.03126633346755625,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999177125
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.03897080772242621,
+              0.179557604603815,
+              "same",
+              [
+                118,
+                132,
+                130
+              ],
+              [
+                139,
+                126,
+                128
+              ],
+              "right",
+              1792999179354
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.005169429070198583,
+              0.024703985218820893,
+              "same",
+              [
+                129,
+                129,
+                128
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999183583
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.043975017281389625,
+              0.1974984459152438,
+              "different",
+              [
+                117,
+                132,
+                132
+              ],
+              [
+                140,
+                126,
+                126
+              ],
+              "right",
+              1792999185643
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.00867850127613162,
+              0.032585015127096995,
+              "different",
+              [
+                128,
+                129,
+                131
+              ],
+              [
+                131,
+                129,
+                127
+              ],
+              "left",
+              1792999187763
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02213409808181121,
+              0.10041877210142049,
+              "different",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                123,
+                131,
+                128
+              ],
+              "right",
+              1792999189892
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                193,
+                103,
+                103
+              ],
+              [
+                209,
+                112,
+                112
+              ],
+              "left",
+              1792999193524
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.019558752731528024,
+              0.08873485270896707,
+              "same",
+              [
+                134,
+                128,
+                130
+              ],
+              [
+                124,
+                131,
+                128
+              ],
+              "right",
+              1792999195411
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.009201540463408783,
+              0.043336010911389194,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                132
+              ],
+              "left",
+              1792999198368
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.050292022388107885,
+              0.2317199873045866,
+              "different",
+              [
+                115,
+                133,
+                130
+              ],
+              [
+                141,
+                125,
+                128
+              ],
+              "right",
+              1792999200232
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.03872788411062429,
+              0.1739327781610882,
+              "different",
+              [
+                119,
+                132,
+                132
+              ],
+              [
+                139,
+                126,
+                126
+              ],
+              "left",
+              1792999202783
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.007706083221039401,
+              0.028933894267993303,
+              "same",
+              [
+                128,
+                129,
+                131
+              ],
+              [
+                130,
+                129,
+                127
+              ],
+              "right",
+              1792999204853
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.008173640035174614,
+              0.03849496235534389,
+              "same",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999210815
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.0341552573845855,
+              0.15339642074786755,
+              "same",
+              [
+                120,
+                131,
+                131
+              ],
+              [
+                137,
+                127,
+                127
+              ],
+              "right",
+              1792999227712
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.04423203196333379,
+              0.20379864237520445,
+              "same",
+              [
+                117,
+                132,
+                130
+              ],
+              [
+                140,
+                126,
+                128
+              ],
+              "left",
+              1792999231242
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                122,
+                122,
+                193
+              ],
+              [
+                133,
+                133,
+                209
+              ],
+              "right",
+              1792999237027
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.006542632361298935,
+              0.03126633346755625,
+              "same",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999239678
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.009776722843955334,
+              0.036708488208660114,
+              "same",
+              [
+                127,
+                129,
+                131
+              ],
+              [
+                131,
+                129,
+                127
+              ],
+              "right",
+              1792999241878
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.009201540463408783,
+              0.043336010911389194,
+              "same",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                132
+              ],
+              "left",
+              1792999243871
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.01101785121348272,
+              0.041368530929048575,
+              "same",
+              [
+                127,
+                129,
+                131
+              ],
+              [
+                131,
+                129,
+                127
+              ],
+              "right",
+              1792999245831
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.050292022388107885,
+              0.2317199873045866,
+              "same",
+              [
+                115,
+                133,
+                130
+              ],
+              [
+                141,
+                125,
+                128
+              ],
+              "left",
+              1792999248343
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.0124215366870064,
+              0.046638923930458986,
+              "different",
+              [
+                127,
+                129,
+                132
+              ],
+              [
+                131,
+                129,
+                126
+              ],
+              "right",
+              1792999251307
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02507379605573655,
+              0.11375569957863263,
+              "different",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                122,
+                131,
+                128
+              ],
+              "left",
+              1792999254109
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.06550919421423332,
+              0.301832953435678,
+              "different",
+              [
+                110,
+                134,
+                130
+              ],
+              [
+                145,
+                124,
+                128
+              ],
+              "right",
+              1792999257285
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.011671186148189237,
+              0.05496717123378404,
+              "different",
+              [
+                129,
+                130,
+                126
+              ],
+              [
+                130,
+                129,
+                132
+              ],
+              "left",
+              1792999259429
+            ],
+            [
+              "catch",
+              "obvio",
+              "catch",
+              0,
+              0,
+              0,
+              "different",
+              [
+                193,
+                103,
+                103
+              ],
+              [
+                209,
+                112,
+                112
+              ],
+              "right",
+              1792999263541
+            ],
+            [
+              "blue-end",
+              "azul extremo",
+              "blue-end",
+              1.8792049419833348,
+              0.008287057109850787,
+              0.03960269762274038,
+              "different",
+              [
+                129,
+                129,
+                127
+              ],
+              [
+                129,
+                129,
+                131
+              ],
+              "left",
+              1792999266129
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.043975017281389625,
+              0.1974984459152438,
+              "different",
+              [
+                117,
+                132,
+                132
+              ],
+              [
+                140,
+                126,
+                126
+              ],
+              "right",
+              1792999268259
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02213409808181121,
+              0.10041877210142049,
+              "different",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                123,
+                131,
+                128
+              ],
+              "left",
+              1792999270737
+            ],
+            [
+              "control",
+              "anaranjado",
+              "control",
+              -0.6457718232379022,
+              0.0124215366870064,
+              0.046638923930458986,
+              "different",
+              [
+                127,
+                129,
+                132
+              ],
+              [
+                131,
+                129,
+                126
+              ],
+              "right",
+              1792999273706
+            ],
+            [
+              "m",
+              "verdoso",
+              "m",
+              -2.7353531862946308,
+              0.02213409808181121,
+              0.10041877210142049,
+              "same",
+              [
+                135,
+                127,
+                130
+              ],
+              [
+                123,
+                131,
+                128
+              ],
+              "left",
+              1792999277770
+            ],
+            [
+              "red-end",
+              "rojo extremo",
+              "red-end",
+              5.551115123125783e-17,
+              0.03872788411062429,
+              0.1739327781610882,
+              "same",
+              [
+                119,
+                132,
+                132
+              ],
+              [
+                139,
+                126,
+                126
+              ],
+              "right",
+              1792999280523
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.05731172779799687,
+              0.2640632093748536,
+              "same",
+              [
+                113,
+                133,
+                130
+              ],
+              [
+                143,
+                125,
+                128
+              ],
+              "left",
+              1792999283475
+            ],
+            [
+              "s",
+              "violáceo",
+              "s",
+              1.6489919591342226,
+              0.01036148655765313,
+              0.04879894799205431,
+              "different",
+              [
+                129,
+                130,
+                126
+              ],
+              [
+                130,
+                129,
+                132
+              ],
+              "right",
+              1792999286727
+            ],
+            [
+              "l",
+              "rojizo",
+              "l",
+              0.1938350559727739,
+              0.06550919421423332,
+              0.301832953435678,
+              "different",
+              [
+                110,
+                134,
+                130
+              ],
+              [
+                145,
+                124,
+                128
+              ],
+              "left",
+              1792999292705
+            ],
+            [
+              "catch",
+              "igual",
+              "catch",
+              0,
+              0,
+              0,
+              "same",
+              [
+                193,
+                103,
+                103
+              ],
+              [
+                193,
+                103,
+                103
+              ],
+              "right",
+              1792999295158
+            ]
+          ]
+        }
+      },
+      {
+        "id": "motion-v2-mvoxslia-ov32",
+        "kind": "motion-v2",
+        "date": "2026-10-26T07:30:12.322Z",
+        "deviceType": "phone",
+        "viewingCm": 40,
+        "stimulusDeg": {
+          "width": 4,
+          "height": 2
+        },
+        "backgroundY": 0.14754098360655737,
+        "device": {
+          "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36",
+          "screen": [
+            346,
+            768
+          ],
+          "dpr": 3.125,
+          "gamut": "srgb",
+          "refreshHz": 90.1,
+          "key": "a5d7a996"
+        },
+        "ui": "v3",
+        "fixationWeber": -0.4,
+        "engine": {
+          "version": "0.1.0",
+          "method": "quest+"
+        },
+        "build": {
+          "env": "qa",
+          "branch": "develop",
+          "commit": "df4c0ee"
+        },
+        "count": 113,
+        "packed": {
+          "encoding": "columns-v1",
+          "keys": [
+            "targetId",
+            "catch",
+            "e",
+            "test",
+            "ref",
+            "sign",
+            "answer",
+            "at",
+            "correct"
+          ],
+          "rows": [
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "right",
+              1792999308601,
+              null
+            ],
+            [
+              "verde",
+              false,
+              0.9993,
+              [
+                0.04037,
+                0.1903,
+                0.04037
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "right",
+              1792999309969,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.9993,
+              [
+                0.38872,
+                0.08246,
+                0.08246
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "right",
+              1792999311412,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999312812,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.8113,
+              [
+                0.17273,
+                0.17273,
+                0.03664
+              ],
+              [
+                0.13217,
+                0.13217,
+                0.13217
+              ],
+              1,
+              "right",
+              1792999314113,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.231,
+              [
+                0.03618,
+                0.17054,
+                0.03618
+              ],
+              [
+                0.16281,
+                0.16281,
+                0.16281
+              ],
+              -1,
+              "right",
+              1792999315436,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9993,
+              [
+                0.11639,
+                0.11639,
+                0.54869
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "right",
+              1792999317592,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999318915,
+              true
+            ],
+            [
+              "verde",
+              false,
+              1.0927,
+              [
+                0.03856,
+                0.18181,
+                0.03856
+              ],
+              [
+                0.15408,
+                0.15408,
+                0.15408
+              ],
+              -1,
+              "right",
+              1792999320238,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.8113,
+              [
+                0.12847,
+                0.12847,
+                0.60564
+              ],
+              [
+                0.13217,
+                0.13217,
+                0.13217
+              ],
+              1,
+              "right",
+              1792999325053,
+              null
+            ],
+            [
+              "verde",
+              false,
+              0.9993,
+              [
+                0.04037,
+                0.1903,
+                0.04037
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "right",
+              1792999326584,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999328299,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9139,
+              [
+                0.16347,
+                0.16347,
+                0.03468
+              ],
+              [
+                0.14091,
+                0.14091,
+                0.14091
+              ],
+              1,
+              "right",
+              1792999329684,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9139,
+              [
+                0.12158,
+                0.12158,
+                0.57317
+              ],
+              [
+                0.14091,
+                0.14091,
+                0.14091
+              ],
+              -1,
+              "still",
+              1792999332595,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999335609,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999337075,
+              true
+            ],
+            [
+              "azul",
+              false,
+              0.9139,
+              [
+                0.12158,
+                0.12158,
+                0.57317
+              ],
+              [
+                0.14091,
+                0.14091,
+                0.14091
+              ],
+              -1,
+              "left",
+              1792999413222,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0766,
+              [
+                0.03886,
+                0.18322,
+                0.03886
+              ],
+              [
+                0.15298,
+                0.15298,
+                0.15298
+              ],
+              1,
+              "left",
+              1792999415336,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.8113,
+              [
+                0.42907,
+                0.09101,
+                0.09101
+              ],
+              [
+                0.13217,
+                0.13217,
+                0.13217
+              ],
+              1,
+              "left",
+              1792999417552,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999419585,
+              true
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999422919,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0296,
+              [
+                0.03977,
+                0.18746,
+                0.03977
+              ],
+              [
+                0.14969,
+                0.14969,
+                0.14969
+              ],
+              1,
+              "still",
+              1792999426068,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "still",
+              1792999430965,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999433113,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999434794,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999436313,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999437890,
+              true
+            ],
+            [
+              "verde",
+              false,
+              1.0296,
+              [
+                0.03977,
+                0.18746,
+                0.03977
+              ],
+              [
+                0.14969,
+                0.14969,
+                0.14969
+              ],
+              1,
+              "right",
+              1792999513406,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "right",
+              1792999515442,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              0.9846,
+              [
+                0.15765,
+                0.15765,
+                0.03344
+              ],
+              [
+                0.14639,
+                0.14639,
+                0.14639
+              ],
+              1,
+              "right",
+              1792999516886,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999518711,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6991,
+              [
+                0.45741,
+                0.09703,
+                0.09703
+              ],
+              [
+                0.12141,
+                0.12141,
+                0.12141
+              ],
+              -1,
+              "right",
+              1792999521098,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0607,
+              [
+                0.03916,
+                0.18463,
+                0.03916
+              ],
+              [
+                0.15188,
+                0.15188,
+                0.15188
+              ],
+              -1,
+              "still",
+              1792999525846,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              1.045,
+              [
+                0.15299,
+                0.15299,
+                0.03245
+              ],
+              [
+                0.15079,
+                0.15079,
+                0.15079
+              ],
+              1,
+              "left",
+              1792999531228,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999532928,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "still",
+              1792999536998,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999538833,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999540288,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999541591,
+              true
+            ],
+            [
+              "azul",
+              false,
+              0.9277,
+              [
+                0.12072,
+                0.12072,
+                0.56909
+              ],
+              [
+                0.142,
+                0.142,
+                0.142
+              ],
+              1,
+              "right",
+              1792999550879,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "right",
+              1792999552403,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9277,
+              [
+                0.12072,
+                0.12072,
+                0.56909
+              ],
+              [
+                0.142,
+                0.142,
+                0.142
+              ],
+              1,
+              "right",
+              1792999554001,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999555584,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "still",
+              1792999557892,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0607,
+              [
+                0.03916,
+                0.18463,
+                0.03916
+              ],
+              [
+                0.15188,
+                0.15188,
+                0.15188
+              ],
+              1,
+              "still",
+              1792999568040,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999570407,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999572375,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999573945,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999576281,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999577920,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "still",
+              1792999586250,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0607,
+              [
+                0.03916,
+                0.18463,
+                0.03916
+              ],
+              [
+                0.15188,
+                0.15188,
+                0.15188
+              ],
+              -1,
+              "still",
+              1792999589060,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999593550,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999595306,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "still",
+              1792999597442,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999601391,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999605448,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999607182,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6393,
+              [
+                0.47408,
+                0.10056,
+                0.10056
+              ],
+              [
+                0.11508,
+                0.11508,
+                0.11508
+              ],
+              1,
+              "right",
+              1792999609389,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999610879,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999612425,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999613780,
+              true
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "still",
+              1792999621308,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6888,
+              [
+                0.46021,
+                0.09762,
+                0.09762
+              ],
+              [
+                0.12035,
+                0.12035,
+                0.12035
+              ],
+              1,
+              "still",
+              1792999623991,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "left",
+              1792999630374,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999632056,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6888,
+              [
+                0.46021,
+                0.09762,
+                0.09762
+              ],
+              [
+                0.12035,
+                0.12035,
+                0.12035
+              ],
+              1,
+              "left",
+              1792999635670,
+              null
+            ],
+            [
+              "verde",
+              false,
+              1.0607,
+              [
+                0.03916,
+                0.18463,
+                0.03916
+              ],
+              [
+                0.15188,
+                0.15188,
+                0.15188
+              ],
+              -1,
+              "right",
+              1792999637905,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              1,
+              "still",
+              1792999642650,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.9557,
+              [
+                0.11899,
+                0.11899,
+                0.56093
+              ],
+              [
+                0.1442,
+                0.1442,
+                0.1442
+              ],
+              -1,
+              "still",
+              1792999648521,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999650240,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999651807,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999653022,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999654450,
+              true
+            ],
+            [
+              "verde",
+              false,
+              1.045,
+              [
+                0.03946,
+                0.18605,
+                0.03946
+              ],
+              [
+                0.15079,
+                0.15079,
+                0.15079
+              ],
+              -1,
+              "still",
+              1792999661966,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6587,
+              [
+                0.46856,
+                0.09939,
+                0.09939
+              ],
+              [
+                0.11718,
+                0.11718,
+                0.11718
+              ],
+              1,
+              "still",
+              1792999668256,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              1.0296,
+              [
+                0.15416,
+                0.15416,
+                0.0327
+              ],
+              [
+                0.14969,
+                0.14969,
+                0.14969
+              ],
+              -1,
+              "right",
+              1792999674069,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999675473,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6587,
+              [
+                0.46856,
+                0.09939,
+                0.09939
+              ],
+              [
+                0.11718,
+                0.11718,
+                0.11718
+              ],
+              1,
+              "right",
+              1792999679030,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6786,
+              [
+                0.463,
+                0.09821,
+                0.09821
+              ],
+              [
+                0.11929,
+                0.11929,
+                0.11929
+              ],
+              -1,
+              "left",
+              1792999681035,
+              null
+            ],
+            [
+              "azul",
+              false,
+              0.97,
+              [
+                0.11812,
+                0.11812,
+                0.55685
+              ],
+              [
+                0.1453,
+                0.1453,
+                0.1453
+              ],
+              1,
+              "still",
+              1792999687928,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999690475,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999692186,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999695050,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999697220,
+              true
+            ],
+            [
+              "verde",
+              false,
+              1.045,
+              [
+                0.03946,
+                0.18605,
+                0.03946
+              ],
+              [
+                0.15079,
+                0.15079,
+                0.15079
+              ],
+              1,
+              "right",
+              1792999704632,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              1,
+              "still",
+              1792999716424,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6991,
+              [
+                0.45741,
+                0.09703,
+                0.09703
+              ],
+              [
+                0.12141,
+                0.12141,
+                0.12141
+              ],
+              -1,
+              "left",
+              1792999721029,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999722751,
+              true
+            ],
+            [
+              "verde",
+              false,
+              1.0607,
+              [
+                0.03916,
+                0.18463,
+                0.03916
+              ],
+              [
+                0.15188,
+                0.15188,
+                0.15188
+              ],
+              -1,
+              "left",
+              1792999724934,
+              null
+            ],
+            [
+              "amarillo",
+              false,
+              0.9993,
+              [
+                0.15649,
+                0.15649,
+                0.03319
+              ],
+              [
+                0.14749,
+                0.14749,
+                0.14749
+              ],
+              -1,
+              "still",
+              1792999728170,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999729973,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999732028,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999733785,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999735586,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.7096,
+              [
+                0.45461,
+                0.09643,
+                0.09643
+              ],
+              [
+                0.12248,
+                0.12248,
+                0.12248
+              ],
+              -1,
+              "still",
+              1792999746698,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.7096,
+              [
+                0.45461,
+                0.09643,
+                0.09643
+              ],
+              [
+                0.12248,
+                0.12248,
+                0.12248
+              ],
+              -1,
+              "right",
+              1792999754764,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6991,
+              [
+                0.45741,
+                0.09703,
+                0.09703
+              ],
+              [
+                0.12141,
+                0.12141,
+                0.12141
+              ],
+              1,
+              "left",
+              1792999758553,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999760365,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6888,
+              [
+                0.46021,
+                0.09762,
+                0.09762
+              ],
+              [
+                0.12035,
+                0.12035,
+                0.12035
+              ],
+              1,
+              "left",
+              1792999762323,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6786,
+              [
+                0.463,
+                0.09821,
+                0.09821
+              ],
+              [
+                0.11929,
+                0.11929,
+                0.11929
+              ],
+              -1,
+              "right",
+              1792999765091,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6685,
+              [
+                0.46578,
+                0.0988,
+                0.0988
+              ],
+              [
+                0.11823,
+                0.11823,
+                0.11823
+              ],
+              1,
+              "still",
+              1792999768169,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999769613,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999771146,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999772379,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999773824,
+              true
+            ],
+            [
+              "rojo",
+              false,
+              0.6685,
+              [
+                0.46578,
+                0.0988,
+                0.0988
+              ],
+              [
+                0.11823,
+                0.11823,
+                0.11823
+              ],
+              -1,
+              "still",
+              1792999786846,
+              null
+            ],
+            [
+              "rojo",
+              false,
+              0.6685,
+              [
+                0.46578,
+                0.0988,
+                0.0988
+              ],
+              [
+                0.11823,
+                0.11823,
+                0.11823
+              ],
+              1,
+              "left",
+              1792999796160,
+              null
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999798007,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999799610,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              1,
+              "right",
+              1792999801067,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999802620,
+              true
+            ],
+            [
+              "catch",
+              true,
+              1.2,
+              [
+                0.16095,
+                0.16095,
+                0.16095
+              ],
+              [
+                0.13413,
+                0.13413,
+                0.13413
+              ],
+              -1,
+              "left",
+              1792999811264,
+              true
+            ]
+          ],
+          "holes": {
+            "0": [
+              8
+            ],
+            "1": [
+              8
+            ],
+            "2": [
+              8
+            ],
+            "4": [
+              8
+            ],
+            "5": [
+              8
+            ],
+            "6": [
+              8
+            ],
+            "8": [
+              8
+            ],
+            "9": [
+              8
+            ],
+            "10": [
+              8
+            ],
+            "12": [
+              8
+            ],
+            "13": [
+              8
+            ],
+            "16": [
+              8
+            ],
+            "17": [
+              8
+            ],
+            "18": [
+              8
+            ],
+            "20": [
+              8
+            ],
+            "21": [
+              8
+            ],
+            "22": [
+              8
+            ],
+            "27": [
+              8
+            ],
+            "28": [
+              8
+            ],
+            "29": [
+              8
+            ],
+            "31": [
+              8
+            ],
+            "32": [
+              8
+            ],
+            "33": [
+              8
+            ],
+            "35": [
+              8
+            ],
+            "39": [
+              8
+            ],
+            "40": [
+              8
+            ],
+            "41": [
+              8
+            ],
+            "43": [
+              8
+            ],
+            "44": [
+              8
+            ],
+            "45": [
+              8
+            ],
+            "50": [
+              8
+            ],
+            "51": [
+              8
+            ],
+            "52": [
+              8
+            ],
+            "54": [
+              8
+            ],
+            "55": [
+              8
+            ],
+            "56": [
+              8
+            ],
+            "58": [
+              8
+            ],
+            "62": [
+              8
+            ],
+            "63": [
+              8
+            ],
+            "64": [
+              8
+            ],
+            "66": [
+              8
+            ],
+            "67": [
+              8
+            ],
+            "68": [
+              8
+            ],
+            "69": [
+              8
+            ],
+            "74": [
+              8
+            ],
+            "75": [
+              8
+            ],
+            "76": [
+              8
+            ],
+            "78": [
+              8
+            ],
+            "79": [
+              8
+            ],
+            "80": [
+              8
+            ],
+            "85": [
+              8
+            ],
+            "86": [
+              8
+            ],
+            "87": [
+              8
+            ],
+            "89": [
+              8
+            ],
+            "90": [
+              8
+            ],
+            "95": [
+              8
+            ],
+            "96": [
+              8
+            ],
+            "97": [
+              8
+            ],
+            "99": [
+              8
+            ],
+            "100": [
+              8
+            ],
+            "101": [
+              8
+            ],
+            "106": [
+              8
+            ],
+            "107": [
+              8
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
