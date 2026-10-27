@@ -131,9 +131,3 @@ test("bordes: mismas fases que el perfil, solo se responde en listo", () => {
   assert.equal(swapFill("hold", "rgb(1, 2, 3)", gray), gray);
 });
 
-import { EDGE_VEIL } from "../src/lib/test/transition";
-
-test("bordes: el velo entra al final del fundido y llega al 100 % justo al empezar el gris quieto", () => {
-  assert.ok(EDGE_VEIL.delay >= SWAP.fadeOut / 2);
-  assert.equal(EDGE_VEIL.delay + EDGE_VEIL.fadeOut, swapStarts().hold);
-});

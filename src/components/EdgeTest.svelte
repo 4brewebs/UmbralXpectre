@@ -6,10 +6,10 @@
   import { questPlusEnabled } from "@/lib/color/motion2";
   import { applyAnswer, edgeInputFromProfile, armConfirm, discsOf, edgeFile, searchBounds, startRun, type ConeId, type EdgeFile, type EdgeRun } from "@/lib/color/edges";
 
-  import { acceptsResponse, EDGE_STAGE, EDGE_VEIL, edgeLayout, edgeOffset, SWAP, swapFill, swapStarts, type Offset, type SwapPhase } from "@/lib/test/transition";
+  import { acceptsResponse, EDGE_STAGE, edgeLayout, edgeOffset, SWAP, swapFill, swapStarts, type Offset, type SwapPhase } from "@/lib/test/transition";
 
-  /** Gris de anclaje: el mismo en todos los ensayos y en el test de perfil. */
-  const GRAY = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
+  /** Las piezas se funden al fondo de la app (sin cuadrado ni velo): solo se ven las 4 bolas sobre negro. */
+  const BG = "var(--color-bg)";
 
   let {
     profile,
@@ -159,7 +159,7 @@
   {/if}
 
   {#if showDiscs}
-    <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? (probe ? `Probando este borde. Quedan ${probe.left}.` : phaseLabel(run)) : "Pausa en gris. No juzgues el cambio."}</p>
+    <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? (probe ? `Probando este borde. Quedan ${probe.left}.` : phaseLabel(run)) : "Pausa. No juzgues el cambio."}</p>
     <p class="text-sm text-muted">Pregunta {run.trials.length + 1} · tono {num(run.angle, 1)}°</p>
     <div class="relative mx-auto my-4 shrink-0" style:width={`${EDGE_STAGE.size}px`} style:height={`${EDGE_STAGE.size}px`} data-testid="edge-stage" data-phase={phase}>
       <!-- Piezas siempre montadas (clave por índice): el color se funde con background-color y la posición con transform. -->
@@ -176,19 +176,10 @@
           style:height={`${EDGE_STAGE.disc}px`}
           style:margin={`-${EDGE_STAGE.disc / 2}px`}
           style:transform={`translate(${o.x}px, ${o.y}px)`}
-          style:background-color={swapFill(phase, cssRgb(rgb), GRAY)}
+          style:background-color={swapFill(phase, cssRgb(rgb), BG)}
           style:transition={phase === "hold" ? "none" : `background-color ${SWAP.fadeOut}ms linear, transform ${SWAP.fadeOut}ms ease-in-out`}
         ></button>
       {/each}
-      <!-- Velo gris de anclaje sobre toda la zona de las piezas: liso en el hold, sin bordes suavizados ni costuras. Sube solo al final del fadeOut (el viaje al centro se ve entero) y baja en fadeIn. -->
-      <div
-        aria-hidden="true"
-        data-testid="edge-veil"
-        class="pointer-events-none absolute inset-0"
-        style:background-color={GRAY}
-        style:opacity={phase === "fadeOut" || phase === "hold" ? 1 : 0}
-        style:transition={phase === "fadeOut" ? `opacity ${EDGE_VEIL.fadeOut}ms linear ${EDGE_VEIL.delay}ms` : `opacity ${SWAP.fadeIn}ms linear`}
-      ></div>
     </div>
     <button type="button" disabled={!ready} onclick={() => submit(true)} class="h-14 rounded-2xl border border-border text-base font-medium text-fg disabled:opacity-40">Ninguno destaca</button>
     <button type="button" disabled={!ready || picked.length !== 1} onclick={() => submit(false)} class="h-14 rounded-2xl bg-accent text-base font-semibold text-accent-fg disabled:opacity-40">Listo</button>

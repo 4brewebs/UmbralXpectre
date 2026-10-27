@@ -99,5 +99,3 @@ export function edgeMinGap(pos: readonly Offset[], disc: number = EDGE_STAGE.dis
   return m;
 }
 
-/** Velo del test de bordes: entra al final del fadeOut y está al 100 % al empezar el hold (delay + fadeOut = SWAP.fadeOut). */
-export const EDGE_VEIL = { delay: 200, fadeOut: 100 } as const;
