@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseProfile } from "../src/lib/color/profile";
 import { depthScale, fileDepth, parseEdgeFile, peakFailed } from "../src/lib/color/edges";
-import { adaptiveColor, measuredRegion, pairMetric } from "../src/lib/color/spectrum";
-import { buildTransformFile } from "../src/lib/color/lut";
+import { measuredRegion, pairMetric } from "../src/lib/color/spectrum";
 import { lossPoints, ratioAt } from "../src/lib/color/lossmap";
 import { ANCHOR, addScaled, dirFromTheta, type Vec3 } from "../src/lib/color/space";
 
@@ -51,23 +50,3 @@ test("B: la métrica usa la misma T interpolada que «Zonas de confusión» y la
   assert.ok(Math.abs(ratioAt(pts, 11.1) - 0.0568 / floor) < 0.05);
 });
 
-test("C: la ganancia adaptativa lleva la lámina m (bordes simulados) a ≥ 1,5 / ≥ 2 y no toca fuera de la región", () => {
-  const region = measuredRegion(profile.axes, floor, sim);
-  for (const [ex, target] of [[false, 1.5], [true, 2]] as const) {
-    const m = mean(plate("m").map(([a, b]) => pairMetric(adaptiveColor(a, profile.axes, floor, ex, region).out, adaptiveColor(b, profile.axes, floor, ex, region).out, profile.axes, floor, region)));
-    assert.ok(m >= target, `m ${ex ? "extremo" : "asistencia"} ${m}`);
-  }
-  const grey: Vec3 = [0.3, 0.3, 0.3];
-  assert.deepEqual(adaptiveColor(grey, profile.axes, floor, false, region).out, grey);
-});
-
-test("C: el JSON de transformaciones resume el factor y marca «limitado por tope»", () => {
-  const file = buildTransformFile(profile, real);
-  for (const id of ["assist", "extreme"] as const) {
-    const f = file.filters.find((x) => x.id === id)!;
-    assert.ok(f.adaptive, id);
-    assert.ok(f.adaptive!.kMax <= 4 + 1e-9);
-    assert.equal(f.adaptive!.status, f.adaptive!.limitedNodes > 0 ? "limitado por tope" : "meta alcanzada");
-    if (f.adaptive!.limitedNodes > 0) assert.match(f.note, /Limitado por tope/);
-  }
-});

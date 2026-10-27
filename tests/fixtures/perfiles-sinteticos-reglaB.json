@@ -1,0 +1,200 @@
+{
+ "normal": {
+  "luminance": {
+   "weights": [
+    0.2126729,
+    0.7151522,
+    0.072175
+   ]
+  },
+  "fit": {
+   "pathways": [
+    {
+     "id": "s",
+     "elevated": false
+    },
+    {
+     "id": "l",
+     "elevated": false
+    },
+    {
+     "id": "m",
+     "elevated": false
+    }
+   ]
+  },
+  "axes": [
+   {
+    "id": "s",
+    "role": "s",
+    "angleDeg": 94.5,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "control",
+    "role": "control",
+    "angleDeg": -37,
+    "threshold": 0.0035,
+    "thresholdStandardY": 0.0082,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "l",
+    "role": "l",
+    "angleDeg": 11.1,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "m",
+    "role": "m",
+    "angleDeg": -156.7,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "red-end",
+    "role": "red-end",
+    "angleDeg": 7.3,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "blue-end",
+    "role": "blue-end",
+    "angleDeg": 108,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "l:-",
+    "role": "refine",
+    "angleDeg": -9.5,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": "l",
+    "maxScale": 0.22
+   },
+   {
+    "id": "l:+",
+    "role": "refine",
+    "angleDeg": 31.7,
+    "threshold": 0.0035,
+    "thresholdStandardY": null,
+    "parentId": "l",
+    "maxScale": 0.22
+   }
+  ]
+ },
+ "deutan": {
+  "luminance": {
+   "weights": [
+    0.23,
+    0.7,
+    0.07
+   ]
+  },
+  "fit": {
+   "pathways": [
+    {
+     "id": "s",
+     "elevated": false
+    },
+    {
+     "id": "l",
+     "elevated": false
+    },
+    {
+     "id": "m",
+     "elevated": true
+    }
+   ]
+  },
+  "axes": [
+   {
+    "id": "s",
+    "role": "s",
+    "angleDeg": 94.5,
+    "threshold": 0.0054,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "control",
+    "role": "control",
+    "angleDeg": -37,
+    "threshold": 0.0035,
+    "thresholdStandardY": 0.0082,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "l",
+    "role": "l",
+    "angleDeg": 11.1,
+    "threshold": 0.009,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "m",
+    "role": "m",
+    "angleDeg": -156.7241930523444,
+    "threshold": 0.0324,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "red-end",
+    "role": "red-end",
+    "angleDeg": 7.3,
+    "threshold": 0.009,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "blue-end",
+    "role": "blue-end",
+    "angleDeg": 108,
+    "threshold": 0.0053,
+    "thresholdStandardY": null,
+    "parentId": null,
+    "maxScale": 0.22
+   },
+   {
+    "id": "m:-",
+    "role": "refine",
+    "angleDeg": -177.32419305234438,
+    "threshold": 0.009,
+    "thresholdStandardY": null,
+    "parentId": "m",
+    "maxScale": 0.22
+   },
+   {
+    "id": "m:+",
+    "role": "refine",
+    "angleDeg": -136.1241930523444,
+    "threshold": 0.0122,
+    "thresholdStandardY": null,
+    "parentId": "m",
+    "maxScale": 0.22
+   }
+  ]
+ }
+}

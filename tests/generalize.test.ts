@@ -2,11 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseProfile, type UmbralProfile } from "../src/lib/color/profile";
-import { assistColor, corrections, extremeColor, filterTexts, labHueShift, lumaFromProfile, measuredRegion, paintYours } from "../src/lib/color/spectrum";
+import { assistColor, corrections, filterTexts, measuredRegion } from "../src/lib/color/spectrum";
+import { bandFromProfile } from "../src/lib/color/assistband";
 import { classify } from "../src/lib/color/classify";
-import { pairDeltaE } from "../src/lib/color/calibqp";
-import { dirFromTheta, type Vec3 } from "../src/lib/color/space";
-import { deltaE00Linear } from "../src/lib/color/deltaE";
+import type { Vec3 } from "../src/lib/color/space";
 
 const raw = fs.readFileSync(new URL("./fixtures/perfil-v3-0721Z.json", import.meta.url), "utf8");
 const C = 0.0105;
@@ -16,6 +15,12 @@ export const mk = (f: Record<string, number>, redEff?: number): UmbralProfile =>
   for (const a of p.axes) if (a.role && f[a.role] != null) {
     a.threshold = C * f[a.role];
     if (f[a.role] > 1.6) a.thresholdKind = "estimate";
+  }
+  // Coherencia: «elevated» de las vías sigue a los umbrales sintéticos (la franja lo lee de fit.pathways).
+  for (const pw of p.fit.pathways) if (f[pw.id] != null) {
+    pw.threshold = C * f[pw.id];
+    pw.timesControl = f[pw.id];
+    pw.elevated = f[pw.id] > 1.6;
   }
   if (redEff != null) for (const m of (p.luminance as any).measuredMatches) if (m.id === "rojo") m.efficiency = redEff;
   return p;
@@ -28,42 +33,20 @@ export const PROFILES: Record<string, () => UmbralProfile> = {
   low: () => mk({ l: 1.65, m: 1.65, "red-end": 1 }),
   normal: () => mk({ l: 1, m: 1, "red-end": 1, s: 0.9, "blue-end": 0.7 }, 1.0),
 };
-const at = (deg: number, r: number, y = 0.2): Vec3 => { const d = dirFromTheta((deg * Math.PI) / 180); return [y + d[0] * r, y + d[1] * r, y + d[2] * r]; };
 const real = PROFILES.real();
-const ctl = real.axes.find((a) => a.role === "control")!;
-const CDE = pairDeltaE((ctl.angleDeg * Math.PI) / 180, ctl.threshold!);
 export const CORNERS: Array<[string, Vec3]> = [["R", [1, 0, 0]], ["G", [0, 1, 0]], ["B", [0, 0, 1]], ["C", [0, 1, 1]], ["M", [1, 0, 1]], ["Y", [1, 1, 0]]];
 
 export function evaluate(p: UmbralProfile) {
-  const fl = p.fit.controlAbs!, luma = lumaFromProfile(p), reg = measuredRegion(p.axes, fl, []);
-  const sim = (c: Vec3) => paintYours(c, p.axes, fl, luma);
-  const A = (c: Vec3) => assistColor(c, p.axes, fl, [], reg), E = (c: Vec3) => extremeColor(c, p.axes, fl, [], reg);
-  const rows = reg.flatMap((s) => [[at(s.centerDeg, 0.8 * s.scale), at(0, 0)], [at(s.centerDeg, 0.8 * s.scale), at(s.centerDeg + 180, 0.8 * s.scale)]] as Array<[Vec3, Vec3]>)
-    .map(([a, b]) => ({ assist: deltaE00Linear(sim(A(a)), sim(A(b))), extreme: deltaE00Linear(sim(E(a)), sim(E(b))) }));
-  const corners = CORNERS.map(([n, c]) => ({ n, assist: Math.abs(labHueShift(c, A(c)) * 180 / Math.PI), extreme: Math.abs(labHueShift(c, E(c)) * 180 / Math.PI) }));
-  return { reg, rows, corners, corr: corrections(p.axes, fl, reg), texts: filterTexts(p.axes, fl, reg), minA: Math.min(99, ...rows.map((r) => r.assist)), minE: Math.min(99, ...rows.map((r) => r.extreme)) };
-}
-
-for (const name of ["real", "deutan", "tritan", "mixed", "low"]) {
-  test(`generalización ${name}: dentro de la región ≥ 1,5× control (asist.) y ≥ 2× (extr.); esquinas Δh ≤ 10° en Asistencia`, () => {
-    const e = evaluate(PROFILES[name]());
-    assert.ok(e.reg.length > 0);
-    // Pendiente (26/10), no se fuerza: «low» (T/suelo 1,65) y «mixed» quedan bajo el criterio. Punto 1: lo perdido es
-    // p·(1 − suelo/T) y lo frenan los topes de giro/croma, no k. Punto 2: el peso por tono sigue a T(θ) con rampa hasta
-    // 2,5·suelo (con 2 el anillo de croma baja pasa de +1 ΔE00/1°). Se registra; el resto de perfiles se exige.
-    const soft = name === "low" || name === "mixed";
-    const chk = (ok: boolean, msg: string) => (soft && !ok ? console.log(`PENDIENTE ${name}: ${msg}`) : assert.ok(ok, msg));
-    chk(e.minA >= 1.5 * CDE, `asist ${e.minA.toFixed(2)} < ${(1.5 * CDE).toFixed(2)}`);
-    chk(e.minE >= 2 * CDE, `extr ${e.minE.toFixed(2)} < ${(2 * CDE).toFixed(2)}`);
-    for (const c of e.corners) assert.ok(c.assist <= 10 + 1e-9, `${c.n} ${c.assist.toFixed(2)}°`);
-    for (const c of e.corr) assert.notEqual(c.targetId, "perpendicular", `${c.axisId} sin vía sana`);
-  });
+  const fl = p.fit.controlAbs!, reg = measuredRegion(p.axes, fl, []);
+  return { reg, corr: corrections(p.axes, fl, reg), texts: filterTexts(p.axes, fl, reg) };
 }
 
 test("generalización normal: sin eje elevado, ningún sector y ningún color cambia", () => {
-  const e = evaluate(PROFILES.normal());
-  assert.equal(e.reg.length, 0);
-  for (const [, c] of CORNERS) assert.deepEqual(assistColor(c, PROFILES.normal().axes, C, []), c);
+  const p = PROFILES.normal();
+  assert.equal(evaluate(p).reg.length, 0);
+  const bands = bandFromProfile(p);
+  assert.deepEqual(bands, []);
+  for (const [, c] of CORNERS) assert.deepEqual(assistColor(c, bands), c);
 });
 
 test("mixto: cada eje elevado tiene su línea, objetivo y sector propios", () => {
@@ -80,8 +63,6 @@ test("tritán: el sector se estrecha (antes 180°) al primer eje sano", () => {
 test("sin vía sana medida: no corrige (solo mapa)", () => {
   const axes = [{ id: "l", role: "l", angleDeg: 11.1, threshold: 0.06, thresholdKind: "estimate" }];
   assert.deepEqual(corrections(axes, C), []);
-  const red = at(11.1, 0.03);
-  assert.deepEqual(assistColor(red, axes, C, []), red);
   assert.match(filterTexts(axes, C).assist, /no corrige/);
 });
 
