@@ -8,22 +8,25 @@
 
   const stim = $derived(stimulusOf(session));
   const step = $derived(stim?.step);
-  let phase = $state<SwapPhase>("fadeOut");
+  let swap = $state<{ step: number | undefined; phase: SwapPhase }>({ step: undefined, phase: "fadeOut" });
+  /** Si el paso acaba de cambiar y el efecto aún no ha corrido, ya es fadeOut: el color nuevo nunca se pinta antes de tiempo. */
+  const phase = $derived<SwapPhase>(swap.step === step ? swap.phase : "fadeOut");
   /** Giro del disco partido; solo cambia durante el hold, con los dos campos en gris. No se guarda en el JSON. */
   let rotation = $state(0);
   const ready = $derived(acceptsResponse(phase));
 
   $effect(() => {
-    void step;
-    phase = "fadeOut";
+    const s = step;
+    const set = (p: SwapPhase) => (swap = { step: s, phase: p });
+    set("fadeOut");
     const at = swapStarts();
     const timers = [
       window.setTimeout(() => {
-        phase = "hold";
+        set("hold");
         rotation = profileRotation(Math.random(), Math.random());
       }, at.hold),
-      window.setTimeout(() => (phase = "fadeIn"), at.fadeIn),
-      window.setTimeout(() => (phase = "ready"), at.ready),
+      window.setTimeout(() => set("fadeIn"), at.fadeIn),
+      window.setTimeout(() => set("ready"), at.ready),
     ];
     return () => timers.forEach((t) => window.clearTimeout(t));
   });
