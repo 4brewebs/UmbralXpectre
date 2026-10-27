@@ -63,6 +63,9 @@ export default defineConfig({
   define: {
     __APP_BASE__: JSON.stringify(base),
     __APP_ENV__: JSON.stringify(process.env.VITE_APP_ENV === "qa" ? "qa" : "prod"),
+    __APP_STORAGE_ENV__: JSON.stringify(
+      process.env.VITE_APP_ENV === "qa" ? "qa" : process.env.VITE_APP_ENV === "stable" ? "stable" : "pro",
+    ),
     __APP_BRANCH__: JSON.stringify(git.branch),
     __APP_COMMIT__: JSON.stringify(git.commit),
   },
