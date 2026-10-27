@@ -54,3 +54,63 @@ test("el gris de la transición es exactamente el de anclaje (neutro, mismo bril
   const neutral = cssRgb(g);
   for (const p of ["fadeOut", "hold"] as const) assert.equal(swapFill(p, "rgb(1, 2, 3)", neutral), neutral);
 });
+
+import { EDGE_STAGE, edgeContracted, edgeLayout, edgeMinGap, edgeOffset, edgeRange } from "../src/lib/test/transition";
+
+function lcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+}
+
+test("bordes: posiciones aleatorias dentro del escenario, en su cuadrante y sin solaparse", () => {
+  const { min, max } = edgeRange();
+  for (let seed = 1; seed <= 2000; seed++) {
+    const l = edgeLayout(lcg(seed));
+    assert.equal(l.length, 4);
+    l.forEach((p, i) => {
+      assert.ok(Math.abs(p.x) >= min && Math.abs(p.x) <= max && Math.abs(p.y) >= min && Math.abs(p.y) <= max);
+      assert.equal(Math.sign(p.x), i % 2 ? 1 : -1);
+      assert.equal(Math.sign(p.y), i < 2 ? -1 : 1);
+      assert.ok(Math.abs(p.x) + EDGE_STAGE.disc / 2 <= EDGE_STAGE.size / 2);
+    });
+    assert.ok(edgeMinGap(l) >= EDGE_STAGE.gap - 1e-9, `seed ${seed}`);
+  }
+  // Extremos del generador.
+  assert.ok(edgeMinGap(edgeLayout(() => 0)) >= EDGE_STAGE.gap);
+  assert.ok(edgeMinGap(edgeLayout(() => 0.999999)) >= EDGE_STAGE.gap);
+});
+
+test("bordes: las posiciones cambian de un ensayo a otro", () => {
+  const r = lcg(42);
+  const a = edgeLayout(r), b = edgeLayout(r);
+  assert.notDeepEqual(a, b);
+});
+
+test("bordes: contraídas hacia el centro dejan hueco y no se tocan", () => {
+  const c = [0, 1, 2, 3].map((i) => edgeContracted(i));
+  assert.ok(edgeMinGap(c) >= EDGE_STAGE.centerGap - 1e-9);
+  const l = edgeLayout(lcg(7));
+  c.forEach((p, i) => assert.ok(Math.hypot(p.x, p.y) < Math.hypot(l[i].x, l[i].y)));
+});
+
+test("bordes: desplazamiento por fase y sin desplazamiento con movimiento reducido", () => {
+  const l = edgeLayout(lcg(3));
+  for (let i = 0; i < 4; i++) {
+    assert.deepEqual(edgeOffset("fadeOut", i, l, false), edgeContracted(i));
+    assert.deepEqual(edgeOffset("hold", i, l, false), edgeContracted(i));
+    assert.deepEqual(edgeOffset("fadeIn", i, l, false), l[i]);
+    assert.deepEqual(edgeOffset("ready", i, l, false), l[i]);
+    for (const ph of ["fadeOut", "hold", "fadeIn", "ready"] as const) assert.deepEqual(edgeOffset(ph, i, l, true), l[i]);
+  }
+});
+
+test("bordes: mismas fases que el perfil, solo se responde en listo", () => {
+  assert.equal(swapPhase(150), "fadeOut");
+  assert.equal(swapPhase(SWAP.fadeOut + SWAP.hold / 2), "hold");
+  assert.equal(swapPhase(SWAP.fadeOut + SWAP.hold + 10), "fadeIn");
+  assert.equal(swapPhase(SWAP.fadeOut + SWAP.hold + SWAP.fadeIn), "ready");
+  assert.deepEqual(SWAP_ORDER.filter(acceptsResponse), ["ready"]);
+  const gray = cssRgb(toSrgb8([ANCHOR, ANCHOR, ANCHOR]));
+  assert.equal(gray, "rgb(129 129 129)");
+  assert.equal(swapFill("hold", "rgb(1, 2, 3)", gray), gray);
+});
