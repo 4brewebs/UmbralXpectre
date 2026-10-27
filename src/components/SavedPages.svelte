@@ -3,7 +3,7 @@
   import type { UmbralProfile } from "@/lib/color/profile";
   import type { EdgeFile } from "@/lib/color/edges";
   import { loadEdges } from "@/lib/color/edgestore";
-  import { scopedStorage as ls } from "@/lib/env";
+  import { scopedStorage as ls } from "@/lib/storage";
   import type { Route } from "@/lib/router";
   import ImportJson from "./ImportJson.svelte";
 

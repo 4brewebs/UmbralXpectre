@@ -5,6 +5,7 @@
 declare const __APP_ENV__: string | undefined;
 declare const __APP_BRANCH__: string | undefined;
 declare const __APP_COMMIT__: string | undefined;
+declare const __APP_BASE__: string | undefined;
 
 export type AppEnv = "prod" | "qa";
 export interface BuildInfo {
@@ -21,14 +22,5 @@ export const BUILD: BuildInfo = {
 
 export const IS_QA = BUILD.env === "qa";
 
-/** Prefijo de claves de almacenamiento por entorno: QA no pisa los datos de producción. */
-export function storageKey(key: string, env: AppEnv = BUILD.env): string {
-  return env === "qa" ? `qa.${key}` : key;
-}
-
-/** localStorage con el prefijo del entorno. */
-export const scopedStorage = {
-  getItem: (key: string) => window.localStorage.getItem(storageKey(key)),
-  setItem: (key: string, value: string) => window.localStorage.setItem(storageKey(key), value),
-  removeItem: (key: string) => window.localStorage.removeItem(storageKey(key)),
-};
+/** Base de la build (la misma que import.meta.env.BASE_URL, vía `define`); fuera de Vite, "/". */
+export const BASE_URL: string = typeof __APP_BASE__ !== "undefined" && __APP_BASE__ ? __APP_BASE__ : "/";

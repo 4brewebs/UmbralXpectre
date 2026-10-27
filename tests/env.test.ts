@@ -1,13 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BUILD, storageKey } from "../src/lib/env";
+import { BUILD } from "../src/lib/env";
+import { storageKey } from "../src/lib/storage";
 import { motionUiOf, questPlusEnabled } from "../src/lib/color/motion2";
 import { makeSession } from "../src/lib/color/history";
 
-test("entorno: fuera de Vite es prod; QA prefija las claves con qa.", () => {
+test("entorno: fuera de Vite es prod; cada BASE_URL tiene su espacio de claves", () => {
   assert.equal(BUILD.env, "prod");
-  assert.equal(storageKey("umbral-profile-v3"), "umbral-profile-v3");
-  assert.equal(storageKey("umbral-profile-v3", "qa"), "qa.umbral-profile-v3");
+  assert.equal(storageKey("umbral-profile-v3"), "umbral@/:umbral-profile-v3");
+  assert.equal(storageKey("umbral-profile-v3", "/UmbralXpectre/qa/"), "umbral@/UmbralXpectre/qa/:umbral-profile-v3");
 });
 
 test("valores por defecto: prod sin flags = legacy y sin QUEST+; con fallback de QA = v3 y QUEST+; los flags mandan", () => {

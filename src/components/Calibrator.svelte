@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { BUILD, scopedStorage as ls } from "@/lib/env";
+  import { BUILD } from "@/lib/env";
+  import { scopedStorage as ls } from "@/lib/storage";
   import { onMount, untrack } from "svelte";
   import { answer, createSession, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
   import type { ConeId, EdgeFile } from "@/lib/color/edges";

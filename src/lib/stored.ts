@@ -1,5 +1,5 @@
 import { PROFILE_STORAGE_KEY, RETIRED_PROFILE_KEYS, parseProfile, type UmbralProfile } from "@/lib/color/profile";
-import { scopedStorage as ls } from "@/lib/env";
+import { scopedStorage as ls } from "@/lib/storage";
 
 /** Perfil guardado en localStorage (clave actual o retiradas). Sin formatos nuevos. */
 export function loadStored(): UmbralProfile | null {
