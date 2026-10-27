@@ -134,6 +134,16 @@
 
   const name = $derived(run.name);
   const showDiscs = $derived(asking && run.phase !== "done");
+
+  // Mientras dure el test, el mismo gris de anclaje cubre toda la pantalla (fondo del documento):
+  // sin marco cuadrado alrededor del escenario; el escenario de 288 px no cambia.
+  $effect(() => {
+    if (!showDiscs) return;
+    const els = [document.documentElement, document.body];
+    const prev = els.map((el) => el.style.backgroundColor);
+    for (const el of els) el.style.backgroundColor = GRAY;
+    return () => els.forEach((el, i) => (el.style.backgroundColor = prev[i]));
+  });
   const sector = $derived(searchBounds(run));
 </script>
 
