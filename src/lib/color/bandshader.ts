@@ -4,15 +4,23 @@
  * `bandShaderColor` es la traducción literal del GLSL a TS (misma secuencia de operaciones) para el test de paridad.
  */
 import { BAND_GAIN, type AssistBand } from "./assistband";
-import { BASIS, Y_COEF, type Vec3 } from "./space";
+import { BASIS, Y_COEF, linearToSrgbChannel, type Vec3 } from "./space";
 
 export const MAX_BANDS = 2;
 export const MAX_PTS = 16;
 /**
- * Solo cámara (Colorado 27/10): tope del empujón ampliado por el croma del píxel nítido, |d| ≤ CAMERA_PUSH_K · C en el
- * plano sin luminancia. Quita el ruido de sensor casi gris; la vía exacta (láminas, transformadas) no lleva tope.
+ * Solo cámara (Colorado 27/10, experimental): puerta sobre el empujón exacto, d · g(C̄), g = smoothstep(t0, 2·t0, C̄), con
+ * C̄ el croma medio guiado por brillo (CAMERA_GUIDE). Sin recorte por encima. t0 = percentil 99,9 de C̄ en grises con
+ * ruido ±3/255 (0,01245 lineal). Quita el ruido de sensor casi gris; la vía exacta (láminas, transformadas) no lleva puerta.
  */
-export const CAMERA_PUSH_K = 2;
+export const CAMERA_GATE_T0 = 0.01245;
+/**
+ * Croma que decide la puerta: C̄ = |media ponderada del vector de croma (plano sin luminancia)| en la ventana
+ * (2·radius+1)², peso exp(−Δg²/(2σ²)) con g = luma de los valores sRGB (0–1). Promediar el vector (y no |croma|) anula
+ * el ruido de sensor de signo aleatorio y deja intacto el croma de una zona lisa. 5×5 y σ = 0,1 tras medir (27/10):
+ * 3×3 deja grises ±3 en máx 7–8 (2,3 % > 3); |croma| escalar en máx 12–14 (19 % > 3) con cualquier radio y σ.
+ */
+export const CAMERA_GUIDE = { radius: 2, sigma: 0.1 };
 
 /** Uniforms del shader para unas franjas. Franjas de más o puntos de más se ignoran (hoy: 1 franja, 5 puntos). */
 export type BandUniforms = {
@@ -67,7 +75,7 @@ uniform vec3 uBasisV;
 uniform vec3 uLumY;
 uniform vec2 uGain;
 uniform float uTurnCap;
-uniform float uPushK;
+uniform float uGateT0;
 
 float modp(float a, float m) { return a - m * floor(a / m); }
 float ssBand(float x) { float c = clamp(x, 0.0, 1.0); return c * c * (3.0 - 2.0 * c); }
@@ -160,11 +168,10 @@ float bandInW(vec3 rgb) {
 }
 // Empujón ampliado d (ΔB = 0, ΔY_WU = 0) sobre el píxel nítido: 0 fuera de franja, escalado para no salir de la gama
 // (misma dirección, así que la luminancia WU y el azul se conservan) y, en Extremo, giro CIELAB ≤ uTurnCap.
-vec3 bandApply(vec3 rgb, vec3 d, float mode) {
+// gate: factor de la puerta de la cámara (0–1) sobre el empujón exacto.
+vec3 bandApply(vec3 rgb, vec3 d, float mode, float gate) {
   if (!(bandInW(rgb) > 0.0)) return rgb;
-  float C = length(rgb - dot(rgb, uLumY));
-  float dn = length(d - dot(d, uLumY));
-  float s = dn > uPushK * C ? uPushK * C / dn : 1.0;
+  float s = gate;
   for (int i = 0; i < 3; i++) {
     if (d[i] > 1e-9) s = min(s, (1.0 - rgb[i]) / d[i]);
     else if (d[i] < -1e-9) s = min(s, rgb[i] / -d[i]);
@@ -246,13 +253,9 @@ export function bandShaderColor(rgb: Vec3, u: BandUniforms, mode: 2 | 3): Vec3 {
 }
 
 /** Traducción literal de `bandApply` (GLSL) a TS. */
-export function bandApplyTs(rgb: Vec3, d: Vec3, u: BandUniforms, mode: 2 | 3, pushK = CAMERA_PUSH_K): Vec3 {
+export function bandApplyTs(rgb: Vec3, d: Vec3, u: BandUniforms, mode: 2 | 3, gate: number): Vec3 {
   if (!(bandInWTs(rgb, u) > 0)) return rgb;
-  const yc = rgb[0] * u.lumY[0] + rgb[1] * u.lumY[1] + rgb[2] * u.lumY[2];
-  const yd = d[0] * u.lumY[0] + d[1] * u.lumY[1] + d[2] * u.lumY[2];
-  const C = Math.hypot(rgb[0] - yc, rgb[1] - yc, rgb[2] - yc);
-  const dn = Math.hypot(d[0] - yd, d[1] - yd, d[2] - yd);
-  let s = dn > pushK * C ? (pushK * C) / dn : 1;
+  let s = gate;
   for (let i = 0; i < 3; i++) {
     if (d[i] > 1e-9) s = Math.min(s, (1 - rgb[i]) / d[i]);
     else if (d[i] < -1e-9) s = Math.min(s, rgb[i] / -d[i]);
@@ -305,56 +308,45 @@ function labTurnTs(a: Vec3, b: Vec3): number {
   return Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
 }
 
-/** Pase 1 por píxel: empujón de la Regla B con el tope de cámara |d| ≤ pushK · C (plano sin luminancia). */
-export function cameraPush(c: Vec3, u: BandUniforms, mode: 2 | 3, pushK = CAMERA_PUSH_K): Vec3 {
-  const o = bandShaderColor(c, u, mode);
-  const d: Vec3 = [o[0] - c[0], o[1] - c[1], o[2] - c[2]];
-  const yd = d[0] * u.lumY[0] + d[1] * u.lumY[1] + d[2] * u.lumY[2];
-  const yc = c[0] * u.lumY[0] + c[1] * u.lumY[1] + c[2] * u.lumY[2];
-  const dn = Math.hypot(d[0] - yd, d[1] - yd, d[2] - yd);
-  const lim = pushK * Math.hypot(c[0] - yc, c[1] - yc, c[2] - yc);
-  return dn > lim ? [d[0] * (lim / dn), d[1] * (lim / dn), d[2] * (lim / dn)] : d;
+export type CameraOptions = { t0?: number; radius?: number; sigma?: number };
+
+/** Puerta de la cámara: 0 si C̄ < t0, 1 si C̄ > 2·t0, smoothstep en medio (como smoothstep de GLSL). */
+export function cameraGate(cbar: number, t0 = CAMERA_GATE_T0): number {
+  const t = Math.min(1, Math.max(0, (cbar - t0) / t0));
+  return t * t * (3 - 2 * t);
 }
 
 /**
- * Cámara en dos pases, lo mismo que hace la GPU (referencia de CPU y fallback 2D):
- * 1. Empujón por píxel con la Regla B sobre la imagen nítida (sin suavizar antes), d = bandColor(c) − c, con el tope
- *    |d| ≤ CAMERA_PUSH_K · C de ese píxel (cameraPush), y media de los cuatro empujones de cada bloque 2×2 → campo a un cuarto de resolución (mitad por lado).
- * 2. Ese campo se amplía con filtrado bilineal (como `texture()` con LINEAR y CLAMP_TO_EDGE) y se suma al píxel nítido
- *    con `bandApply` (0 fuera de franja, tope |d| ≤ CAMERA_PUSH_K · C, gama, giro ≤ 60° en Extremo).
- * `lin`: RGB lineal intercalado (3 por píxel), filas de arriba abajo. Devuelve el mismo formato.
+ * Cámara a resolución completa, lo mismo que hace el shader (referencia de CPU y fallback 2D):
+ * empujón por píxel d = bandColor(c) − c (Regla B sin suavizar), y bandApply con la puerta d · g(C̄) (cameraGate), donde C̄ es la
+ * norma de la media del vector de croma en la ventana (2·radius+1)² con pesos exp(−Δg²/(2σ²)), g = luma de los valores
+ * sRGB (bordes por brillo respetados); ver CAMERA_GUIDE. Bordes de la imagen: CLAMP (como texelFetch con min/max).
+ * `lin`: RGB lineal intercalado (3 por píxel), filas de arriba abajo. `push`: d por color (para memo). Mismo formato de salida.
  */
-export function cameraFrame(lin: Float32Array, w: number, h: number, u: BandUniforms, mode: 2 | 3, push?: (c: Vec3) => Vec3, pushK = CAMERA_PUSH_K): Float32Array {
-  const pushOf = push ?? ((c: Vec3) => cameraPush(c, u, mode, pushK));
-  const hw = Math.ceil(w / 2), hh = Math.ceil(h / 2);
-  const field = new Float32Array(hw * hh * 3);
-  for (let j = 0; j < hh; j++) for (let i = 0; i < hw; i++) {
-    let r = 0, g = 0, b = 0;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-      const x = Math.min(w - 1, 2 * i + dx), y = Math.min(h - 1, 2 * j + dy), o = (y * w + x) * 3;
-      const d = pushOf([lin[o], lin[o + 1], lin[o + 2]]);
-      r += d[0]; g += d[1]; b += d[2];
-    }
-    const o = (j * hw + i) * 3;
-    field[o] = r / 4; field[o + 1] = g / 4; field[o + 2] = b / 4;
+export function cameraFrame(lin: Float32Array, w: number, h: number, u: BandUniforms, mode: 2 | 3, opts: CameraOptions = {}, push?: (c: Vec3) => Vec3): Float32Array {
+  const t0 = opts.t0 ?? CAMERA_GATE_T0, R = opts.radius ?? CAMERA_GUIDE.radius, sigma = opts.sigma ?? CAMERA_GUIDE.sigma;
+  const pushOf = push ?? ((c: Vec3) => { const o = bandShaderColor(c, u, mode); return [o[0] - c[0], o[1] - c[1], o[2] - c[2]] as Vec3; });
+  const n = w * h, V = new Float32Array(n * 3), g = new Float32Array(n);
+  for (let p = 0; p < n; p++) {
+    const r = lin[p * 3], gg = lin[p * 3 + 1], b = lin[p * 3 + 2];
+    const y = r * u.lumY[0] + gg * u.lumY[1] + b * u.lumY[2];
+    V[p * 3] = r - y; V[p * 3 + 1] = gg - y; V[p * 3 + 2] = b - y;
+    g[p] = linearToSrgbChannel(r) * u.lumY[0] + linearToSrgbChannel(gg) * u.lumY[1] + linearToSrgbChannel(b) * u.lumY[2];
   }
+  const inv = -1 / (2 * sigma * sigma);
   const out = new Float32Array(lin.length);
-  for (let y = 0; y < h; y++) {
-    const fy = ((y + 0.5) / h) * hh - 0.5, y0 = Math.floor(fy), ty = fy - y0;
-    const ya = Math.min(hh - 1, Math.max(0, y0)), yb = Math.min(hh - 1, Math.max(0, y0 + 1));
-    for (let x = 0; x < w; x++) {
-      const fx = ((x + 0.5) / w) * hw - 0.5, x0 = Math.floor(fx), tx = fx - x0;
-      const xa = Math.min(hw - 1, Math.max(0, x0)), xb = Math.min(hw - 1, Math.max(0, x0 + 1));
-      const d: Vec3 = [0, 0, 0];
-      for (let k = 0; k < 3; k++) {
-        const a = field[(ya * hw + xa) * 3 + k] * (1 - tx) + field[(ya * hw + xb) * 3 + k] * tx;
-        const b = field[(yb * hw + xa) * 3 + k] * (1 - tx) + field[(yb * hw + xb) * 3 + k] * tx;
-        d[k] = a * (1 - ty) + b * ty;
-      }
-      const o = (y * w + x) * 3;
-      const c = bandApplyTs([lin[o], lin[o + 1], lin[o + 2]], d, u, mode, pushK);
-      out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x, o = p * 3;
+    const c: Vec3 = [lin[o], lin[o + 1], lin[o + 2]];
+    if (!(bandInWTs(c, u) > 0)) { out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2]; continue; }
+    let sw = 0, vx = 0, vy = 0, vz = 0;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const q = Math.min(h - 1, Math.max(0, y + dy)) * w + Math.min(w - 1, Math.max(0, x + dx));
+      const dg = g[q] - g[p], wt = Math.exp(dg * dg * inv);
+      sw += wt; vx += wt * V[q * 3]; vy += wt * V[q * 3 + 1]; vz += wt * V[q * 3 + 2];
     }
+    const r = bandApplyTs(c, pushOf(c), u, mode, cameraGate(Math.hypot(vx, vy, vz) / sw, t0));
+    out[o] = r[0]; out[o + 1] = r[1]; out[o + 2] = r[2];
   }
   return out;
 }
