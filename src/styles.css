@@ -35,6 +35,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   * {
-    transition: none !important;
+    /* Sin movimiento, pero los fundidos de color se mantienen: cortarlos daría saltos bruscos de brillo. */
+    transition-property: background-color, fill !important;
   }
 }
