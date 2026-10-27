@@ -197,17 +197,7 @@ export type BandStep = {
   k: number;
   /** Máximo |ΔR| dentro de la gama en esa dirección. */
   cap: number;
-  /** Tope de |ΔR| por el croma del propio píxel: |empujón| ≤ PUSH_CAP_K · C (ver PUSH_CAP_K). Gris → 0. */
-  limit: number;
 };
-
-/**
- * Tope del empujón por croma: |empujón| (en el plano sin luminancia) ≤ PUSH_CAP_K · C, con C la distancia al gris del
- * propio píxel en ese plano. El paso (ΔR, −k·ΔR, 0) mide |ΔR|·√(1+k²) en el plano, así que |ΔR| ≤ K·C/√(1+k²).
- * Gris puro → 0; el ruido de sensor casi gris apenas se mueve. Misma constante en el shader y en reglaB.py.
- * K = 2 (tope fijado por Colorado 27/10): las láminas 5g solo quedan intactas con K ≥ 34; con K = 2 cambian.
- */
-export const PUSH_CAP_K = 2;
 
 /** Dónde cae el color en las franjas (la de mayor w). null fuera de toda franja o casi gris. */
 export function bandStep(rgb: Vec3, bands: AssistBand[]): BandStep | null {
@@ -222,8 +212,7 @@ export function bandStep(rgb: Vec3, bands: AssistBand[]): BandStep | null {
     const sign = Math.cos(((theta - band.phi) * Math.PI) / 180) >= 0 ? 1 : -1;
     const k = band.weights[0] / band.weights[1];
     const cap = Math.max(0, sign > 0 ? Math.min(1 - rgb[0], rgb[1] / k) : Math.min(rgb[0], (1 - rgb[1]) / k));
-    const limit = (PUSH_CAP_K * norm(plane)) / Math.hypot(1, k);
-    best = { band, sign, w, T, k, cap, limit };
+    best = { band, sign, w, T, k, cap };
   }
   return best;
 }
@@ -234,9 +223,9 @@ export function moveAlong(rgb: Vec3, step: BandStep, amount: number): Vec3 {
   return [rgb[0] + step.sign * m, rgb[1] - step.sign * m * step.k, rgb[2]];
 }
 
-/** Asistido por franja: |ΔR| = min(g · w · T(θ), tope por croma), recortado a la gama en su dirección. */
+/** Asistido por franja (vía exacta, la de las láminas 5g): |ΔR| = g · w · T(θ), recortado a la gama en su dirección. */
 export function bandShift(rgb: Vec3, bands: AssistBand[], g: number): Vec3 {
   const step = bandStep(rgb, bands);
   if (!step) return rgb;
-  return moveAlong(rgb, step, Math.min(g * step.w * step.T, step.limit));
+  return moveAlong(rgb, step, g * step.w * step.T);
 }

@@ -137,7 +137,6 @@ export function createFilter(
   gl.uniform3fv(gl.getUniformLocation(program, "uLumY"), u.lumY);
   gl.uniform2f(gl.getUniformLocation(program, "uGain"), u.gain.assist, u.gain.extreme);
   gl.uniform1f(gl.getUniformLocation(program, "uTurnCap"), u.turnCapRad);
-  gl.uniform1f(gl.getUniformLocation(program, "uPushK"), u.pushK);
   const modeLoc = gl.getUniformLocation(program, "uMode");
   return { program, videoTex, lutTex, modeLoc };
 }

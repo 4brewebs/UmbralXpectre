@@ -3,7 +3,7 @@
  * Sin LUT 3D: la franja depende del tono, que cambia muy deprisa cerca del gris, y una red 33³/65³ no la resuelve.
  * `bandShaderColor` es la traducción literal del GLSL a TS (misma secuencia de operaciones) para el test de paridad.
  */
-import { BAND_GAIN, PUSH_CAP_K, type AssistBand } from "./assistband";
+import { BAND_GAIN, type AssistBand } from "./assistband";
 import { BASIS, Y_COEF, type Vec3 } from "./space";
 
 export const MAX_BANDS = 2;
@@ -22,8 +22,6 @@ export type BandUniforms = {
   lumY: Vec3;
   gain: { assist: number; extreme: number };
   turnCapRad: number;
-  /** PUSH_CAP_K (tope del empujón por croma). */
-  pushK: number;
 };
 
 export function bandUniforms(bands: AssistBand[], extremeTurnDeg: number): BandUniforms {
@@ -48,7 +46,6 @@ export function bandUniforms(bands: AssistBand[], extremeTurnDeg: number): BandU
     lumY: [...Y_COEF] as Vec3,
     gain: { ...BAND_GAIN },
     turnCapRad: (extremeTurnDeg * Math.PI) / 180,
-    pushK: PUSH_CAP_K,
   };
 }
 
@@ -64,7 +61,6 @@ uniform vec3 uBasisU;
 uniform vec3 uBasisV;
 uniform vec3 uLumY;
 uniform vec2 uGain;
-uniform float uPushK;
 uniform float uTurnCap;
 
 float modp(float a, float m) { return a - m * floor(a / m); }
@@ -123,11 +119,10 @@ vec3 bandColor(vec3 rgb, float mode) {
   }
   if (bw <= 0.0) return rgb;
   float cap = max(0.0, bSign > 0.0 ? min(1.0 - rgb.r, rgb.g / bK) : min(rgb.r, (1.0 - rgb.g) / bK));
-  float lim = uPushK * C / sqrt(1.0 + bK * bK);
   vec3 dir = vec3(bSign, -bSign * bK, 0.0);
-  if (mode < 2.5) return rgb + dir * clamp(min(uGain.x * bw * bT, lim), 0.0, cap);
+  if (mode < 2.5) return rgb + dir * clamp(uGain.x * bw * bT, 0.0, cap);
   float base = min(cap, uGain.y * bw * bT);
-  float full = min(base + bw * (cap - base), lim);
+  float full = base + bw * (cap - base);
   vec3 outc = rgb + dir * clamp(full, 0.0, cap);
   if (labTurn(rgb, outc) <= uTurnCap) return outc;
   float lo2 = 0.0; float hi2 = full;
@@ -190,11 +185,10 @@ export function bandShaderColor(rgb: Vec3, u: BandUniforms, mode: 2 | 3): Vec3 {
   }
   if (bw <= 0) return rgb;
   const cap = Math.max(0, bSign > 0 ? Math.min(1 - rgb[0], rgb[1] / bK) : Math.min(rgb[0], (1 - rgb[1]) / bK));
-  const lim = (u.pushK * C) / Math.hypot(1, bK);
   const along = (m: number): Vec3 => { const a = Math.min(cap, Math.max(0, m)); return [rgb[0] + bSign * a, rgb[1] - bSign * bK * a, rgb[2]]; };
-  if (mode === 2) return along(Math.min(u.gain.assist * bw * bT, lim));
+  if (mode === 2) return along(u.gain.assist * bw * bT);
   const base = Math.min(cap, u.gain.extreme * bw * bT);
-  const full = Math.min(base + bw * (cap - base), lim);
+  const full = base + bw * (cap - base);
   if (turn(rgb, along(full)) <= u.turnCapRad) return along(full);
   let lo2 = 0, hi2 = full;
   for (let i = 0; i < 30; i++) {
