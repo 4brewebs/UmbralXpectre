@@ -4,7 +4,7 @@
   import type { EdgeFile } from "@/lib/color/edges";
   import { bandsFor, edgesReady, type FilterSource } from "@/lib/color/spectrum";
   import type { UmbralProfile } from "@/lib/color/profile";
-  import { cameraError, cpuMapper, createFilter, paint2d, shaderMode, type Facing, type View } from "./camera";
+  import { cameraError, cpuFrame, createFilter, paint2d, type Facing, type View } from "./camera";
 
   let { profile, edgeFiles = [] }: { profile: UmbralProfile; edgeFiles?: EdgeFile[] } = $props();
 
@@ -43,16 +43,15 @@
     // Asistencia y Extremo: píxel a píxel en el shader con las franjas del perfil (sin LUT); el LUT queda para el simulador.
     const bands = bandsFor(profile, edgeFiles);
     const filter = gl ? createFilter(gl, current, bands) : null;
-    const mappers: Partial<Record<View, ReturnType<typeof cpuMapper>>> = {};
-    const modeLoc = filter?.modeLoc ?? null;
+    const mappers: Partial<Record<View, ReturnType<typeof cpuFrame>>> = {};
 
     const draw = () => {
       if (stopped) return;
       frame = window.requestAnimationFrame(draw);
       if (el.readyState < 2 || el.videoWidth === 0) return;
       const mode = view; // lectura no rastreada (dentro de rAF), como viewRef
-      if (!gl || !filter || !modeLoc) {
-        if (!(mode in mappers)) mappers[mode] = cpuMapper(mode, current, bands);
+      if (!gl || !filter) {
+        if (!(mode in mappers)) mappers[mode] = cpuFrame(mode, current, bands);
         paint2d(cv, el, mappers[mode] ?? null);
         return;
       }
@@ -62,26 +61,14 @@
       if (cv.width !== w || cv.height !== h) {
         cv.width = w;
         cv.height = h;
-        gl.viewport(0, 0, w, h);
       }
-      gl.useProgram(filter.program);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_3D, filter.lutTex);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, filter.videoTex);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, el);
-      gl.uniform1f(modeLoc, shaderMode(mode));
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      filter.draw(el, mode, w, h);
     };
     frame = window.requestAnimationFrame(draw);
     return () => {
       stopped = true;
       window.cancelAnimationFrame(frame);
-      if (gl && filter) {
-        gl.deleteTexture(filter.videoTex);
-        gl.deleteTexture(filter.lutTex);
-        gl.deleteProgram(filter.program);
-      }
+      filter?.dispose();
     };
   });
 
