@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { scopedStorage as ls } from "@/lib/storage";
   import { answer, createSession, parseQpResume, QP_RESUME_KEY, type Judgment, type Session } from "@/lib/color/session";
   import type { ConeId, EdgeFile } from "@/lib/color/edges";
   import { attachLuminance, type LuminanceResult } from "@/lib/color/motion";
@@ -27,16 +28,16 @@
   function loadStored(): UmbralProfile | null {
     if (typeof window === "undefined") return null;
     try {
-      const current = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+      const current = ls.getItem(PROFILE_STORAGE_KEY);
       if (current) {
         const parsed = parseProfile(current);
         if (parsed) {
-          RETIRED_PROFILE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+          RETIRED_PROFILE_KEYS.forEach((key) => ls.removeItem(key));
           return parsed;
         }
       }
       for (const key of RETIRED_PROFILE_KEYS) {
-        const previous = window.localStorage.getItem(key);
+        const previous = ls.getItem(key);
         const parsed = previous ? parseProfile(previous) : null;
         if (parsed) return parsed;
       }
@@ -47,8 +48,8 @@
   }
 
   function persistProfile(profile: UmbralProfile) {
-    window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
-    RETIRED_PROFILE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+    ls.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    RETIRED_PROFILE_KEYS.forEach((key) => ls.removeItem(key));
   }
 
   // $state.raw: los objetos se reemplazan enteros, como con useState.
@@ -64,7 +65,7 @@
 
   onMount(() => {
     try {
-      motionUi = motionUiOf(window.location.search, window.localStorage.getItem(MOTION_V2_FLAG));
+      motionUi = motionUiOf(window.location.search, ls.getItem(MOTION_V2_FLAG));
     } catch {
       motionUi = "legacy";
     }
@@ -80,7 +81,7 @@
     let resume = null;
     if (Q) {
       try {
-        resume = parseQpResume(window.localStorage.getItem(QP_RESUME_KEY));
+        resume = parseQpResume(ls.getItem(QP_RESUME_KEY));
       } catch {
         resume = null;
       }
@@ -110,8 +111,8 @@
       if (next.questPlus) {
         // QUEST+: lo que el tope de 80 dejó abierto se guarda para seguir en otra sesión.
         try {
-          if (built.calibrationResume) window.localStorage.setItem(QP_RESUME_KEY, JSON.stringify(built.calibrationResume));
-          else window.localStorage.removeItem(QP_RESUME_KEY);
+          if (built.calibrationResume) ls.setItem(QP_RESUME_KEY, JSON.stringify(built.calibrationResume));
+          else ls.removeItem(QP_RESUME_KEY);
         } catch {
           /* sin almacenamiento: se sigue sin reanudar */
         }
