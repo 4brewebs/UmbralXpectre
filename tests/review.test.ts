@@ -50,7 +50,7 @@ test("repaso: pares igualados con los pesos personales, ε independiente y catch
   assert.equal(st.log.filter((t) => !t.catch).length, REVIEW.trialsPerAxis * 2);
   assert.ok(st.log.filter((t) => t.catch).length >= 4);
   assert.ok(st.log.some((t) => t.lumEps[0] !== t.lumEps[1]));
-  let s0 = createReview(withWeights(baseProfile()), Q, { lumNoise: false })!;
+  const s0 = createReview(withWeights(baseProfile()), Q, { lumNoise: false })!;
   const stim = reviewStimulus(s0)!;
   const y = (c: [number, number, number]) => fromSrgb8(c).reduce((t, v, i) => t + v * W[i], 0);
   assert.ok(Math.abs(y(stim.reference) - y(stim.comparison)) < 0.004);
