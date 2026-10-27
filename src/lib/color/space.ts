@@ -193,7 +193,7 @@ function gramSchmidt(a: Vec3, b: Vec3): { u: Vec3; v: Vec3 } {
   return { u, v };
 }
 
-const BASIS = gramSchmidt(killLuminance([1, 0, 0]), killLuminance([0, 0, 1]));
+export const BASIS = gramSchmidt(killLuminance([1, 0, 0]), killLuminance([0, 0, 1]));
 
 export function dirFromTheta(theta: number): Vec3 {
   const c = Math.cos(theta);

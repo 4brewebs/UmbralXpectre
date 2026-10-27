@@ -1,4 +1,8 @@
+import type { AssistBand } from "@/lib/color/assistband";
+import { BAND_GLSL, bandShaderColor, bandUniforms } from "@/lib/color/bandshader";
+import { fromSrgb8, toSrgb8 } from "@/lib/color/space";
 import { LUT_N, sampleLut, type FilterKind } from "@/lib/color/lut";
+import { EXTREME_TURN_DEG } from "@/lib/color/spectrum";
 
 export type View = "original" | FilterKind;
 export type Facing = "environment" | "user";
@@ -11,7 +15,11 @@ void main() {
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-const FRAG = `#version 300 es
+/**
+ * uMode: 0 original, 1 simulador (LUT 3D), 2 Asistencia y 3 Extremo, evaluados píxel a píxel con la Regla B
+ * (bandshader.ts, la misma fórmula que láminas y transformadas).
+ */
+export const FRAG = `#version 300 es
 precision highp float;
 precision highp sampler3D;
 in vec2 vUv;
@@ -20,13 +28,22 @@ uniform sampler3D uLut;
 uniform vec2 uLutFix;
 uniform float uMode;
 out vec4 fragColor;
+${BAND_GLSL}
+vec3 toLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }
+vec3 toSrgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(12.92 * c, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
 void main() {
   vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
   vec3 src = texture(uVideo, uv).rgb;
-  vec3 graded = texture(uLut, src * uLutFix.x + uLutFix.y).rgb;
-  float amount = uMode < 0.5 ? 0.0 : 1.0;
-  fragColor = vec4(mix(src, graded, amount), 1.0);
+  vec3 outc = src;
+  if (uMode > 1.5) outc = toSrgb(bandColor(toLinear(src), uMode));
+  else if (uMode > 0.5) outc = texture(uLut, src * uLutFix.x + uLutFix.y).rgb;
+  fragColor = vec4(outc, 1.0);
 }`;
+
+/** Modo del shader para una vista. */
+export function shaderMode(view: View): number {
+  return view === "original" ? 0 : view === "simulate" ? 1 : view === "assist" ? 2 : 3;
+}
 
 export function cameraError(error: unknown): string {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -48,6 +65,7 @@ function compile(gl: WebGL2RenderingContext, type: number, source: string): WebG
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.warn("shader de cámara:", gl.getShaderInfoLog(shader));
     gl.deleteShader(shader);
     return null;
   }
@@ -69,8 +87,9 @@ function uploadLut(gl: WebGL2RenderingContext, tex: WebGLTexture, lut: Uint8Arra
 
 export function createFilter(
   gl: WebGL2RenderingContext,
-  luts: Record<FilterKind, Uint8Array>,
-): { program: WebGLProgram; videoTex: WebGLTexture; lutTex: Record<FilterKind, WebGLTexture>; lutLoc: WebGLUniformLocation | null } | null {
+  simulatorLut: Uint8Array,
+  bands: AssistBand[],
+): { program: WebGLProgram; videoTex: WebGLTexture; lutTex: WebGLTexture; modeLoc: WebGLUniformLocation | null } | null {
   const vs = compile(gl, gl.VERTEX_SHADER, VERT);
   const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
   if (!vs || !fs) return null;
@@ -98,25 +117,50 @@ export function createFilter(
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-  const kinds = ["assist", "simulate", "extreme"] as const;
-  const lutTex = {} as Record<FilterKind, WebGLTexture>;
+  // Solo el simulador usa LUT 3D; Asistencia y Extremo van en el shader.
+  const lutTex = gl.createTexture();
+  if (!lutTex) return null;
   gl.activeTexture(gl.TEXTURE1);
-  for (const kind of kinds) {
-    const tex = gl.createTexture();
-    if (!tex) return null;
-    uploadLut(gl, tex, luts[kind]);
-    lutTex[kind] = tex;
-  }
+  uploadLut(gl, lutTex, simulatorLut);
 
   gl.useProgram(program);
-  const lutLoc = gl.getUniformLocation(program, "uLut");
   gl.uniform1i(gl.getUniformLocation(program, "uVideo"), 0);
-  gl.uniform1i(lutLoc, 1);
+  gl.uniform1i(gl.getUniformLocation(program, "uLut"), 1);
   gl.uniform2f(gl.getUniformLocation(program, "uLutFix"), (LUT_N - 1) / LUT_N, 0.5 / LUT_N);
-  return { program, videoTex, lutTex, lutLoc };
+  const u = bandUniforms(bands, EXTREME_TURN_DEG);
+  gl.uniform1i(gl.getUniformLocation(program, "uBandCount"), u.count);
+  gl.uniform1fv(gl.getUniformLocation(program, "uGeo"), u.geo);
+  gl.uniform1fv(gl.getUniformLocation(program, "uPx"), u.px);
+  gl.uniform1fv(gl.getUniformLocation(program, "uPy"), u.py);
+  gl.uniform3fv(gl.getUniformLocation(program, "uBasisU"), u.basisU);
+  gl.uniform3fv(gl.getUniformLocation(program, "uBasisV"), u.basisV);
+  gl.uniform3fv(gl.getUniformLocation(program, "uLumY"), u.lumY);
+  gl.uniform2f(gl.getUniformLocation(program, "uGain"), u.gain.assist, u.gain.extreme);
+  gl.uniform1f(gl.getUniformLocation(program, "uTurnCap"), u.turnCapRad);
+  gl.uniform1f(gl.getUniformLocation(program, "uPushK"), u.pushK);
+  const modeLoc = gl.getUniformLocation(program, "uMode");
+  return { program, videoTex, lutTex, modeLoc };
 }
 
-export function paint2d(canvas: HTMLCanvasElement, video: HTMLVideoElement, lut: Uint8Array | null, view: View) {
+/** Sin WebGL2: Asistencia y Extremo con la misma fórmula del shader (memo por color); el simulador por LUT. */
+export function cpuMapper(view: View, lut: Uint8Array | null, bands: AssistBand[]): ((r: number, g: number, b: number) => [number, number, number]) | null {
+  if (view === "original") return null;
+  if (view === "simulate") return lut ? (r, g, b) => sampleLut(lut, r, g, b) : null;
+  const u = bandUniforms(bands, EXTREME_TURN_DEG);
+  const mode = view === "assist" ? 2 : 3;
+  const memo = new Map<number, [number, number, number]>();
+  return (r, g, b) => {
+    const key = (r << 16) | (g << 8) | b;
+    let o = memo.get(key);
+    if (!o) {
+      o = toSrgb8(bandShaderColor(fromSrgb8([r, g, b]), u, mode));
+      memo.set(key, o);
+    }
+    return o;
+  };
+}
+
+export function paint2d(canvas: HTMLCanvasElement, video: HTMLVideoElement, map: ((r: number, g: number, b: number) => [number, number, number]) | null) {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx || video.videoWidth === 0) return;
   const scale = Math.min(1, 480 / video.videoWidth);
@@ -127,18 +171,14 @@ export function paint2d(canvas: HTMLCanvasElement, video: HTMLVideoElement, lut:
     canvas.height = h;
   }
   ctx.drawImage(video, 0, 0, w, h);
-  if (view === "original" || !lut) return;
+  if (!map) return;
   const frame = ctx.getImageData(0, 0, w, h);
   const px = frame.data;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      const [r, g, b] = sampleLut(lut, px[i], px[i + 1], px[i + 2]);
-      px[i] = r;
-      px[i + 1] = g;
-      px[i + 2] = b;
-    }
+  for (let i = 0; i < px.length; i += 4) {
+    const [r, g, b] = map(px[i], px[i + 1], px[i + 2]);
+    px[i] = r;
+    px[i + 1] = g;
+    px[i + 2] = b;
   }
   ctx.putImageData(frame, 0, 0);
 }
-

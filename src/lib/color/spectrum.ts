@@ -801,7 +801,7 @@ export function extremeColor(rgb: Vec3, bands: AssistBand[]): Vec3 {
   const step = bandStep(rgb, bands);
   if (!step) return rgb;
   const base = Math.min(step.cap, BAND_GAIN.extreme * step.w * step.T);
-  const full = (base + step.w * (step.cap - base)) * step.sat;
+  const full = Math.min(base + step.w * (step.cap - base), step.limit);
   const cap = (EXTREME_TURN_DEG * Math.PI) / 180;
   if (labHueShift(rgb, moveAlong(rgb, step, full)) <= cap) return moveAlong(rgb, step, full);
   let lo = 0;

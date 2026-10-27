@@ -1,18 +1,18 @@
 <script lang="ts">
   import { Camera, SwitchCamera } from "@lucide/svelte";
-  import { buildFilterLuts, type FilterKind } from "@/lib/color/lut";
+  import { buildSimulatorLut } from "@/lib/color/lut";
   import type { EdgeFile } from "@/lib/color/edges";
-  import { edgesReady, type FilterSource } from "@/lib/color/spectrum";
+  import { bandsFor, edgesReady, type FilterSource } from "@/lib/color/spectrum";
   import type { UmbralProfile } from "@/lib/color/profile";
-  import { cameraError, createFilter, paint2d, type Facing, type View } from "./camera";
+  import { cameraError, cpuMapper, createFilter, paint2d, shaderMode, type Facing, type View } from "./camera";
 
   let { profile, edgeFiles = [] }: { profile: UmbralProfile; edgeFiles?: EdgeFile[] } = $props();
 
   let canvas: HTMLCanvasElement | undefined = $state();
   let video: HTMLVideoElement | undefined = $state();
-  let profileLuts: Record<FilterKind, Uint8Array> | null = null;
-  let edgeLuts: Record<FilterKind, Uint8Array> | null = null;
-  let luts = $state.raw<Record<FilterKind, Uint8Array> | null>(null);
+  let profileLuts: Uint8Array | null = null;
+  let edgeLuts: Uint8Array | null = null;
+  let luts = $state.raw<Uint8Array | null>(null);
   let live = $state(false);
   let busy = $state(false);
   let message = $state<string | null>(null);
@@ -40,8 +40,11 @@
     let stopped = false;
     let frame = 0;
     const gl = cv.getContext("webgl2", { premultipliedAlpha: false, alpha: false });
-    const filter = gl ? createFilter(gl, current) : null;
-    const modeLoc = filter && gl ? gl.getUniformLocation(filter.program, "uMode") : null;
+    // Asistencia y Extremo: píxel a píxel en el shader con las franjas del perfil (sin LUT); el LUT queda para el simulador.
+    const bands = bandsFor(profile, edgeFiles);
+    const filter = gl ? createFilter(gl, current, bands) : null;
+    const mappers: Partial<Record<View, ReturnType<typeof cpuMapper>>> = {};
+    const modeLoc = filter?.modeLoc ?? null;
 
     const draw = () => {
       if (stopped) return;
@@ -49,7 +52,8 @@
       if (el.readyState < 2 || el.videoWidth === 0) return;
       const mode = view; // lectura no rastreada (dentro de rAF), como viewRef
       if (!gl || !filter || !modeLoc) {
-        paint2d(cv, el, mode === "original" ? null : current[mode], mode);
+        if (!(mode in mappers)) mappers[mode] = cpuMapper(mode, current, bands);
+        paint2d(cv, el, mappers[mode] ?? null);
         return;
       }
       const scale = Math.min(1, 1280 / el.videoWidth);
@@ -60,15 +64,13 @@
         cv.height = h;
         gl.viewport(0, 0, w, h);
       }
-      const kind: FilterKind = mode === "original" ? "assist" : mode;
       gl.useProgram(filter.program);
       gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_3D, filter.lutTex[kind]);
-      gl.uniform1i(filter.lutLoc, 1);
+      gl.bindTexture(gl.TEXTURE_3D, filter.lutTex);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, filter.videoTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, el);
-      gl.uniform1f(modeLoc, mode === "original" ? 0 : 1);
+      gl.uniform1f(modeLoc, shaderMode(mode));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     };
     frame = window.requestAnimationFrame(draw);
@@ -77,15 +79,13 @@
       window.cancelAnimationFrame(frame);
       if (gl && filter) {
         gl.deleteTexture(filter.videoTex);
-        gl.deleteTexture(filter.lutTex.assist);
-        gl.deleteTexture(filter.lutTex.simulate);
-        gl.deleteTexture(filter.lutTex.extreme);
+        gl.deleteTexture(filter.lutTex);
         gl.deleteProgram(filter.program);
       }
     };
   });
 
-  // Perfil o bordes nuevos: hay que volver a hornear las LUT.
+  // Perfil o bordes nuevos: hay que volver a hornear el LUT del simulador.
   $effect(() => {
     void profile;
     void edgeKey;
@@ -105,13 +105,13 @@
     };
   });
 
-  function baked(next: FilterSource): Record<FilterKind, Uint8Array> {
+  function baked(next: FilterSource): Uint8Array {
     if (next === "edges") {
-      if (!edgeLuts) edgeLuts = buildFilterLuts(profile, "edges", edgeFiles);
+      if (!edgeLuts) edgeLuts = buildSimulatorLut(profile, "edges", edgeFiles);
       return edgeLuts;
     }
     // Asistencia y Extremo usan siempre los bordes medidos; la fuente solo cambia el simulador.
-    if (!profileLuts) profileLuts = buildFilterLuts(profile, "profile", edgeFiles);
+    if (!profileLuts) profileLuts = buildSimulatorLut(profile, "profile", edgeFiles);
     return profileLuts;
   }
 

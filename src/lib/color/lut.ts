@@ -73,18 +73,11 @@ function bakeLattice(apply: (rgb: Vec3) => Vec3, capDeg?: number): Uint8Array {
 }
 
 /**
- * Las tres LUT de la cámara. Asistencia y Extremo: siempre la franja del perfil con sus bordes (`bandsFor`), igual que
- * las láminas y las transformadas. `source` solo elige el simulador (perfil o bordes).
+ * LUT 3D del simulador para la cámara. Asistencia y Extremo ya no se hornean: van píxel a píxel en el shader
+ * (bandshader.ts). `source` elige el simulador (perfil o bordes).
  */
-export function buildFilterLuts(
-  profile: UmbralProfile,
-  source: FilterSource = "profile",
-  files: EdgeFile[] = [],
-): Record<FilterKind, Uint8Array> {
-  const kinds: FilterKind[] = ["assist", "simulate", "extreme"];
-  const out = {} as Record<FilterKind, Uint8Array>;
-  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, source, files), QUANT_CAP_DEG[kind]);
-  return out;
+export function buildSimulatorLut(profile: UmbralProfile, source: FilterSource = "profile", files: EdgeFile[] = []): Uint8Array {
+  return bakeLattice((rgb) => colorFor("simulate", rgb, profile, source, files));
 }
 
 export type TransformFilter = {
