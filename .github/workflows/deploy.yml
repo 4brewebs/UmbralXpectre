@@ -1,12 +1,14 @@
 name: Deploy to GitHub Pages
 
-# Un solo sitio de Pages con dos builds:
-#   main    → raíz  (https://4brewebs.github.io/UmbralXpectre/)
-#   develop → /qa/  (https://4brewebs.github.io/UmbralXpectre/qa/), VITE_APP_ENV=qa
-# Un push a cualquiera de las dos ramas reconstruye y publica las dos.
+# Un solo sitio de Pages con tres builds:
+#   main      → raíz        (https://4brewebs.github.io/UmbralXpectre/)
+#   stable-v1 → /stable-v1/ (https://4brewebs.github.io/UmbralXpectre/stable-v1/), congelada
+#   develop   → /qa/        (https://4brewebs.github.io/UmbralXpectre/qa/), VITE_APP_ENV=qa
+# VITE_APP_ENV (pro | qa | stable) fija la coletilla de las claves de localStorage de cada build.
+# Un push a cualquiera de las tres ramas reconstruye y publica las tres.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, stable-v1]
   release:
     types: [published]
   workflow_dispatch:
@@ -32,6 +34,10 @@ jobs:
         with:
           ref: develop
           path: develop
+      - uses: actions/checkout@v4
+        with:
+          ref: stable-v1
+          path: stable-v1
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
@@ -39,6 +45,7 @@ jobs:
           cache-dependency-path: |
             main/package-lock.json
             develop/package-lock.json
+            stable-v1/package-lock.json
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
@@ -50,7 +57,7 @@ jobs:
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}/
           APP_BRANCH: main
-          VITE_APP_ENV: prod
+          VITE_APP_ENV: pro
       - name: Build develop (QA, /qa/)
         working-directory: develop
         run: |
@@ -60,6 +67,15 @@ jobs:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}/qa/
           APP_BRANCH: develop
           VITE_APP_ENV: qa
+      - name: Build stable-v1 (versión estable congelada, /stable-v1/)
+        working-directory: stable-v1
+        run: |
+          npm ci
+          APP_COMMIT=$(git rev-parse HEAD) npm run build
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}/stable-v1/
+          APP_BRANCH: stable-v1
+          VITE_APP_ENV: stable
       - name: Assemble site
         run: |
           mkdir -p site
@@ -67,6 +83,9 @@ jobs:
           rm -rf site/qa
           mkdir -p site/qa
           cp -r develop/dist/. site/qa/
+          rm -rf site/stable-v1
+          mkdir -p site/stable-v1
+          cp -r stable-v1/dist/. site/stable-v1/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
