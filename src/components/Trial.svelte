@@ -49,7 +49,7 @@
       <p class="text-sm text-muted">{stim.catch ? "Mira las dos, en reposo." : stim.refining ? "Afinando al lado" : `Eje ${Math.max(1, priors.findIndex((axis) => axis.id === session.activeId) + 1)} de ${stim.priorTotal}`}</p>
     </div>
     <p class="min-h-12 text-lg leading-snug text-fg" aria-live="polite">{ready ? session.note : "Pausa en gris. No juzgues el cambio."}</p>
-    <div class="mx-auto aspect-square w-full max-w-md rounded-full bg-stage p-5 sm:p-7">
+    <div class="mx-auto aspect-square w-full max-w-md relative rounded-full bg-stage p-5 sm:p-7">
       <!-- Campos siempre montados: el gris de anclaje y el color se funden con background-color (300 ms). -->
       <div
         class="grid h-full grid-cols-[1fr_0.55rem_1fr] overflow-hidden rounded-full"
@@ -63,6 +63,15 @@
         <div style:background-color={phase === "ready" || phase === "fadeIn" ? "var(--color-stage)" : neutral} style:transition={`background-color ${SWAP.fadeIn}ms linear`}></div>
         <div style:background-color={swapFill(phase, cssRgb(right), neutral)} style:transition={`background-color ${SWAP.fadeIn}ms linear`}></div>
       </div>
+      <!-- Círculo gris de anclaje por encima de todo el disco: tapa los bordes suavizados de las mitades (sin costura). Sube en fadeOut, 100 % en hold. -->
+      <div
+        aria-hidden="true"
+        data-testid="profile-veil"
+        class="pointer-events-none absolute inset-5 rounded-full sm:inset-7"
+        style:background-color={neutral}
+        style:opacity={phase === "fadeOut" || phase === "hold" ? 1 : 0}
+        style:transition={`opacity ${SWAP.fadeOut}ms linear`}
+      ></div>
     </div>
     <p class="text-center text-sm text-muted">Si solo notas el salto, son iguales.</p>
     <p class="text-center text-xs text-muted">Fíjate en el color, no en el brillo.</p>
