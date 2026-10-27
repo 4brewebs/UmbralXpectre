@@ -55,29 +55,45 @@ test("el gris de la transición es exactamente el de anclaje (neutro, mismo bril
   for (const p of ["fadeOut", "hold"] as const) assert.equal(swapFill(p, "rgb(1, 2, 3)", neutral), neutral);
 });
 
-import { EDGE_STAGE, edgeContracted, edgeLayout, edgeMinGap, edgeOffset, edgeRange } from "../src/lib/test/transition";
+import { EDGE_STAGE, edgeContracted, edgeLayout, edgeMinGap, edgeOffset, edgeFormation, edgeAngle } from "../src/lib/test/transition";
 
 function lcg(seed: number): () => number {
   let s = seed >>> 0;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
 }
 
-test("bordes: posiciones aleatorias dentro del escenario, en su cuadrante y sin solaparse", () => {
-  const { min, max } = edgeRange();
-  for (let seed = 1; seed <= 2000; seed++) {
-    const l = edgeLayout(lcg(seed));
+test("bordes: formación en cuadrado a distancia fija, dentro del escenario y sin tocarse con cualquier giro", () => {
+  const R = EDGE_STAGE.radius, half = EDGE_STAGE.size / 2, d = EDGE_STAGE.disc / 2;
+  assert.equal(R, 100);
+  const check = (l: ReturnType<typeof edgeFormation>, tag: string) => {
     assert.equal(l.length, 4);
-    l.forEach((p, i) => {
-      assert.ok(Math.abs(p.x) >= min && Math.abs(p.x) <= max && Math.abs(p.y) >= min && Math.abs(p.y) <= max);
-      assert.equal(Math.sign(p.x), i % 2 ? 1 : -1);
-      assert.equal(Math.sign(p.y), i < 2 ? -1 : 1);
-      assert.ok(Math.abs(p.x) + EDGE_STAGE.disc / 2 <= EDGE_STAGE.size / 2);
-    });
-    assert.ok(edgeMinGap(l) >= EDGE_STAGE.gap - 1e-9, `seed ${seed}`);
+    for (const p of l) {
+      assert.ok(Math.abs(Math.hypot(p.x, p.y) - R) < 0.02, tag);
+      assert.ok(Math.hypot(p.x, p.y) + d <= half, tag);
+      assert.ok(Math.abs(p.x) + d <= half && Math.abs(p.y) + d <= half, tag);
+    }
+    const g = edgeMinGap(l);
+    assert.ok(Math.abs(g - (R * Math.SQRT2 - EDGE_STAGE.disc)) < 0.05, `${tag} hueco ${g}`);
+    assert.ok(g >= EDGE_STAGE.gap, tag);
+  };
+  for (let deg = 0; deg < 360; deg += 0.5) check(edgeFormation(deg), `giro ${deg}`);
+  for (let seed = 1; seed <= 2000; seed++) check(edgeLayout(lcg(seed)), `seed ${seed}`);
+  assert.ok(Math.abs(edgeMinGap(edgeFormation(0)) - 69.42) < 0.05);
+});
+
+test("bordes: giro uniforme en [0, 360) y orden de las piezas conservado (separadas 90°)", () => {
+  assert.equal(edgeAngle(() => 0), 0);
+  assert.ok(edgeAngle(() => 0.999999) < 360);
+  const bins = new Array(8).fill(0), r = lcg(11);
+  for (let i = 0; i < 8000; i++) { const a = edgeAngle(r); assert.ok(a >= 0 && a < 360); bins[Math.floor(a / 45)]++; }
+  bins.forEach((n) => assert.ok(n > 800 && n < 1200, `${bins}`));
+  const l = edgeFormation(0);
+  l.forEach((p, i) => { assert.equal(Math.sign(p.x), i % 2 ? 1 : -1); assert.equal(Math.sign(p.y), i < 2 ? -1 : 1); });
+  for (const deg of [17, 123, 301]) {
+    const ang = edgeFormation(deg).map((p) => Math.atan2(p.y, p.x) * 180 / Math.PI);
+    const base = l.map((p) => Math.atan2(p.y, p.x) * 180 / Math.PI);
+    ang.forEach((a, i) => { const dlt = (((a - base[i] - deg) % 360) + 540) % 360 - 180; assert.ok(Math.abs(dlt) < 0.05); });
   }
-  // Extremos del generador.
-  assert.ok(edgeMinGap(edgeLayout(() => 0)) >= EDGE_STAGE.gap);
-  assert.ok(edgeMinGap(edgeLayout(() => 0.999999)) >= EDGE_STAGE.gap);
 });
 
 test("bordes: las posiciones cambian de un ensayo a otro", () => {

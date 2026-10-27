@@ -44,10 +44,11 @@ export function profileRotation(u1: number, u2: number, min: number = PROFILE_RO
 
 /**
  * Test de bordes (cuadrícula 2×2). Medidas en px CSS respecto al centro del escenario cuadrado.
- * Cada pieza vive en su cuadrante: |x|, |y| ∈ [min, max]. Con min ≥ (disco + hueco)/2, dos piezas
- * de cuadrantes distintos quedan separadas al menos por `gap` en x o en y: nunca se tocan.
+ * Las 4 piezas forman un cuadrado: centros a `radius` del centro, separados 90°. Solo es aleatorio el giro
+ * de la formación entera. Con radius 100: disco a 8 px del borde con cualquier giro (100 + 36 = 136 ≤ 144)
+ * y hueco entre vecinas 100·√2 − 72 ≈ 69 px.
  */
-export const EDGE_STAGE = { size: 288, disc: 72, gap: 16, centerGap: 8 } as const;
+export const EDGE_STAGE = { size: 288, disc: 72, gap: 16, centerGap: 8, radius: 100 } as const;
 
 export type Offset = { x: number; y: number };
 
@@ -59,16 +60,21 @@ const QUAD: readonly Offset[] = [
   { x: 1, y: 1 },
 ];
 
-/** Rango de |x| y |y| del centro de una pieza en reposo. */
-export function edgeRange(st: typeof EDGE_STAGE = EDGE_STAGE): { min: number; max: number } {
-  return { min: (st.disc + st.gap) / 2, max: st.size / 2 - st.disc / 2 };
+/** Posiciones de la formación girada `deg` grados: cada pieza conserva su lugar en el orden (giro 0 = su cuadrante en diagonal). */
+export function edgeFormation(deg: number, st: typeof EDGE_STAGE = EDGE_STAGE): Offset[] {
+  const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t), k = st.radius / Math.SQRT2;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return QUAD.map((q) => ({ x: r2((q.x * c - q.y * s) * k), y: r2((q.x * s + q.y * c) * k) }));
 }
 
-/** Posiciones nuevas aleatorias (una por pieza) a partir de un generador uniforme en [0, 1). */
+/** Giro uniforme en [0, 360) a partir de un generador uniforme en [0, 1). */
+export function edgeAngle(rand: () => number): number {
+  return (Math.min(Math.max(rand(), 0), 1) * 360) % 360;
+}
+
+/** Posiciones nuevas: la formación fija con un giro aleatorio. */
 export function edgeLayout(rand: () => number, st: typeof EDGE_STAGE = EDGE_STAGE): Offset[] {
-  const { min, max } = edgeRange(st);
-  const pick = () => Math.round(min + (max - min) * Math.min(Math.max(rand(), 0), 1));
-  return QUAD.map((q) => ({ x: q.x * pick(), y: q.y * pick() }));
+  return edgeFormation(edgeAngle(rand), st);
 }
 
 /** Posición contraída hacia el centro (fin del fundido y gris quieto): las piezas dejan `centerGap` entre ellas. */
