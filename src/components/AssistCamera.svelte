@@ -110,7 +110,8 @@
       if (!edgeLuts) edgeLuts = buildFilterLuts(profile, "edges", edgeFiles);
       return edgeLuts;
     }
-    if (!profileLuts) profileLuts = buildFilterLuts(profile);
+    // Asistencia y Extremo usan siempre los bordes medidos; la fuente solo cambia el simulador.
+    if (!profileLuts) profileLuts = buildFilterLuts(profile, "profile", edgeFiles);
     return profileLuts;
   }
 

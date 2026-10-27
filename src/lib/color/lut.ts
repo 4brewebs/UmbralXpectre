@@ -1,9 +1,9 @@
 import type { UmbralProfile } from "./profile";
 import { LOSS_RAMP, lossPoints } from "./lossmap";
-import { ADAPTIVE, adaptiveColor, GAMUT_SOFT, KNOWN_LIMITATIONS, PROVISIONAL_NOTE, REGION, assistColor, measuredRegion, type Sector, colorFor, extremeColor, filterTexts, lumaFromProfile, paintYours, type FilterSource } from "./spectrum";
+import { BAND_GAIN, type AssistBand } from "./assistband";
+import { EXTREME_TURN_DEG, assistColor, bandsFor, colorFor, extremeColor, filterTexts, labHueShift, measuredRegion, type FilterSource } from "./spectrum";
 import type { EdgeFile } from "./edges";
 import { linearToSrgbChannel, type Vec3 } from "./space";
-import { labHueShift } from "./spectrum";
 
 /** Lattice per channel. 33³ is the usual film size: smooth enough, cheap to bake. */
 export const LUT_N = 33;
@@ -14,18 +14,12 @@ function srgbToLinear(c: number): number {
   return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
 }
 
-const APPLY: Record<
-  FilterKind,
-  (rgb: Vec3, axes: UmbralProfile["axes"], floor: number, luma: ReturnType<typeof lumaFromProfile>) => Vec3
-> = {
-  assist: assistColor,
-  simulate: paintYours,
-  extreme: extremeColor,
-};
-
-
-/** Giro CIELAB máximo tras cuantizar (Lucas, 26/10): 45° Asistencia, 60° Extremo; el simulador no tiene tope. */
-export const QUANT_CAP_DEG: Partial<Record<string, number>> = { assist: 45, extreme: 60 };
+/**
+ * Giro CIELAB máximo tras cuantizar: 60° el Extremo (Lucas, 26/10). La Asistencia por franja ya no lleva tope (era
+ * 45° con la daltonización): la Regla B validada a ciegas no lo tiene y así la cámara coincide con láminas y Python.
+ * El simulador no tiene tope.
+ */
+export const QUANT_CAP_DEG: Partial<Record<string, number>> = { extreme: EXTREME_TURN_DEG };
 
 /**
  * Cuantiza `out` a 8 bits y, si el byte resultante gira más que `capDeg` respecto al nodo de entrada (también en
@@ -78,29 +72,18 @@ function bakeLattice(apply: (rgb: Vec3) => Vec3, capDeg?: number): Uint8Array {
   return data;
 }
 
-export function buildFilterLut(profile: UmbralProfile, kind: FilterKind): Uint8Array {
-  return bakeLattice((rgb) => {
-    const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
-    const luma = lumaFromProfile(profile);
-    return APPLY[kind](rgb, profile.axes, floor, luma);
-  }, QUANT_CAP_DEG[kind]);
-}
-
+/**
+ * Las tres LUT de la cámara. Asistencia y Extremo: siempre la franja del perfil con sus bordes (`bandsFor`), igual que
+ * las láminas y las transformadas. `source` solo elige el simulador (perfil o bordes).
+ */
 export function buildFilterLuts(
   profile: UmbralProfile,
   source: FilterSource = "profile",
   files: EdgeFile[] = [],
 ): Record<FilterKind, Uint8Array> {
-  if (source === "profile") {
-    return {
-      assist: buildFilterLut(profile, "assist"),
-      simulate: buildFilterLut(profile, "simulate"),
-      extreme: buildFilterLut(profile, "extreme"),
-    };
-  }
   const kinds: FilterKind[] = ["assist", "simulate", "extreme"];
   const out = {} as Record<FilterKind, Uint8Array>;
-  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, "edges", files), QUANT_CAP_DEG[kind]);
+  for (const kind of kinds) out[kind] = bakeLattice((rgb) => colorFor(kind, rgb, profile, source, files), QUANT_CAP_DEG[kind]);
   return out;
 }
 
@@ -113,21 +96,10 @@ export type TransformFilter = {
   note: string;
   /** RGB bytes, r fastest, then g, then b. Omitted when the filter is identity. */
   bytes?: string;
-  /** Ganancia adaptativa por color (Asistencia/Extremo): factor k sobre la ganancia calibrada y nodos que no llegan a la meta. */
-  adaptive?: {
-    metric: string;
-    target: number;
-    activeNodes: number;
-    kMean: number;
-    kMax: number;
-    limitedNodes: number;
-    /** «limitado por tope» si algún nodo se quedó en el máximo permitido sin llegar a la meta. */
-    status: "limitado por tope" | "meta alcanzada";
-  };
 };
 
 export type TransformFile = {
-  schema: "umbral.transforms.v1";
+  schema: "umbral.transforms.v2";
   basedOn: {
     schema: UmbralProfile["schema"];
     createdAt: string;
@@ -144,17 +116,35 @@ export type TransformFile = {
   gate: number;
   /** Parámetros de Asistencia/Extremo con los que se hornearon los nodos (ausente en archivos anteriores). */
   params?: {
-    mask: "región medida";
-    region: Sector[];
-    provisional: boolean;
-    regionSoft: { edgeDeg: number; edgeDegExtreme: number; scaleTimes: number; provisionalGain: number };
-    gamutSoft: number;
+    mask: "franja medida";
+    /** Franjas calculadas al cargar (no se guardan en el perfil). */
+    bands: Array<{ via: string; phiDeg: number; confusionDeg: number; coreDeg: [number, number]; zeroBeyondDeg: [number, number]; core: AssistBand["core"]; tControl: number; weights: Vec3 }>;
+    gain: { assist: number; extreme: number };
+    extremeTurnCapDeg: number;
     notes: string[];
     /** Zonas de confusión: diagnóstico en grises, no se hornea ni se aplica como filtro. */
     lossMap?: { name: string; kind: "grises"; ratio: string; scale: "log"; lStar: [number, number]; estimated: string; points: Array<{ deg: number; ratio: number }> };
   };
   filters: TransformFilter[];
+  /** Solo en archivos migrados desde v1: los parámetros del filtro por región, tal cual (no se aplican). */
+  legacyParamsV1?: unknown;
 };
+
+/**
+ * Carga un archivo de transformaciones v1 o v2 y lo devuelve en v2. En v1, `params` tenía la forma
+ * del filtro por región (mask «región medida», region, regionSoft…): se conserva en `legacyParamsV1`
+ * y `params` queda ausente. Nodos y filtros no cambian de forma. null si no es un archivo válido.
+ */
+export function parseTransformFile(raw: unknown): TransformFile | null {
+  const parsed = typeof raw === "string" ? (() => { try { return JSON.parse(raw) as unknown; } catch { return null; } })() : raw;
+  if (!parsed || typeof parsed !== "object") return null;
+  const f = parsed as Record<string, unknown>;
+  if (typeof f.size !== "number" || !Array.isArray(f.filters)) return null;
+  if (f.schema === "umbral.transforms.v2") return f as unknown as TransformFile;
+  if (f.schema !== "umbral.transforms.v1") return null;
+  const { params, ...rest } = f;
+  return { ...(rest as unknown as Omit<TransformFile, "schema" | "params">), schema: "umbral.transforms.v2", ...(params === undefined ? {} : { legacyParamsV1: params }) };
+}
 
 const GATE = 1.6;
 
@@ -164,47 +154,33 @@ const GATE = 1.6;
  */
 export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = []): TransformFile {
   const floor = profile.fit.controlAbs && profile.fit.controlAbs > 0 ? profile.fit.controlAbs : 0.02;
-  const luma = lumaFromProfile(profile);
   const axes = profile.axes;
-  const region = measuredRegion(axes, floor, edges);
-  const texts = filterTexts(axes, floor, region);
-  const specs: Array<{
-    id: TransformFilter["id"];
-    name: string;
-    note: string;
-    apply: ((rgb: Vec3) => Vec3) | null;
-    /** Extremo (true) o Asistencia (false): se hornea con adaptiveColor y se resume en `adaptive`. */
-    adaptive?: boolean;
-  }> = [
-    {
-      id: "original",
-      name: "Sin filtro",
-      note: "No cambia ningún color.",
-      apply: null,
-    },
-    {
-      id: "simulate",
-      name: "Simulador",
-      note: texts.simulate,
-      apply: (rgb) => paintYours(rgb, axes, floor, luma),
-    },
+  const texts = filterTexts(axes, floor, measuredRegion(axes, floor, edges));
+  const bands = bandsFor(profile, edges);
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const none = "Sin vía elevada con franja medida: no cambia ningún color.";
+  const specs: Array<{ id: TransformFilter["id"]; name: string; note: string; apply: ((rgb: Vec3) => Vec3) | null }> = [
+    { id: "original", name: "Sin filtro", note: "No cambia ningún color.", apply: null },
+    { id: "simulate", name: "Simulador", note: texts.simulate, apply: (rgb) => colorFor("simulate", rgb, profile, "profile", edges) },
     {
       id: "assist",
       name: "Asistencia",
-      note: texts.assist,
-      apply: (rgb) => assistColor(rgb, axes, floor, luma, region),
-      adaptive: false,
+      note: bands.length
+        ? `Asistido por franja: en la franja que no separas mueve rojo y verde en sentidos opuestos (|ΔR| = ${BAND_GAIN.assist}·w·T(θ)), con tu luminancia y el azul iguales. Fuera de la franja, cambio 0.`
+        : none,
+      apply: (rgb) => assistColor(rgb, bands),
     },
     {
       id: "extreme",
       name: "Extremo",
-      note: texts.extreme,
-      apply: (rgb) => extremeColor(rgb, axes, floor, luma, region),
-      adaptive: true,
+      note: bands.length
+        ? `La misma dirección que la asistencia con ganancia ${BAND_GAIN.extreme}, ampliada hacia el borde del gamut; giro ≤ ${EXTREME_TURN_DEG}°.`
+        : none,
+      apply: (rgb) => extremeColor(rgb, bands),
     },
   ];
   return {
-    schema: "umbral.transforms.v1",
+    schema: "umbral.transforms.v2",
     basedOn: { schema: profile.schema, createdAt: profile.createdAt },
     space: "sRGB 8-bit. Cada nodo es el color de salida de ese filtro.",
     size: LUT_N,
@@ -213,12 +189,14 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
     floor: Math.round(floor * 10000) / 10000,
     gate: GATE,
     params: {
-      mask: "región medida",
-      region,
-      provisional: region.some((sector) => sector.provisional),
-      regionSoft: { edgeDeg: REGION.edgeSoftDeg, edgeDegExtreme: REGION.edgeSoftDegExtreme, scaleTimes: 1 + REGION.scaleSoft, provisionalGain: REGION.provisionalGain },
-      gamutSoft: GAMUT_SOFT,
-      notes: [...KNOWN_LIMITATIONS, ...(region.some((sector) => sector.provisional) ? [PROVISIONAL_NOTE] : [])],
+      mask: "franja medida",
+      bands: bands.map((b) => ({ via: b.via, phiDeg: r2(b.phi), confusionDeg: r2(b.confusionDeg), coreDeg: [r2(b.lo), r2(b.hi)], zeroBeyondDeg: [r2(b.z0), r2(b.z1)], core: b.core, tControl: b.tControl, weights: b.weights })),
+      gain: { ...BAND_GAIN },
+      extremeTurnCapDeg: EXTREME_TURN_DEG,
+      notes: [
+        "solo la vía l por ahora; núcleo = bordes medidos (o log d ≥ ½·log d del eje), caída smoothstep hasta los vecinos medidos y cambio 0 más allá",
+        "la simulación («Tu visión») es solo ilustración; no decide qué se modifica",
+      ],
       lossMap: {
         name: "Zonas de confusión",
         kind: "grises",
@@ -229,47 +207,12 @@ export function buildTransformFile(profile: UmbralProfile, edges: EdgeFile[] = [
         points: lossPoints(profile, edges).points.map((p) => ({ deg: Math.round(p.deg * 100) / 100, ratio: Math.round(p.ratio * 1000) / 1000 })),
       },
     },
-    filters: specs.map((spec) => {
-      if (spec.adaptive == null) return bakeFilter(spec, floor);
-      const extreme = spec.adaptive;
-      const stats = { active: 0, sum: 0, max: 0, limited: 0 };
-      const baked = bakeFilter(
-        {
-          ...spec,
-          apply: (rgb) => {
-            const res = adaptiveColor(rgb, axes, floor, extreme, region);
-            if (res.active) {
-              stats.active++;
-              stats.sum += res.k;
-              stats.max = Math.max(stats.max, res.k);
-              if (res.limited) stats.limited++;
-            }
-            return res.out;
-          },
-        },
-        floor,
-      );
-      const r2 = (x: number) => Math.round(x * 100) / 100;
-      return {
-        ...baked,
-        ...(stats.limited ? { note: `${baked.note} Limitado por tope en ${stats.limited} nodos: se aplica el máximo permitido.` } : {}),
-        adaptive: {
-          metric: "|diferencia| / (2 · T(ángulo de la diferencia)), T interpolado en log como «Zonas de confusión»",
-          target: extreme ? ADAPTIVE.targetExtreme : ADAPTIVE.target,
-          activeNodes: stats.active,
-          kMean: stats.active ? r2(stats.sum / stats.active) : 0,
-          kMax: r2(stats.max),
-          limitedNodes: stats.limited,
-          status: stats.limited ? "limitado por tope" : "meta alcanzada",
-        },
-      };
-    }),
+    filters: specs.map((spec) => bakeFilter(spec)),
   };
 }
 
 function bakeFilter(
   spec: { id: TransformFilter["id"]; name: string; note: string; apply: ((rgb: Vec3) => Vec3) | null },
-  _floor: number,
 ): TransformFilter {
   if (!spec.apply) {
     return { id: spec.id, name: spec.name, encoding: "identity", changed: 0, note: spec.note };
